@@ -199,5 +199,13 @@ def serve_react_app(path):
     else:
         return send_from_directory(build_dir, 'index.html')
 
+print(f"[DEBUG] FLASK_ENV: {os.getenv('FLASK_ENV')}")
+print(f"[DEBUG] ALLOWED_ORIGINS: {allowed_origins}")
+print(f"[DEBUG] JWT_COOKIE_DOMAIN: {app.config['JWT_COOKIE_DOMAIN']}")
+print(f"[DEBUG] JWT_COOKIE_SAMESITE: {app.config['JWT_COOKIE_SAMESITE']}")
+print(f"[DEBUG] JWT_COOKIE_SECURE: {app.config['JWT_COOKIE_SECURE']}")
+print(f"[DEBUG] JWT_COOKIE_HTTPONLY: {app.config['JWT_COOKIE_HTTPONLY']}")
+print(f"[DEBUG] JWT_COOKIE_CSRF_PROTECT: {app.config['JWT_COOKIE_CSRF_PROTECT']}")
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
