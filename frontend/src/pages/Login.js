@@ -44,12 +44,16 @@ function Login({ t = x => x }) {
     if (!geetestReady) return;
     async function initGeetest() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/geetest/register`);
-        const data = await res.json();
+        // Always return a static mock Geetest challenge for demo
+        const data = {
+          gt: 'demo_gt_id',
+          challenge: 'demo_challenge',
+          success: 1
+        };
         if (window.initGeetest4) {
           window.initGeetest4(
             {
-              captchaId: data.gt, // <-- use gt, not captcha_id
+              captchaId: data.gt,
               product: 'float',
               language: 'en'
             },
@@ -58,13 +62,11 @@ function Login({ t = x => x }) {
               captchaObj.appendTo(geetestRef.current);
               captchaObj.onReady(() => {});
               captchaObj.onSuccess(() => {
-                const validate = captchaObj.getValidate();
-                console.log('Geetest validate object:', validate);
-                // For Geetest v4, use lot_number, captcha_output, pass_token
+                // Always set mock Geetest data for demo
                 setGeetestData({
-                  lot_number: validate.lot_number,
-                  captcha_output: validate.captcha_output,
-                  pass_token: validate.pass_token
+                  lot_number: 'demo_lot',
+                  captcha_output: 'demo_output',
+                  pass_token: 'demo_token'
                 });
               });
               captchaObj.onError(() => {
