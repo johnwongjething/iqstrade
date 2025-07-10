@@ -128,6 +128,7 @@ def upload_file():
     from extract_fields import extract_fields
     from email_utils import send_simple_email
     from config import EmailConfig
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure upload dir exists
     user = json.loads(get_jwt_identity())
     username = user['username']
     try:
