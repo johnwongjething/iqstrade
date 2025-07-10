@@ -29,8 +29,11 @@ allowed_origins = []
 if os.getenv('ALLOWED_ORIGINS'):
     prod_domains = [origin.strip() for origin in os.getenv('ALLOWED_ORIGINS').split(',') if origin.strip()]
     allowed_origins.extend(prod_domains)
-local_domains = ['http://localhost:3000', 'http://127.0.0.1:3000']
-allowed_origins.extend(local_domains)
+
+# Only add local domains if running locally
+if os.getenv('FLASK_ENV', '').lower() == 'development':
+    local_domains = ['http://localhost:3000', 'http://127.0.0.1:3000']
+    allowed_origins.extend(local_domains)
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
 
