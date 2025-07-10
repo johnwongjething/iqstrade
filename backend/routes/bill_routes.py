@@ -772,11 +772,16 @@ def account_bills():
                         completed_dt = None
                 if completed_dt and completed_dt.tzinfo is None:
                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date and not is_85:
+            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date:
                 bill['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
                 bill['display_service_fee'] = round(service_fee * 0.15, 2)
                 total_reserve_ctn += bill['display_ctn_fee']
                 total_reserve_service += bill['display_service_fee']
+            else:
+                # If no reserve applies, ensure full amount is counted for 85% if applicable
+                if is_85:
+                    total_allinpay_85_ctn += ctn_fee
+                    total_allinpay_85_service += service_fee
         else:
             # Bank Transfer: always show full amount, but only count in summary if in date range
             completed_dt = bill.get('completed_at')
