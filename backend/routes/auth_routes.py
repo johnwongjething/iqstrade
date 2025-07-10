@@ -405,5 +405,10 @@ def get_unapproved_users():
 @jwt_required()
 def csrf_token():
     from flask_jwt_extended import get_jwt
-    csrf_token = get_jwt()['csrf']
+    # If CSRF protection is disabled, 'csrf' key will not exist
+    jwt_data = get_jwt()
+    csrf_token = jwt_data.get('csrf')
+    if csrf_token is None:
+        # Return a dummy token or a message for frontend compatibility
+        return jsonify({'csrf_token': None, 'message': 'CSRF protection is disabled on the server.'})
     return jsonify({'csrf_token': csrf_token})
