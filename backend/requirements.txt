@@ -13,4 +13,3 @@ reportlab==4.1.0
 pytz==2024.1 
 python-dateutil==2.8.2
 requests==2.31.0
-geetest-py

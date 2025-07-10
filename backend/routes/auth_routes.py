@@ -14,7 +14,7 @@ from utils.helpers import get_hk_date_range
 from config import get_db_conn
 from email_utils import send_simple_email
 import os
-from geetest import GeetestLib
+# from geetest import GeetestLib
 import requests
 
 auth_routes = Blueprint('auth_routes', __name__)
@@ -76,19 +76,25 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+
     # Geetest v4 expects lot_number, captcha_output, pass_token as top-level fields
     lot_number = data.get('lot_number')
     captcha_output = data.get('captcha_output')
     pass_token = data.get('pass_token')
+
+    # You can comment these out if you want to fully skip for dev
     if not (lot_number and captcha_output and pass_token):
         return jsonify({'error': 'Missing Geetest data'}), 400
+
     captcha_id = os.environ.get('GEETEST_ID')
     print("captcha_id being sent:", captcha_id)
-    # Geetest v4 validation via HTTP POST
+
+    # Geetest v4 validation via HTTP POST — BYPASSED FOR DEMO
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
-        # BYPASS: Always return True for development
+        # BYPASS: Always return True for development/demo
         return True
-        # --- Production code below (uncomment when ready) ---
+
+        # --- Uncomment for real validation ---
         # url = "https://gcaptcha4.geetest.com/validate"
         # payload = {
         #     "lot_number": lot_number,
@@ -103,29 +109,36 @@ def login():
         # except Exception as e:
         #     print("Geetest v4 validation error:", e)
         #     return False
+
     if not verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
         return jsonify({'error': 'Geetest verification failed'}), 400
-    # ...existing login logic (DB, password, lockout, etc.)...
+
+    # Proceed with login logic
     conn = get_db_conn()
     print("conn from get_db_conn:", conn)
     cur = conn.cursor()
     cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
     user = cur.fetchone()
+
     if not user:
         log_sensitive_operation(None, 'login_failed', f'Username {username} not found')
         cur.close()
         conn.close()
         return jsonify({'error': 'User not found'}), 401
+
     user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
+
     locked, lockout_until = is_account_locked(cur, user_id)
     if locked:
         cur.close()
         conn.close()
         return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
+
     if not approved:
         cur.close()
         conn.close()
         return jsonify({'error': 'User not approved yet'}), 403
+
     if not check_password_hash(password_hash, password):
         failed_attempts, lockout_until = increment_failed_attempts(cur, user_id)
         conn.commit()
@@ -135,10 +148,12 @@ def login():
         if lockout_until:
             return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
         return jsonify({'error': 'Incorrect password'}), 401
+
     reset_failed_attempts(cur, user_id)
     conn.commit()
     access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
+
     response = make_response(jsonify({
         "customer_name": customer_name,
         "customer_email": customer_email,
@@ -147,9 +162,95 @@ def login():
         'username': username
     }), 200)
     set_access_cookies(response, access_token)
+
     cur.close()
     conn.close()
     return response
+
+
+
+
+# Login
+# @auth_routes.route('/login', methods=['POST'])
+# def login():
+#     print("AUTH ROUTE LOGIN CALLED")
+#     data = request.get_json()
+#     username = data.get('username')
+#     password = data.get('password')
+#     # Geetest v4 expects lot_number, captcha_output, pass_token as top-level fields
+#     lot_number = data.get('lot_number')
+#     captcha_output = data.get('captcha_output')
+#     pass_token = data.get('pass_token')
+#     if not (lot_number and captcha_output and pass_token):
+#         return jsonify({'error': 'Missing Geetest data'}), 400
+#     captcha_id = os.environ.get('GEETEST_ID')
+#     print("captcha_id being sent:", captcha_id)
+#     # Geetest v4 validation via HTTP POST
+#     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
+#         # BYPASS: Always return True for development
+#         return True
+#         # --- Production code below (uncomment when ready) ---
+#         # url = "https://gcaptcha4.geetest.com/validate"
+#         # payload = {
+#         #     "lot_number": lot_number,
+#         #     "captcha_output": captcha_output,
+#         #     "pass_token": pass_token,
+#         #     "captcha_id": captcha_id
+#         # }
+#         # try:
+#         #     resp = requests.post(url, json=payload, timeout=5)
+#         #     print("Geetest API response:", resp.text)
+#         #     return resp.json().get("result") == "success"
+#         # except Exception as e:
+#         #     print("Geetest v4 validation error:", e)
+#         #     return False
+#     if not verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
+#         return jsonify({'error': 'Geetest verification failed'}), 400
+#     # ...existing login logic (DB, password, lockout, etc.)...
+#     conn = get_db_conn()
+#     print("conn from get_db_conn:", conn)
+#     cur = conn.cursor()
+#     cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
+#     user = cur.fetchone()
+#     if not user:
+#         log_sensitive_operation(None, 'login_failed', f'Username {username} not found')
+#         cur.close()
+#         conn.close()
+#         return jsonify({'error': 'User not found'}), 401
+#     user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
+#     locked, lockout_until = is_account_locked(cur, user_id)
+#     if locked:
+#         cur.close()
+#         conn.close()
+#         return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
+#     if not approved:
+#         cur.close()
+#         conn.close()
+#         return jsonify({'error': 'User not approved yet'}), 403
+#     if not check_password_hash(password_hash, password):
+#         failed_attempts, lockout_until = increment_failed_attempts(cur, user_id)
+#         conn.commit()
+#         log_sensitive_operation(user_id, 'login_failed', f'Incorrect password. Attempts: {failed_attempts}')
+#         cur.close()
+#         conn.close()
+#         if lockout_until:
+#             return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
+#         return jsonify({'error': 'Incorrect password'}), 401
+#     reset_failed_attempts(cur, user_id)
+#     conn.commit()
+#     access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
+#     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
+#     response = make_response(jsonify({
+#         "customer_name": customer_name,
+#         "customer_email": customer_email,
+#         "customer_phone": customer_phone,
+#         'role': role,
+#         'username': username
+#     }), 200)
+#     set_access_cookies(response, access_token)
+#     cur.close()
+#     conn.close()
+#     return response
 
 # Logout
 @auth_routes.route('/logout', methods=['POST'])
