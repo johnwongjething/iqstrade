@@ -4,10 +4,10 @@ const environment = process.env.NODE_ENV || 'development';
 
 const config = {
   development: {
-    API_BASE_URL: '/',
+    API_BASE_URL: 'https://iqstrade.onrender.com',
   },
   production: {
-    API_BASE_URL: '/',
+    API_BASE_URL: 'https://iqstrade.onrender.com',
   },
 };
 
