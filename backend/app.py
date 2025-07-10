@@ -7,7 +7,7 @@ if os.path.exists(env_path):
 else:
     load_dotenv()
 
-from flask import Flask, send_from_directory, request, abort, g, redirect, jsonify
+from flask import send_from_directory, request, jsonify, redirect, g, abort
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
 from flask_limiter import Limiter
@@ -176,6 +176,16 @@ def enforce_https():
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({'error': 'File too large. Maximum size is 10MB.'}), 413
+
+# --- SERVE REACT FRONTEND BUILD ---
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react_app(path):
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    if path != "" and os.path.exists(os.path.join(build_dir, path)):
+        return send_from_directory(build_dir, path)
+    else:
+        return send_from_directory(build_dir, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
