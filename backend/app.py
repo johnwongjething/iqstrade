@@ -187,5 +187,10 @@ def serve_react_app(path):
     else:
         return send_from_directory(build_dir, 'index.html')
 
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    return send_from_directory(os.path.join(build_dir, 'static'), filename)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
