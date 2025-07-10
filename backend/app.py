@@ -22,7 +22,7 @@ from routes.stats_routes import stats_routes
 from routes.misc_routes import misc_routes
 from routes.admin_routes import admin_routes
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='build', static_url_path='')
 
 # Allowed origins for CORS and CSP
 allowed_origins = []
