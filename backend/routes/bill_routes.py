@@ -689,8 +689,11 @@ def account_bills():
     from dateutil import parser
     completed_at = request.args.get('completed_at')
     bl_number = request.args.get('bl_number')
+
     conn = get_db_conn()
     cur = conn.cursor()
+
+    # Build base query
     select_clause = '''
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
@@ -702,8 +705,10 @@ def account_bills():
         FROM bill_of_lading
         WHERE status = 'Paid and CTN Valid'
     '''
+
     where_clauses = []
     params = []
+
     if completed_at:
         start_date, end_date = get_hk_date_range(completed_at)
         where_clauses.append(
@@ -715,12 +720,16 @@ def account_bills():
     if bl_number:
         where_clauses.append("bl_number ILIKE %s")
         params.append(f'%{bl_number}%')
+
     if where_clauses:
         select_clause += " AND " + " AND ".join(where_clauses)
+
     select_clause += " ORDER BY id DESC"
+
     cur.execute(select_clause, tuple(params))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
+
     bills = []
     total_bank_ctn = 0
     total_bank_service = 0
@@ -728,22 +737,27 @@ def account_bills():
     total_allinpay_85_service = 0
     total_reserve_ctn = 0
     total_reserve_service = 0
+
     for row in rows:
         bill = dict(zip(columns, row))
+
         # Decrypt sensitive fields
         if bill.get('customer_email'):
             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
         if bill.get('customer_phone'):
             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+
         try:
             ctn_fee = float(bill.get('ctn_fee') or 0)
             service_fee = float(bill.get('service_fee') or 0)
         except (TypeError, ValueError):
             ctn_fee = 0
             service_fee = 0
+
         # Default: show original values
         bill['display_ctn_fee'] = ctn_fee
         bill['display_service_fee'] = service_fee
+
         # 85%/15% logic for Allinpay
         if bill.get('payment_method') == 'Allinpay':
             allinpay_85_dt = bill.get('allinpay_85_received_at')
@@ -789,9 +803,9 @@ def account_bills():
             if completed_at and completed_dt and start_date <= completed_dt < end_date:
                 total_bank_ctn += ctn_fee
                 total_bank_service += service_fee
+
         bills.append(bill)
-    cur.close()
-    conn.close()
+
     summary = {
         'totalEntries': len(bills),
         'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
@@ -800,6 +814,10 @@ def account_bills():
         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
     }
+
+    cur.close()
+    conn.close()
+
     return jsonify({'bills': bills, 'summary': summary})
 
 # @bill_routes.route('/account_bills', methods=['GET'])
