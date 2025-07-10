@@ -13,6 +13,7 @@ from flask_jwt_extended import JWTManager, decode_token
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from urllib.parse import unquote
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import get_db_conn
 
@@ -23,6 +24,7 @@ from routes.misc_routes import misc_routes
 from routes.admin_routes import admin_routes
 
 app = Flask(__name__, static_folder='build', static_url_path='')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Allowed origins for CORS and CSP
 allowed_origins = []
