@@ -1,0 +1,5 @@
+Run the following command in your frontend directory to install the required package:
+
+npm install react-google-recaptcha
+
+This is required for CAPTCHA support in the login page.
