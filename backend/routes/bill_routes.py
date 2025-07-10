@@ -711,6 +711,7 @@ def account_bills():
 
     if completed_at:
         start_date, end_date = get_hk_date_range(completed_at)
+        print("DEBUG: start_date", start_date, "end_date", end_date)
         where_clauses.append(
             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
@@ -771,6 +772,8 @@ def account_bills():
                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
+                    bill['display_ctn_fee'] = round(ctn_fee * 0.85, 2)
+                    bill['display_service_fee'] = round(service_fee * 0.85, 2)
                     total_allinpay_85_ctn += bill['display_ctn_fee']
                     total_allinpay_85_service += bill['display_service_fee']
                     is_85 = True
