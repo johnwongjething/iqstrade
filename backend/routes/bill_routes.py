@@ -367,7 +367,7 @@ def send_invoice_email():
     except Exception as e:
         return jsonify({'error': f'Error sending invoice email: {str(e)}'}), 400
 
-@bill_routes.route('/bill/<int:id>/delete', methods=['DELETE'])
+@bill_routes.route('/bill/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_bill(id):
     user = json.loads(get_jwt_identity())
