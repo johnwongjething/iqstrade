@@ -38,6 +38,9 @@ class PathConfig:
     UPLOADS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     REPORTS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports')
 
+# Deployment/Frontend URL config for CORS or API docs
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://iqstrade-1.onrender.com')
+
 # JWT Configuration
 class JWTConfig:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'change-this-in-production')

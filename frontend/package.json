@@ -2,8 +2,8 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://terryraylogicticsco.xyz",
-  "proxy": "http://localhost:8000",
+  "homepage": "https://iqstrade-1.onrender.com",
+  "proxy": "https://iqstrade.onrender.com",
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
@@ -34,7 +34,7 @@
     "build": "set GENERATE_SOURCEMAP=false && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build:prod": "set GENERATE_SOURCEMAP=false && set REACT_APP_API_BASE_URL=https://arigu5ryw4.execute-api.us-east-1.amazonaws.com/prod && react-scripts build"
+    "build:prod": "set GENERATE_SOURCEMAP=false && set REACT_APP_API_BASE_URL=https://iqstrade.onrender.com && react-scripts build"
   },
   "eslintConfig": {
     "extends": [

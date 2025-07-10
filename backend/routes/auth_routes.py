@@ -214,7 +214,7 @@ def request_password_reset():
     conn.commit()
     cur.close()
     conn.close()
-    reset_link = f"https://www.terryraylogicticsco.xyz/reset-password/{token}"
+    reset_link = f"https://iqstrade-1.onrender.com/reset-password/{token}"
     subject = "Password Reset Request"
     body = f"Dear {customer_name},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link will expire in 1 hour."
     send_simple_email(email, subject, body)
