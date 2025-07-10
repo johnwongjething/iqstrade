@@ -22,6 +22,7 @@ from routes.bill_routes import bill_routes
 from routes.stats_routes import stats_routes
 from routes.misc_routes import misc_routes
 from routes.admin_routes import admin_routes
+from payment_webhook import payment_webhook  # Register payment webhook blueprint
 
 app = Flask(__name__, static_folder='build', static_url_path='')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -56,6 +57,7 @@ app.register_blueprint(bill_routes, url_prefix='/api')
 app.register_blueprint(stats_routes, url_prefix='/api')
 app.register_blueprint(misc_routes, url_prefix='/api')
 app.register_blueprint(admin_routes, url_prefix='/api')
+app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 
