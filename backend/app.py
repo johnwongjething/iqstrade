@@ -180,6 +180,10 @@ def request_entity_too_large(error):
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    static_path = os.path.join(build_dir, 'static', filename)
+    print(f"[DEBUG] Serving static file: {static_path}")
+    if not os.path.exists(static_path):
+        print(f"[ERROR] File not found: {static_path}")
     return send_from_directory(os.path.join(build_dir, 'static'), filename)
 
 # --- SERVE REACT FRONTEND BUILD ---
