@@ -39,7 +39,7 @@ class PathConfig:
     REPORTS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports')
 
 # Deployment/Frontend URL config for CORS or API docs
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://iqstrade-1.onrender.com')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://iqstrade.onrender.com')
 
 # JWT Configuration
 class JWTConfig:
