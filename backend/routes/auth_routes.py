@@ -257,6 +257,7 @@ def logout():
 @auth_routes.route('/me', methods=['GET'])
 @jwt_required()
 def get_me():
+    print("🔍 /me route hit")
     user = json.loads(get_jwt_identity())
     conn = get_db_conn()
     cur = conn.cursor()
