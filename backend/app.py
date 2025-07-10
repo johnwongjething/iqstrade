@@ -23,7 +23,16 @@ from routes.misc_routes import misc_routes
 from routes.admin_routes import admin_routes
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+
+# Allowed origins for CORS and CSP
+allowed_origins = []
+if os.getenv('ALLOWED_ORIGINS'):
+    prod_domains = [origin.strip() for origin in os.getenv('ALLOWED_ORIGINS').split(',') if origin.strip()]
+    allowed_origins.extend(prod_domains)
+local_domains = ['http://localhost:3000', 'http://127.0.0.1:3000']
+allowed_origins.extend(local_domains)
+
+CORS(app, origins=allowed_origins, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
@@ -48,14 +57,6 @@ app.register_blueprint(misc_routes, url_prefix='/api')
 app.register_blueprint(admin_routes, url_prefix='/api')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-
-# Allowed origins for CORS and CSP
-allowed_origins = []
-if os.getenv('ALLOWED_ORIGINS'):
-    prod_domains = [origin.strip() for origin in os.getenv('ALLOWED_ORIGINS').split(',') if origin.strip()]
-    allowed_origins.extend(prod_domains)
-local_domains = ['http://localhost:3000', 'http://127.0.0.1:3000']
-allowed_origins.extend(local_domains)
 
 def set_csp_header(response):
     csp = (

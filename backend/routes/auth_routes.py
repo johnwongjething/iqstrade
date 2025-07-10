@@ -60,14 +60,8 @@ def register():
 # Geetest register endpoint
 @auth_routes.route('/geetest/register', methods=['GET'])
 def geetest_register():
-    GEETEST_ID = os.environ.get('GEETEST_ID')
-    GEETEST_KEY = os.environ.get('GEETEST_KEY')
-    user_id = request.args.get('user_id', 'test')  # Optionally use a real user/session id
-    gt = GeetestLib(GEETEST_ID, GEETEST_KEY)
-    status = gt.pre_process(user_id)
-    response_str = gt.get_response_str()
-    # Store status in session or cache for later validation if needed
-    return response_str, 200, {'Content-Type': 'application/json'}
+    # BYPASS: Always return demo response for security demo
+    return '{"success": 1, "gt": "demo", "challenge": "demo", "new_captcha": true}', 200, {'Content-Type': 'application/json'}
 
 # Login
 @auth_routes.route('/login', methods=['POST'])
