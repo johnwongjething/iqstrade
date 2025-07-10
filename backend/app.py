@@ -7,7 +7,7 @@ if os.path.exists(env_path):
 else:
     load_dotenv()
 
-from flask import send_from_directory, request, jsonify, redirect, g, abort
+from flask import Flask, send_from_directory, request, jsonify, redirect, g, abort
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
 from flask_limiter import Limiter
