@@ -917,20 +917,20 @@ def account_bills():
 #     }
 #     return jsonify({'bills': bills, 'summary': summary})
 
-@bill_routes.route('/generate_payment_link/<int:id>', methods=['POST'])
-@jwt_required()
-def generate_payment_link_post(id):
-    try:
-        payment_link = f"https://pay.example.com/link/{id}"
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, id))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"payment_link": payment_link})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# @bill_routes.route('/generate_payment_link/<int:id>', methods=['POST'])
+# @jwt_required()
+# def generate_payment_link_post(id):
+#     try:
+#         payment_link = f"https://pay.example.com/link/{id}"
+#         conn = get_db_conn()
+#         cur = conn.cursor()
+#         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, id))
+#         conn.commit()
+#         cur.close()
+#         conn.close()
+#         return jsonify({"payment_link": payment_link})
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 @bill_routes.route('/extract_fields', methods=['POST'])
 @jwt_required()
