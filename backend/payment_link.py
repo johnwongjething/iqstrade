@@ -1,3 +1,6 @@
+print("[DEBUG] payment_link.py imported and blueprint registered!")
+
+
 from flask import Blueprint, request, jsonify
 from config import get_db_conn
 import logging
