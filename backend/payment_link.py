@@ -28,7 +28,7 @@ def generate_payment_link(bill_id):
     try:
         # Get data from the request body and print for debugging
         data = request.get_json()
-        print(f"Generating payment link for bill_id {bill_id} with data: {data}")  # Debug print statement
+        logger.info(f"[DEBUG] Payment link request data: {data}")
         amount = float(data.get('amount', 0.0))  # Default to 0.0 if not provided
         currency = data.get('currency', 'USD')  # Default to USD
         customer_email = data.get('customer_email')  # Optional, can be overridden
@@ -72,6 +72,7 @@ def generate_payment_link(bill_id):
         }
         dummy_link = f"https://pay.dummy.com/link/{bill_id}?{urlencode(query_params)}"
         print(f"[DEBUG] Generated payment link: {dummy_link}")
+        logger.info(f"[DEBUG] Generated payment link: {dummy_link}")
 
         # Update the database with the dummy payment link
         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (dummy_link, bill_id))
