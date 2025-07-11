@@ -71,8 +71,8 @@ def generate_payment_link(bill_id):
             'timestamp': hk_now.strftime('%Y%m%d%H%M%S')
         }
         dummy_link = f"https://pay.dummy.com/link/{bill_id}?{urlencode(query_params)}"
-        print(f"[DEBUG] Generated payment link: {dummy_link}")
-        logger.info(f"[DEBUG] Generated payment link: {dummy_link}")
+        print(f"[DEBUG] Saving payment link to DB: {dummy_link}")
+        logger.info(f"[DEBUG] Saving payment link to DB: {dummy_link}")
 
         # Update the database with the dummy payment link
         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (dummy_link, bill_id))
