@@ -16,6 +16,7 @@ from email_utils import send_simple_email
 import os
 # from geetest import GeetestLib
 import requests
+import logging
 
 auth_routes = Blueprint('auth_routes', __name__)
 
@@ -63,7 +64,7 @@ def geetest_register():
     import os
     geetest_id = os.environ.get('GEETEST_ID')
     print("GEETEST_ID being sent:", geetest_id)
-    # For Geetest v4, you need to request a challenge from Geetest API
+    logging.info(f"[Geetest] /register called, captcha_id: {geetest_id}")
     url = "https://gcaptcha4.geetest.com/register"
     payload = {
         "captcha_id": geetest_id,
@@ -71,12 +72,15 @@ def geetest_register():
         "lang": "en"
     }
     try:
+        logging.info(f"[Geetest] Register payload: {payload}")
         resp = requests.post(url, json=payload, timeout=5)
+        logging.info(f"[Geetest] Register raw response: {resp.text}")
         resp_json = resp.json()
         print("Geetest register API response:", resp_json)
         challenge = resp_json.get("challenge", "")
     except Exception as e:
         print("Geetest v4 register error:", e)
+        logging.error(f"[Geetest] Register error: {e}")
         challenge = ""
     return (
         jsonify({
@@ -93,25 +97,21 @@ def geetest_register():
 @auth_routes.route('/login', methods=['POST'])
 def login():
     print("AUTH ROUTE LOGIN CALLED")
+    logging.info("[Login] /login called")
     data = request.get_json()
+    logging.info(f"[Login] Request data: {data}")
     username = data.get('username')
     password = data.get('password')
-
-    # Geetest v4 expects lot_number, captcha_output, pass_token as top-level fields
     lot_number = data.get('lot_number')
     captcha_output = data.get('captcha_output')
     pass_token = data.get('pass_token')
-
-    # You can comment these out if you want to fully skip for dev
     if not (lot_number and captcha_output and pass_token):
+        logging.warning("[Login] Missing Geetest data")
         return jsonify({'error': 'Missing Geetest data'}), 400
-
     captcha_id = os.environ.get('GEETEST_ID')
     print("captcha_id being sent:", captcha_id)
-
-    # Geetest v4 validation via HTTP POST
+    logging.info(f"[Login] captcha_id: {captcha_id}")
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
-        # --- Production code below ---
         url = "https://gcaptcha4.geetest.com/validate"
         payload = {
             "lot_number": lot_number,
@@ -119,59 +119,59 @@ def login():
             "pass_token": pass_token,
             "captcha_id": captcha_id
         }
+        logging.info(f"[Geetest] Validate payload: {payload}")
         try:
             import requests
             resp = requests.post(url, json=payload, timeout=5)
+            logging.info(f"[Geetest] Validate raw response: {resp.text}")
             print("Geetest API response:", resp.text)
             return resp.json().get("result") == "success"
         except Exception as e:
             print("Geetest v4 validation error:", e)
+            logging.error(f"[Geetest] Validate error: {e}")
             return False
-
     if not verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
+        logging.warning("[Login] Geetest verification failed")
         return jsonify({'error': 'Geetest verification failed'}), 400
-
     # Proceed with login logic
     conn = get_db_conn()
     print("conn from get_db_conn:", conn)
+    logging.info(f"[Login] DB connection: {conn}")
     cur = conn.cursor()
     cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
     user = cur.fetchone()
-
+    logging.info(f"[Login] DB user fetch: {user}")
     if not user:
         log_sensitive_operation(None, 'login_failed', f'Username {username} not found')
         cur.close()
         conn.close()
+        logging.warning(f"[Login] User not found: {username}")
         return jsonify({'error': 'User not found'}), 401
-
     user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
-
     locked, lockout_until = is_account_locked(cur, user_id)
+    logging.info(f"[Login] Account locked: {locked}, lockout_until: {lockout_until}")
     if locked:
         cur.close()
         conn.close()
         return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
-
     if not approved:
         cur.close()
         conn.close()
         return jsonify({'error': 'User not approved yet'}), 403
-
     if not check_password_hash(password_hash, password):
         failed_attempts, lockout_until = increment_failed_attempts(cur, user_id)
         conn.commit()
         log_sensitive_operation(user_id, 'login_failed', f'Incorrect password. Attempts: {failed_attempts}')
         cur.close()
         conn.close()
+        logging.warning(f"[Login] Incorrect password for user {username}, attempts: {failed_attempts}")
         if lockout_until:
             return jsonify({'error': f'Account locked. Try again after {lockout_until}'}), 403
         return jsonify({'error': 'Incorrect password'}), 401
-
     reset_failed_attempts(cur, user_id)
     conn.commit()
     access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
-
     response = make_response(jsonify({
         "customer_name": customer_name,
         "customer_email": customer_email,
@@ -180,9 +180,9 @@ def login():
         'username': username
     }), 200)
     set_access_cookies(response, access_token)
-
     cur.close()
     conn.close()
+    logging.info(f"[Login] Login successful for user {username}")
     return response
 
 
