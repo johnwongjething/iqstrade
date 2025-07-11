@@ -72,23 +72,10 @@ def set_csp_header(response):
     response.headers['Content-Security-Policy'] = csp
     return response
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    safe_filename = unquote(filename)
-    full_path = os.path.join(UPLOAD_FOLDER, safe_filename)
-    try:
-        response = send_from_directory(UPLOAD_FOLDER, safe_filename)
-        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRF-TOKEN'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        if 'X-Frame-Options' in response.headers:
-            del response.headers['X-Frame-Options']
-        if safe_filename.lower().endswith('.pdf'):
-            response.headers['Content-Type'] = 'application/pdf'
-        return set_csp_header(response)
-    except FileNotFoundError:
-        return "File not found", 404
+# @app.route('/uploads/<filename>')
+# def uploaded_file(filename):
+#     # Legacy local file serving route, now disabled due to Cloudinary migration
+#     pass
 
 # --- SESSION MANAGEMENT ---
 active_sessions = set()

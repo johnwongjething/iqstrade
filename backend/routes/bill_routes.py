@@ -150,22 +150,30 @@ def upload_file():
         customer_invoice = None
         customer_packing_list = None
         if invoice_pdf:
-            customer_invoice = upload_to_cloudinary(invoice_pdf, folder="invoices")
+            # Save invoice PDF to temp file for Vision API and email
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_invoice:
+                invoice_pdf.save(tmp_invoice.name)
+                # If you want to extract fields from invoice, call extract_fields(tmp_invoice.name)
+                customer_invoice = upload_to_cloudinary(invoice_pdf, folder="invoices")
+            os.remove(tmp_invoice.name)
         if packing_pdf:
-            customer_packing_list = upload_to_cloudinary(packing_pdf, folder="packing_lists")
+            # Save packing PDF to temp file for Vision API and email
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_packing:
+                packing_pdf.save(tmp_packing.name)
+                # If you want to extract fields from packing, call extract_fields(tmp_packing.name)
+                customer_packing_list = upload_to_cloudinary(packing_pdf, folder="packing_lists")
+            os.remove(tmp_packing.name)
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
-                pdf_url = upload_to_cloudinary(bill_pdf, folder="bills")
-                fields = {}
-                try:
-                    # Download file temporarily for OCR
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-                        bill_pdf.save(tmp.name)
-                        fields = extract_fields(tmp.name)
-                    os.remove(tmp.name)
-                except Exception as e:
-                    fields = {}
+                # Save bill PDF to temp file for Vision API and email
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_bill:
+                    bill_pdf.save(tmp_bill.name)
+                    fields = extract_fields(tmp_bill.name)
+                    pdf_url = upload_to_cloudinary(bill_pdf, folder="bills")
+                os.remove(tmp_bill.name)
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 conn = get_db_conn()
