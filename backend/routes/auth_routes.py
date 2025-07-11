@@ -63,11 +63,26 @@ def geetest_register():
     import os
     geetest_id = os.environ.get('GEETEST_ID')
     print("GEETEST_ID being sent:", geetest_id)
+    # For Geetest v4, you need to request a challenge from Geetest API
+    url = "https://gcaptcha4.geetest.com/register"
+    payload = {
+        "captcha_id": geetest_id,
+        "client_type": "web",
+        "lang": "en"
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=5)
+        resp_json = resp.json()
+        print("Geetest register API response:", resp_json)
+        challenge = resp_json.get("challenge", "")
+    except Exception as e:
+        print("Geetest v4 register error:", e)
+        challenge = ""
     return (
         jsonify({
             "success": 1,
             "gt": geetest_id,
-            "challenge": "",  # v4 may not need this
+            "challenge": challenge,
             "new_captcha": True
         }),
         200,
