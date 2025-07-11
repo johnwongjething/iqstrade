@@ -146,6 +146,16 @@ def upload_file():
             return jsonify({'error': 'Phone is required'}), 400
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
+        # Debug: Log file info
+        print(f"[UPLOAD DEBUG] bill_pdfs: {[f.filename for f in bill_pdfs if f]} invoice_pdf: {getattr(invoice_pdf, 'filename', None)} packing_pdf: {getattr(packing_pdf, 'filename', None)}")
+        # Check for empty files
+        for f in bill_pdfs:
+            if f and (not hasattr(f, 'filename') or not f.filename or f.content_length == 0):
+                return jsonify({'error': f'Bill PDF file {getattr(f, "filename", "")} is empty'}), 400
+        if invoice_pdf and (not hasattr(invoice_pdf, 'filename') or not invoice_pdf.filename or invoice_pdf.content_length == 0):
+            return jsonify({'error': f'Invoice PDF file {getattr(invoice_pdf, "filename", "")} is empty'}), 400
+        if packing_pdf and (not hasattr(packing_pdf, 'filename') or not packing_pdf.filename or packing_pdf.content_length == 0):
+            return jsonify({'error': f'Packing PDF file {getattr(packing_pdf, "filename", "")} is empty'}), 400
         uploaded_count = 0
         customer_invoice = None
         customer_packing_list = None

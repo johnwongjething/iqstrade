@@ -9,7 +9,7 @@ cloudinary.config(
 )
 
 def upload_to_cloudinary(file, folder=None):
-    options = {}
+    options = {"upload_preset": "unsigned_upload"}
     filename = getattr(file, 'filename', None)
     # Ensure PDFs are uploaded as resource_type='raw' for public access
     if filename and filename.lower().endswith('.pdf'):
