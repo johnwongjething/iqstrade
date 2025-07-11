@@ -60,8 +60,19 @@ def register():
 # Geetest register endpoint
 @auth_routes.route('/geetest/register', methods=['GET'])
 def geetest_register():
-    # BYPASS: Always return demo response for security demo
-    return '{"success": 1, "gt": "demo", "challenge": "demo", "new_captcha": true}', 200, {'Content-Type': 'application/json'}
+    import os
+    geetest_id = os.environ.get('GEETEST_ID')
+    print("GEETEST_ID being sent:", geetest_id)
+    return (
+        jsonify({
+            "success": 1,
+            "gt": geetest_id,
+            "challenge": "",  # v4 may not need this
+            "new_captcha": True
+        }),
+        200,
+        {'Content-Type': 'application/json'}
+    )
 
 # Login
 @auth_routes.route('/login', methods=['POST'])
