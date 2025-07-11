@@ -10,8 +10,7 @@ else:
 from flask import Flask, send_from_directory, request, jsonify, redirect, g, abort
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from limiter_instance import limiter
 from urllib.parse import unquote
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -46,11 +45,7 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection for produ
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 jwt = JWTManager(app)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["1000 per day", "100 per hour"]
-)
+limiter.init_app(app)
 
 # Register all route blueprints
 app.register_blueprint(auth_routes, url_prefix='/api')

@@ -3,7 +3,7 @@ from config import get_db_conn
 import logging
 from datetime import datetime
 import pytz
-from app import limiter  # Import the limiter instance from app.py
+from limiter_instance import limiter
 from urllib.parse import urlencode
 from flask_jwt_extended import jwt_required  # Import jwt_required
 
