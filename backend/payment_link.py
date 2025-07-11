@@ -5,6 +5,7 @@ from datetime import datetime
 import pytz
 from app import limiter  # Import the limiter instance from app.py
 from urllib.parse import urlencode
+from flask_jwt_extended import jwt_required  # Import jwt_required
 
 # Create a Blueprint for the payment link endpoint
 payment_link = Blueprint('payment_link', __name__)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 # Rate limit: 5 requests per minute per IP address
 @payment_link.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
 @limiter.limit("5 per minute")
+@jwt_required()  # Require JWT authentication
 def generate_payment_link(bill_id):
     """
     Generate a dummy payment link for a specific bill and store it in the database.
