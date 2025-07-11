@@ -83,26 +83,24 @@ def login():
     captcha_id = os.environ.get('GEETEST_ID')
     print("captcha_id being sent:", captcha_id)
 
-    # Geetest v4 validation via HTTP POST — BYPASSED FOR DEMO
+    # Geetest v4 validation via HTTP POST
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
-        # BYPASS: Always return True for development/demo
-        return True
-
-        # --- Uncomment for real validation ---
-        # url = "https://gcaptcha4.geetest.com/validate"
-        # payload = {
-        #     "lot_number": lot_number,
-        #     "captcha_output": captcha_output,
-        #     "pass_token": pass_token,
-        #     "captcha_id": captcha_id
-        # }
-        # try:
-        #     resp = requests.post(url, json=payload, timeout=5)
-        #     print("Geetest API response:", resp.text)
-        #     return resp.json().get("result") == "success"
-        # except Exception as e:
-        #     print("Geetest v4 validation error:", e)
-        #     return False
+        # --- Production code below ---
+        url = "https://gcaptcha4.geetest.com/validate"
+        payload = {
+            "lot_number": lot_number,
+            "captcha_output": captcha_output,
+            "pass_token": pass_token,
+            "captcha_id": captcha_id
+        }
+        try:
+            import requests
+            resp = requests.post(url, json=payload, timeout=5)
+            print("Geetest API response:", resp.text)
+            return resp.json().get("result") == "success"
+        except Exception as e:
+            print("Geetest v4 validation error:", e)
+            return False
 
     if not verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
         return jsonify({'error': 'Geetest verification failed'}), 400
