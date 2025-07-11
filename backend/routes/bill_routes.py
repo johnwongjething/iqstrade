@@ -148,13 +148,21 @@ def upload_file():
             return jsonify({'error': 'At least one PDF file is required'}), 400
         # Debug: Log file info
         print(f"[UPLOAD DEBUG] bill_pdfs: {[f.filename for f in bill_pdfs if f]} invoice_pdf: {getattr(invoice_pdf, 'filename', None)} packing_pdf: {getattr(packing_pdf, 'filename', None)}")
-        # Check for empty files
+        # Improved empty file check: read file stream
+        def is_empty_file(f):
+            if not f or not hasattr(f, 'stream'):
+                return True
+            pos = f.stream.tell()
+            f.stream.seek(0, os.SEEK_END)
+            size = f.stream.tell()
+            f.stream.seek(pos)
+            return size == 0
         for f in bill_pdfs:
-            if f and (not hasattr(f, 'filename') or not f.filename or f.content_length == 0):
+            if is_empty_file(f):
                 return jsonify({'error': f'Bill PDF file {getattr(f, "filename", "")} is empty'}), 400
-        if invoice_pdf and (not hasattr(invoice_pdf, 'filename') or not invoice_pdf.filename or invoice_pdf.content_length == 0):
+        if invoice_pdf and is_empty_file(invoice_pdf):
             return jsonify({'error': f'Invoice PDF file {getattr(invoice_pdf, "filename", "")} is empty'}), 400
-        if packing_pdf and (not hasattr(packing_pdf, 'filename') or not packing_pdf.filename or packing_pdf.content_length == 0):
+        if packing_pdf and is_empty_file(packing_pdf):
             return jsonify({'error': f'Packing PDF file {getattr(packing_pdf, "filename", "")} is empty'}), 400
         uploaded_count = 0
         customer_invoice = None
