@@ -10,6 +10,7 @@ import pytz
 from datetime import datetime
 from email_utils import send_unique_number_email, send_invoice_email, send_simple_email
 from invoice_utils import generate_invoice_pdf
+from cloudinary_utils import upload_to_cloudinary
 
 bill_routes = Blueprint('bill_routes', __name__)
 
@@ -128,7 +129,6 @@ def upload_file():
     from extract_fields import extract_fields
     from email_utils import send_simple_email
     from config import EmailConfig
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure upload dir exists
     user = json.loads(get_jwt_identity())
     username = user['username']
     try:
@@ -146,30 +146,26 @@ def upload_file():
             return jsonify({'error': 'Phone is required'}), 400
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
-        def save_file_with_timestamp(file, label):
-            if not file:
-                return None, None
-            now_str = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d_%H%M%S')
-            filename = f"{now_str}_{label}_{file.filename}"
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(file_path)
-            return filename, file_path
         uploaded_count = 0
         customer_invoice = None
         customer_packing_list = None
         if invoice_pdf:
-            customer_invoice, _ = save_file_with_timestamp(invoice_pdf, 'invoice')
+            customer_invoice = upload_to_cloudinary(invoice_pdf, folder="invoices")
         if packing_pdf:
-            customer_packing_list, _ = save_file_with_timestamp(packing_pdf, 'packing')
+            customer_packing_list = upload_to_cloudinary(packing_pdf, folder="packing_lists")
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
-                pdf_filename, pdf_path = save_file_with_timestamp(bill_pdf, 'bill')
+                pdf_url = upload_to_cloudinary(bill_pdf, folder="bills")
                 fields = {}
-                if bill_pdf:
-                    try:
-                        fields = extract_fields(pdf_path)
-                    except Exception as e:
-                        fields = {}
+                try:
+                    # Download file temporarily for OCR
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                        bill_pdf.save(tmp.name)
+                        fields = extract_fields(tmp.name)
+                    os.remove(tmp.name)
+                except Exception as e:
+                    fields = {}
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 conn = get_db_conn()
@@ -182,7 +178,7 @@ def upload_file():
                         customer_username, created_at, customer_invoice, customer_packing_list
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    name, str(email), str(phone), pdf_filename, fields_json,
+                    name, str(email), str(phone), pdf_url, fields_json,
                     str(fields.get('shipper', '')),
                     str(fields.get('consignee', '')),
                     str(fields.get('port_of_loading', '')),
@@ -245,9 +241,7 @@ def upload_receipt(id):
         receipt = request.files.get('receipt')
         if not receipt:
             return jsonify({'error': 'Receipt PDF file is required'}), 400
-        filename = f"receipt_{id}_{receipt.filename}"
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        receipt.save(file_path)
+        receipt_url = upload_to_cloudinary(receipt, folder="receipts")
         hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
         conn = get_db_conn()
         cur = conn.cursor()
@@ -255,7 +249,7 @@ def upload_receipt(id):
             UPDATE bill_of_lading
             SET receipt_filename = %s, status = %s, receipt_uploaded_at = %s
             WHERE id = %s
-        """, (filename, 'Awaiting Bank In', hk_now, id))
+        """, (receipt_url, 'Awaiting Bank In', hk_now, id))
         conn.commit()
         cur.close()
         conn.close()
@@ -540,10 +534,22 @@ def update_bill(id):
                 'email': bill['customer_email'],
                 'phone': bill['customer_phone']
             }
-            invoice_filename = generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'))
-            bill['invoice_filename'] = invoice_filename
+            invoice_filename_local = generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'))
+            # Upload generated PDF to Cloudinary
+            import io
+            with open(invoice_filename_local, 'rb') as f:
+                invoice_url = upload_to_cloudinary(f, folder="invoices")
+            bill['invoice_filename'] = invoice_url
+            # Update DB with Cloudinary URL
+            cur.execute("UPDATE bill_of_lading SET invoice_filename=%s WHERE id=%s", (invoice_url, id))
+            conn.commit()
+            # Optionally, remove local file
+            try:
+                os.remove(invoice_filename_local)
+            except Exception:
+                pass
         except Exception as e:
-            print(f"Error generating invoice PDF: {str(e)}")
+            print(f"Error generating/uploading invoice PDF: {str(e)}")
         cur.close()
         conn.close()
         return jsonify(bill)
