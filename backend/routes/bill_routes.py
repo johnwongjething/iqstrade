@@ -148,15 +148,18 @@ def upload_file():
             return jsonify({'error': 'At least one PDF file is required'}), 400
         # Debug: Log file info
         print(f"[UPLOAD DEBUG] bill_pdfs: {[f.filename for f in bill_pdfs if f]} invoice_pdf: {getattr(invoice_pdf, 'filename', None)} packing_pdf: {getattr(packing_pdf, 'filename', None)}")
-        # Improved empty file check: read file stream
+        # Improved empty file check: robust for Flask uploads
         def is_empty_file(f):
-            if not f or not hasattr(f, 'stream'):
+            if not f:
                 return True
+            # Try content_length first
+            if hasattr(f, 'content_length') and f.content_length is not None:
+                return f.content_length == 0
+            # Fallback: read a byte and reset
             pos = f.stream.tell()
-            f.stream.seek(0, os.SEEK_END)
-            size = f.stream.tell()
+            data = f.stream.read(1)
             f.stream.seek(pos)
-            return size == 0
+            return not data
         for f in bill_pdfs:
             if is_empty_file(f):
                 return jsonify({'error': f'Bill PDF file {getattr(f, "filename", "")} is empty'}), 400
