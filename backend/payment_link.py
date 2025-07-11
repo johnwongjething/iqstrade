@@ -20,6 +20,7 @@ def generate_payment_link(bill_id):
     Generate a dummy payment link for a specific bill and store it in the database.
     Accepts optional parameters in the request body to customize the link.
     """
+    
     conn = get_db_conn()
     cur = conn.cursor()
     try:
