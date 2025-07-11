@@ -383,34 +383,6 @@ def delete_bill(id):
     except Exception as e:
         return jsonify({'error': f'Error deleting bill: {str(e)}'}), 400
 
-# @bill_routes.route('/generate_payment_link/<int:id>', methods=['GET'])
-# @jwt_required()
-# def generate_payment_link(id):
-#     user = json.loads(get_jwt_identity())
-#     username = user['username']
-#     try:
-#         conn = get_db_conn()
-#         cur = conn.cursor()
-#         cur.execute("SELECT * FROM bill_of_lading WHERE id=%s", (id,))
-#         bill_row = cur.fetchone()
-#         if not bill_row:
-#             cur.close()
-#             conn.close()
-#             return jsonify({'error': 'Bill not found'}), 404
-#         columns = [desc[0] for desc in cur.description]
-#         bill = dict(zip(columns, bill_row))
-#         if bill.get('customer_email') is not None:
-#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-#         if bill.get('customer_phone') is not None:
-#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-#         cur.close()
-#         conn.close()
-#         # Generate payment link logic here
-#         # For example, using a payment gateway API
-#         payment_link = f"https://payment-gateway.com/pay?amount={bill['service_fee']}&bill_id={id}"
-#         return jsonify({'payment_link': payment_link})
-#     except Exception as e:
-#         return jsonify({'error': f'Error generating payment link: {str(e)}'}), 400
 
 @bill_routes.route('/bills/status/<string:status>', methods=['GET'])
 @jwt_required()
