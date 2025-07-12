@@ -4,6 +4,7 @@ from email.utils import formataddr
 import os
 
 from config import EmailConfig
+from invoice_utils import send_invoice_email
 
 print("Loaded email_utils.py")
 
