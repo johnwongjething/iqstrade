@@ -549,6 +549,7 @@ def update_bill(id):
             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
         if bill.get('customer_phone') is not None:
             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+        import tempfile
         try:
             customer = {
                 'name': bill['customer_name'],
@@ -556,7 +557,10 @@ def update_bill(id):
                 'phone': bill['customer_phone']
             }
             print(f"[DEBUG] Generating invoice PDF for bill {id}")
-            invoice_local_path = generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'))
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                invoice_local_path = tmp.name
+            # Pass the temp file path to generate_invoice_pdf so it writes to the correct location
+            generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'), output_path=invoice_local_path)
             print(f"[DEBUG] Invoice generated at: {invoice_local_path}")
             cloud_url = upload_filepath_to_cloudinary(invoice_local_path, folder="invoices")
             print(f"[DEBUG] Invoice uploaded to Cloudinary: {cloud_url}")
