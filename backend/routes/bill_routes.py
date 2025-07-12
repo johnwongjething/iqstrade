@@ -149,7 +149,99 @@ def upload_file():
             return jsonify({'error': 'Phone is required'}), 400
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
-        # ...revert to previous logic for file handling and OCR pipeline...
+        import tempfile
+        def save_file_with_timestamp_and_cloudinary(file, label):
+            if not file:
+                return None, None, None
+            ext = os.path.splitext(file.filename)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                file.save(tmp.name)
+                local_path = tmp.name
+            # Upload to Cloudinary
+            cloud_url = upload_filepath_to_cloudinary(local_path, folder=label)
+            return cloud_url, local_path, file.filename
+        uploaded_count = 0
+        customer_invoice = None
+        customer_packing_list = None
+        if invoice_pdf:
+            customer_invoice, invoice_local_path, invoice_orig_filename = save_file_with_timestamp_and_cloudinary(invoice_pdf, 'invoice')
+            try:
+                os.remove(invoice_local_path)
+            except Exception:
+                pass
+        if packing_pdf:
+            customer_packing_list, packing_local_path, packing_orig_filename = save_file_with_timestamp_and_cloudinary(packing_pdf, 'packing')
+            try:
+                os.remove(packing_local_path)
+            except Exception:
+                pass
+        if bill_pdfs:
+            for bill_pdf in bill_pdfs:
+                pdf_url, local_path, orig_filename = save_file_with_timestamp_and_cloudinary(bill_pdf, 'bill')
+                fields = {}
+                if bill_pdf:
+                    try:
+                        fields = extract_fields(local_path)
+                    except Exception as e:
+                        fields = {}
+                fields_json = json.dumps(fields)
+                hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+                conn = get_db_conn()
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO bill_of_lading (
+                        customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                        flight_or_vessel, product_description, status,
+                        customer_username, created_at, customer_invoice, customer_packing_list
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    name, str(email), str(phone), pdf_url, fields_json,
+                    str(fields.get('shipper', '')),
+                    str(fields.get('consignee', '')),
+                    str(fields.get('port_of_loading', '')),
+                    str(fields.get('port_of_discharge', '')),
+                    str(fields.get('bl_number', '')),
+                    str(fields.get('container_numbers', '')),
+                    str(fields.get('flight_or_vessel', '')),
+                    str(fields.get('product_description', '')),
+                    "Pending",
+                    username,
+                    hk_now,
+                    customer_invoice,
+                    customer_packing_list
+                ))
+                conn.commit()
+                cur.close()
+                conn.close()
+                uploaded_count += 1
+                try:
+                    os.remove(local_path)
+                except Exception:
+                    pass
+        else:
+            hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO bill_of_lading (
+                    customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                    shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, status,
+                    customer_username, created_at, customer_invoice, customer_packing_list
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                name, str(email), str(phone), None, None,
+                '', '', '', '', '', '',
+                "Pending",
+                username,
+                hk_now,
+                customer_invoice,
+                customer_packing_list
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+            uploaded_count += 1
         # Send confirmation email if SMTP is configured
         try:
             if EmailConfig.SMTP_SERVER and EmailConfig.SMTP_USERNAME and EmailConfig.SMTP_PASSWORD:
