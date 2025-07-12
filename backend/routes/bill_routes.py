@@ -155,6 +155,9 @@ def upload_file():
             print(f"[DEBUG] Uploading {label} file to Cloudinary: {file.filename}")
             # Ensure resource_type is 'raw' for PDFs and set type to 'upload' (public)
             cloud_url = upload_filelike_to_cloudinary(file, folder=label)
+            # Ensure .pdf extension for browser compatibility
+            if cloud_url and not cloud_url.lower().endswith('.pdf'):
+                cloud_url += '.pdf'
             print(f"[DEBUG] Cloudinary result for {label}: {cloud_url}")
             return cloud_url, None
         uploaded_count = 0
@@ -181,11 +184,13 @@ def upload_file():
                         client = vision.ImageAnnotatorClient()
                         image = types.Image(content=pdf_response.content)
                         response = client.document_text_detection(image=image)
-                        if response.text_annotations:
-                            fields['ocr_text'] = response.text_annotations[0].description
-                            print(f"[DEBUG] OCR extracted text: {fields['ocr_text'][:100]}...")
+                        ocr_text = ''
+                        if response.text_annotations and response.text_annotations[0].description:
+                            ocr_text = response.text_annotations[0].description
+                            print(f"[DEBUG] OCR extracted text: {ocr_text[:100]}...")
                         else:
                             print("[DEBUG] No OCR text found in PDF.")
+                        fields['ocr_text'] = ocr_text
                     else:
                         print(f"[DEBUG] Failed to download PDF from Cloudinary for OCR, status: {pdf_response.status_code}")
                 except Exception as ocr_exc:
