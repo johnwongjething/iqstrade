@@ -35,7 +35,7 @@ def upload_filelike_to_cloudinary(file_obj, folder=None):
         import uuid
         base_id = str(uuid.uuid4()).replace('-', '')[:20]
         public_id = f"{folder}/{base_id}"
-    result = cloudinary.uploader.upload(file_obj, folder=None, public_id=public_id, resource_type='raw')
+    result = cloudinary.uploader.upload(file_obj, folder=None, public_id=public_id, resource_type='raw', type='upload')
     print(f"[DEBUG] cloudinary_utils: Cloudinary upload result: {result}")
     return result.get('secure_url')
 
