@@ -15,7 +15,8 @@ def upload_filelike_to_cloudinary(file_obj, folder=None):
     Uploads a file-like object to Cloudinary and returns the secure_url.
     """
     print(f"[DEBUG] cloudinary_utils: Uploading file to Cloudinary, folder={folder}")
-    result = cloudinary.uploader.upload(file_obj, folder=folder)
+    # Always upload PDFs as resource_type='raw' for direct access
+    result = cloudinary.uploader.upload(file_obj, folder=folder, resource_type='raw')
     print(f"[DEBUG] cloudinary_utils: Cloudinary upload result: {result}")
     return result.get('secure_url')
 
