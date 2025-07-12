@@ -51,6 +51,7 @@ def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link
 def send_invoice_email(to_email, subject, body, pdf_path):
     import tempfile
     import requests
+    print(f"[DEBUG] send_invoice_email: pdf_path={pdf_path} (type={type(pdf_path)})")
     try:
         print(f"Attempting to send email to: {to_email}")
         print(f"SMTP server: {EmailConfig.SMTP_SERVER}:{EmailConfig.SMTP_PORT}")
