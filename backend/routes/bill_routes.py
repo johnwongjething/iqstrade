@@ -168,28 +168,29 @@ def upload_file():
                 if bill_pdf and bill_pdf.filename:
                     print(f"Checking bill_pdf: filename={bill_pdf.filename}, content_length={bill_pdf.content_length}")
                     cloudinary_url, fields = save_and_upload(bill_pdf, 'bill')
-                    fields_json = json.dumps(fields)
-                    hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
-                    conn = get_db_conn()
-                    cur = conn.cursor()
-                    cur.execute("""
-                        INSERT INTO bill_of_lading (
-                            customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
-                            shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
-                            flight_or_vessel, product_description, status,
-                            customer_username, created_at, customer_invoice, customer_packing_list
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        name, encrypt_sensitive_data(email), encrypt_sensitive_data(phone), cloudinary_url, fields_json,
-                        fields.get('shipper', ''), fields.get('consignee', ''), fields.get('port_of_loading', ''),
-                        fields.get('port_of_discharge', ''), fields.get('bl_number', ''), fields.get('container_numbers', ''),
-                        fields.get('flight_or_vessel', ''), fields.get('product_description', ''), 'Pending',
-                        username, hk_now, customer_invoice, customer_packing_list
-                    ))
-                    conn.commit()
-                    cur.close()
-                    conn.close()
-                    uploaded_count += 1
+                    if cloudinary_url:  # Only proceed if upload to Cloudinary succeeded
+                        fields_json = json.dumps(fields)
+                        hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+                        conn = get_db_conn()
+                        cur = conn.cursor()
+                        cur.execute("""
+                            INSERT INTO bill_of_lading (
+                                customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                                shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                                flight_or_vessel, product_description, status,
+                                customer_username, created_at, customer_invoice, customer_packing_list
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            name, encrypt_sensitive_data(email), encrypt_sensitive_data(phone), cloudinary_url, fields_json,
+                            fields.get('shipper', ''), fields.get('consignee', ''), fields.get('port_of_loading', ''),
+                            fields.get('port_of_discharge', ''), fields.get('bl_number', ''), fields.get('container_numbers', ''),
+                            fields.get('flight_or_vessel', ''), fields.get('product_description', ''), 'Pending',
+                            username, hk_now, customer_invoice, customer_packing_list
+                        ))
+                        conn.commit()
+                        cur.close()
+                        conn.close()
+                        uploaded_count += 1
         else:
             hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
             conn = get_db_conn()
