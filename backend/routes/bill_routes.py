@@ -146,6 +146,7 @@ def upload_file():
             filename = f"{now_str}_{label}_{file.filename}"
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(file_path)
+            print(f"File saved at {file_path} with size {os.path.getsize(file_path)} bytes")
             print(f"Saved file {filename} with size {os.path.getsize(file_path)} bytes")  # Debug file size on disk
             fields = extract_fields(file_path) if label == 'bill' else {}
             cloudinary_url = upload_filelike_to_cloudinary(file, folder="uploads")
