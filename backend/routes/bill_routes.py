@@ -139,15 +139,16 @@ def upload_file():
             return jsonify({'error': 'Missing required fields or files'}), 400
 
         def save_and_upload(file, label):
-            if not file or file.filename == '' or file.content_length == 0:
+            if not file or file.filename == '':
                 print(f"Skipping empty file: {label} - {file.filename if file else 'None'}")
                 return None, {}
+            print(f"Processing file {label}: filename={file.filename}, content_length={file.content_length}, content_type={file.content_type}")
             now_str = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d_%H%M%S')
             filename = f"{now_str}_{label}_{file.filename}"
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(file_path)
-            print(f"File saved at {file_path} with size {os.path.getsize(file_path)} bytes")
-            print(f"Saved file {filename} with size {os.path.getsize(file_path)} bytes")  # Debug file size on disk
+            file_size = os.path.getsize(file_path)
+            print(f"File saved at {file_path} with size {file_size} bytes")
             fields = extract_fields(file_path) if label == 'bill' else {}
             cloudinary_url = upload_filelike_to_cloudinary(file, folder="uploads")
             os.remove(file_path)
@@ -156,13 +157,16 @@ def upload_file():
         uploaded_count = 0
         customer_invoice = None
         customer_packing_list = None
-        if invoice_pdf and invoice_pdf.filename and invoice_pdf.content_length > 0:
+        if invoice_pdf and invoice_pdf.filename:
+            print(f"Checking invoice_pdf: filename={invoice_pdf.filename}, content_length={invoice_pdf.content_length}")
             customer_invoice, _ = save_and_upload(invoice_pdf, 'invoice')
-        if packing_pdf and packing_pdf.filename and packing_pdf.content_length > 0:
+        if packing_pdf and packing_pdf.filename:
+            print(f"Checking packing_pdf: filename={packing_pdf.filename}, content_length={packing_pdf.content_length}")
             customer_packing_list, _ = save_and_upload(packing_pdf, 'packing')
-        if bill_pdfs and any(f.filename and f.content_length > 0 for f in bill_pdfs):
+        if bill_pdfs and any(f.filename for f in bill_pdfs):
             for bill_pdf in bill_pdfs:
-                if bill_pdf and bill_pdf.filename and bill_pdf.content_length > 0:
+                if bill_pdf and bill_pdf.filename:
+                    print(f"Checking bill_pdf: filename={bill_pdf.filename}, content_length={bill_pdf.content_length}")
                     cloudinary_url, fields = save_and_upload(bill_pdf, 'bill')
                     fields_json = json.dumps(fields)
                     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
@@ -217,6 +221,7 @@ def upload_file():
     except Exception as e:
         print(f"Upload error details: {str(e)}")  # More detailed error logging
         return jsonify({'error': f'Error processing upload: {str(e)}'}), 400
+
 
 @bill_routes.route('/bill/<int:id>/upload_receipt', methods=['POST'])
 @jwt_required()
