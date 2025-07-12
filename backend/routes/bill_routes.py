@@ -16,9 +16,7 @@ from invoice_utils import generate_invoice_pdf
 bill_routes = Blueprint('bill_routes', __name__)
 
 print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
-
 bill_routes = Blueprint('bill_routes', __name__)
-
 print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
 
 # Bill and file-related endpoints
@@ -155,7 +153,8 @@ def upload_file():
             if not file:
                 return None, None
             print(f"[DEBUG] Uploading {label} file to Cloudinary: {file.filename}")
-            cloud_url = upload_filelike_to_cloudinary(file, folder=label)
+            # Ensure resource_type is 'raw' for PDFs and set type to 'upload' (public)
+            cloud_url = upload_filelike_to_cloudinary(file, folder=label, resource_type='raw', type='upload')
             print(f"[DEBUG] Cloudinary result for {label}: {cloud_url}")
             return cloud_url, None
         uploaded_count = 0
@@ -169,9 +168,28 @@ def upload_file():
             for bill_pdf in bill_pdfs:
                 pdf_filename, _ = save_file_with_timestamp(bill_pdf, 'bill')
                 print(f"[DEBUG] Saving secure Cloudinary URL to DB: {pdf_filename}")
+                # Download PDF from Cloudinary and send to Google OCR
                 fields = {}
-                # TODO: OCR for Cloudinary URLs not implemented
-                print("[DEBUG] Skipping Google OCR - not implemented for Cloudinary URLs")
+                try:
+                    import requests
+                    pdf_response = requests.get(pdf_filename)
+                    if pdf_response.status_code == 200:
+                        print(f"[DEBUG] Downloaded PDF from Cloudinary for OCR, size: {len(pdf_response.content)} bytes")
+                        # Send to Google OCR (Vision API)
+                        from google.cloud import vision
+                        from google.cloud.vision_v1 import types
+                        client = vision.ImageAnnotatorClient()
+                        image = types.Image(content=pdf_response.content)
+                        response = client.document_text_detection(image=image)
+                        if response.text_annotations:
+                            fields['ocr_text'] = response.text_annotations[0].description
+                            print(f"[DEBUG] OCR extracted text: {fields['ocr_text'][:100]}...")
+                        else:
+                            print("[DEBUG] No OCR text found in PDF.")
+                    else:
+                        print(f"[DEBUG] Failed to download PDF from Cloudinary for OCR, status: {pdf_response.status_code}")
+                except Exception as ocr_exc:
+                    print(f"[DEBUG] OCR processing failed: {ocr_exc}")
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 conn = get_db_conn()
