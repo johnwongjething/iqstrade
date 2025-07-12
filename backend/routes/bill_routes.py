@@ -155,9 +155,6 @@ def upload_file():
             print(f"[DEBUG] Uploading {label} file to Cloudinary: {file.filename}")
             # Ensure resource_type is 'raw' for PDFs and set type to 'upload' (public)
             cloud_url = upload_filelike_to_cloudinary(file, folder=label)
-            # Ensure .pdf extension for browser compatibility
-            if cloud_url and not cloud_url.lower().endswith('.pdf'):
-                cloud_url += '.pdf'
             print(f"[DEBUG] Cloudinary result for {label}: {cloud_url}")
             return cloud_url, None
         uploaded_count = 0

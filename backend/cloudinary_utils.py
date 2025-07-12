@@ -16,7 +16,26 @@ def upload_filelike_to_cloudinary(file_obj, folder=None):
     """
     print(f"[DEBUG] cloudinary_utils: Uploading file to Cloudinary, folder={folder}")
     # Always upload PDFs as resource_type='raw' for direct access
-    result = cloudinary.uploader.upload(file_obj, folder=folder, resource_type='raw')
+    filename = getattr(file_obj, 'filename', None)
+    ext = ''
+    public_id = None
+    if filename:
+        ext = os.path.splitext(filename)[1]
+        # Remove . from extension
+        ext = ext if ext.startswith('.') else f'.{ext}'
+        # Generate a random public_id (like before) but always end with .pdf for PDFs
+        import uuid
+        base_id = str(uuid.uuid4()).replace('-', '')[:20]
+        if ext.lower() == '.pdf':
+            public_id = f"{folder}/{base_id}.pdf"
+        else:
+            public_id = f"{folder}/{base_id}{ext}"
+    else:
+        # fallback: just use folder and random id
+        import uuid
+        base_id = str(uuid.uuid4()).replace('-', '')[:20]
+        public_id = f"{folder}/{base_id}"
+    result = cloudinary.uploader.upload(file_obj, folder=None, public_id=public_id, resource_type='raw')
     print(f"[DEBUG] cloudinary_utils: Cloudinary upload result: {result}")
     return result.get('secure_url')
 
