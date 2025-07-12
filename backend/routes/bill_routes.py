@@ -130,53 +130,55 @@ def upload_file():
         bill_pdfs = request.files.getlist('bill_pdf')
         invoice_pdf = request.files.get('invoice_pdf')
         packing_pdf = request.files.get('packing_pdf')
-        if not name or not email or not phone or not (bill_pdfs or invoice_pdf or packing_pdf):
+        print('Received files:', { 'bill_pdfs': [f.filename for f in bill_pdfs if f], 'invoice_pdf': invoice_pdf.filename if invoice_pdf else None, 'packing_pdf': packing_pdf.filename if packing_pdf else None }) # Debug
+        if not name or not email or not phone or not any([bool(bill_pdfs), bool(invoice_pdf), bool(packing_pdf)]):
             return jsonify({'error': 'Missing required fields or files'}), 400
 
         def save_and_upload(file, label):
-            if not file:
-                return None
+            if not file or file.filename == '':
+                return None, {}
             now_str = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d_%H%M%S')
             filename = f"{now_str}_{label}_{file.filename}"
             file_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(file_path)  # Save locally for OCR
+            file.save(file_path)
             fields = extract_fields(file_path) if label == 'bill' else {}
             cloudinary_url = upload_filelike_to_cloudinary(file, folder="uploads")
-            os.remove(file_path)  # Clean up local file after upload
+            os.remove(file_path)
             return cloudinary_url, fields
 
         uploaded_count = 0
         customer_invoice = None
         customer_packing_list = None
-        if invoice_pdf:
+        if invoice_pdf and invoice_pdf.filename:
             customer_invoice, _ = save_and_upload(invoice_pdf, 'invoice')
-        if packing_pdf:
+        if packing_pdf and packing_pdf.filename:
             customer_packing_list, _ = save_and_upload(packing_pdf, 'packing')
-        if bill_pdfs:
+        if bill_pdfs and any(f.filename for f in bill_pdfs):
             for bill_pdf in bill_pdfs:
-                cloudinary_url, fields = save_and_upload(bill_pdf, 'bill')
-                fields_json = json.dumps(fields)
-                hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
-                conn = get_db_conn()
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO bill_of_lading (
-                        customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
-                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
-                        flight_or_vessel, product_description, status,
-                        customer_username, created_at, customer_invoice, customer_packing_list
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    name, encrypt_sensitive_data(email), encrypt_sensitive_data(phone), cloudinary_url, fields_json,
-                    fields.get('shipper', ''), fields.get('consignee', ''), fields.get('port_of_loading', ''),
-                    fields.get('port_of_discharge', ''), fields.get('bl_number', ''), fields.get('container_numbers', ''),
-                    fields.get('flight_or_vessel', ''), fields.get('product_description', ''), 'Pending',
-                    username, hk_now, customer_invoice, customer_packing_list
-                ))
-                conn.commit()
-                cur.close()
-                conn.close()
-                uploaded_count += 1
+                if bill_pdf and bill_pdf.filename:
+                    cloudinary_url, fields = save_and_upload(bill_pdf, 'bill')
+                    fields_json = json.dumps(fields)
+                    hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+                    conn = get_db_conn()
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO bill_of_lading (
+                            customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                            shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                            flight_or_vessel, product_description, status,
+                            customer_username, created_at, customer_invoice, customer_packing_list
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        name, encrypt_sensitive_data(email), encrypt_sensitive_data(phone), cloudinary_url, fields_json,
+                        fields.get('shipper', ''), fields.get('consignee', ''), fields.get('port_of_loading', ''),
+                        fields.get('port_of_discharge', ''), fields.get('bl_number', ''), fields.get('container_numbers', ''),
+                        fields.get('flight_or_vessel', ''), fields.get('product_description', ''), 'Pending',
+                        username, hk_now, customer_invoice, customer_packing_list
+                    ))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    uploaded_count += 1
         else:
             hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
             conn = get_db_conn()
@@ -207,7 +209,6 @@ def upload_file():
         return jsonify({'message': f'Upload successful! {uploaded_count} bill(s) uploaded.'})
     except Exception as e:
         return jsonify({'error': f'Error processing upload: {str(e)}'}), 400
-
 @bill_routes.route('/bill/<int:id>/upload_receipt', methods=['POST'])
 @jwt_required()
 def upload_receipt(id):
