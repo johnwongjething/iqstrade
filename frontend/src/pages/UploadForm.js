@@ -11,6 +11,7 @@ function UploadForm({ t = x => x }) {
   const [packingFile, setPackingFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [formValues, setFormValues] = useState({ name: '', email: '', phone: '' });
+  const [uploadedUrls, setUploadedUrls] = useState({ bills: [], invoice: '', packing: '' });
   const navigate = useNavigate();
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const { csrfToken } = useContext(UserContext);
@@ -69,7 +70,7 @@ function UploadForm({ t = x => x }) {
 
   const onFinish = async (e) => {
     e.preventDefault();
-    if (!csrfToken) {
+    if (csrfToken === undefined) {
       setSnackbar({ open: true, message: 'Security token not ready. Please wait and try again.', severity: 'error' });
       return;
     }
@@ -91,13 +92,13 @@ function UploadForm({ t = x => x }) {
     if (invoiceFile) formData.append('invoice_pdf', invoiceFile);
     if (packingFile) formData.append('packing_pdf', packingFile);
     try {
+      const headers = {};
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
       const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData,
-        credentials: 'include', // Send cookies (for JWT)
-        headers: {
-          'X-CSRF-TOKEN': csrfToken
-        }
+        credentials: 'include',
+        headers
       });
       const data = await res.json();
       if (!res.ok) {
@@ -108,6 +109,12 @@ function UploadForm({ t = x => x }) {
         setInvoiceFile(null);
         setPackingFile(null);
         setFormValues({ name: '', email: '', phone: '' });
+        // Expect backend to return Cloudinary URLs for each file type
+        setUploadedUrls({
+          bills: data.bill_urls || [],
+          invoice: data.invoice_url || '',
+          packing: data.packing_url || ''
+        });
       }
     } catch (err) {
       setSnackbar({ open: true, message: t('failed'), severity: 'error' });
@@ -116,8 +123,8 @@ function UploadForm({ t = x => x }) {
   };
 
   // Conditional rendering for loading state
-  if (csrfToken === null) {
-    return <div>Loading security token...</div>;
+  if (!csrfToken && csrfToken !== null) {
+    return <div>Loading...</div>;
   }
 
   return (
@@ -180,6 +187,32 @@ function UploadForm({ t = x => x }) {
             {snackbar.message}
           </Alert>
         </Snackbar>
+        {/* Preview/Download section for uploaded files */}
+        {uploadedUrls.bills.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1">{t('uploadedBills')}</Typography>
+            {uploadedUrls.bills.map((url, idx) => (
+              <Box key={idx} sx={{ mb: 1 }}>
+                <a href={url} target="_blank" rel="noopener noreferrer">{t('viewBill')} {idx + 1}</a>
+                <iframe src={url} width="100%" height="200px" style={{ border: 'none', marginTop: 8 }} />
+              </Box>
+            ))}
+          </Box>
+        )}
+        {uploadedUrls.invoice && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1">{t('uploadedInvoice')}</Typography>
+            <a href={uploadedUrls.invoice} target="_blank" rel="noopener noreferrer">{t('viewInvoice')}</a>
+            <iframe src={uploadedUrls.invoice} width="100%" height="200px" style={{ border: 'none', marginTop: 8 }} />
+          </Box>
+        )}
+        {uploadedUrls.packing && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1">{t('uploadedPacking')}</Typography>
+            <a href={uploadedUrls.packing} target="_blank" rel="noopener noreferrer">{t('viewPacking')}</a>
+            <iframe src={uploadedUrls.packing} width="100%" height="200px" style={{ border: 'none', marginTop: 8 }} />
+          </Box>
+        )}
       </Box>
     </Container>
   );

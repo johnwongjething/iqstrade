@@ -35,12 +35,12 @@ export default function BillSearch({ t = x => x }) {
     return true;
   }
 
-  // Only run checkUser after csrfToken is loaded
+  // Only run checkUser after user is loaded
   useEffect(() => {
-    if (csrfToken === null) return;
+    if (!user) return;
     checkUser();
     // eslint-disable-next-line
-  }, [user, navigate, csrfToken]);
+  }, [user, navigate]);
 
   useEffect(() => {
     if (csrfToken !== null) {
@@ -67,7 +67,8 @@ export default function BillSearch({ t = x => x }) {
   };
 
   const handleSearch = async (usernameOverride, roleOverride) => {
-    if (!csrfToken) {
+    // Only require CSRF if present
+    if (csrfToken === undefined) {
       setSnackbar({ open: true, message: 'Security token not ready. Please wait and try again.', severity: 'error' });
       return;
     }
@@ -79,12 +80,11 @@ export default function BillSearch({ t = x => x }) {
       searchForm.username = usernameToUse;
     }
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
       const res = await fetch(`${API_BASE_URL}/api/search_bills`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrfToken,
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify(searchForm)
       });
@@ -141,21 +141,8 @@ export default function BillSearch({ t = x => x }) {
   };
 
   // Conditional rendering for loading state
-  if (csrfToken === null && tokenTimeout) {
-    return (
-      <div style={{ textAlign: 'center', marginTop: 40 }}>
-        <div style={{ marginBottom: 16, color: 'red' }}>
-          Failed to load security token. This is usually caused by a browser session or cookie issue.<br />
-          Please click below to reset your session and try again.
-        </div>
-        <Button variant="contained" color="primary" onClick={handleSessionReset}>
-          Reset Session
-        </Button>
-      </div>
-    );
-  }
-  if (csrfToken === null) {
-    return <div>Loading security token...</div>;
+  if (!user) {
+    return <div>Loading...</div>;
   }
 
   return (

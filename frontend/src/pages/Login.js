@@ -44,38 +44,45 @@ function Login({ t = x => x }) {
     if (!geetestReady) return;
     async function initGeetest() {
       try {
-        // Always return a static mock Geetest challenge for demo
-        const data = {
-          gt: 'demo_gt_id',
-          challenge: 'demo_challenge',
-          success: 1
-        };
+        // Fetch real Geetest challenge from backend
+        const res = await fetch(`${API_BASE_URL}/api/geetest/register`);
+        const data = await res.json();
+        console.log('Geetest /register response:', data); // Debug
         if (window.initGeetest4) {
           window.initGeetest4(
             {
               captchaId: data.gt,
+              challenge: data.challenge, // Pass challenge from backend
               product: 'float',
               language: 'en'
             },
             (captchaObj) => {
               setGeetestObj(captchaObj);
               captchaObj.appendTo(geetestRef.current);
-              captchaObj.onReady(() => {});
+              captchaObj.onReady(() => {
+                console.log('Geetest widget ready');
+              });
               captchaObj.onSuccess(() => {
-                // Always set mock Geetest data for demo
+                // Get real Geetest data from widget
+                const result = captchaObj.getValidate();
+                console.log('Geetest widget validate result:', result); // Debug
                 setGeetestData({
-                  lot_number: 'demo_lot',
-                  captcha_output: 'demo_output',
-                  pass_token: 'demo_token'
+                  lot_number: result.lot_number,
+                  captcha_output: result.captcha_output,
+                  pass_token: result.pass_token
                 });
               });
-              captchaObj.onError(() => {
+              captchaObj.onError((err) => {
+                console.error('Geetest widget error:', err);
                 setError('Geetest failed to load.');
               });
             }
           );
+        } else {
+          console.error('window.initGeetest4 not found');
         }
       } catch (err) {
+        console.error('Failed to load Geetest:', err);
         setError('Failed to load Geetest.');
       }
     }
@@ -101,6 +108,7 @@ function Login({ t = x => x }) {
         captcha_output: geetestData.captcha_output,
         pass_token: geetestData.pass_token
       };
+      console.log('Submitting login with body:', body); // Debug
       const res = await fetchWithTimeout(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,6 +121,7 @@ function Login({ t = x => x }) {
       } catch {
         data = {};
       }
+      console.log('Login response:', data); // Debug
       if (res.ok) {
         const success = await fetchUserIfNeeded(true);
         if (success) {
@@ -127,6 +136,7 @@ function Login({ t = x => x }) {
         if (geetestObj) geetestObj.reset && geetestObj.reset();
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(t('loginFailed') + ': ' + err.message);
       setGeetestData(null);
       if (geetestObj) geetestObj.reset && geetestObj.reset();

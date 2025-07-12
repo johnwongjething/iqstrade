@@ -199,7 +199,7 @@ function StaffStats({ t = x => x }) {
                       <TableCell>
                         {row.invoice_filename ? (
                           <Link
-                            href={`${API_BASE_URL}/uploads/${row.invoice_filename}`}
+                            href={row.invoice_filename}
                             target="_blank"
                             rel="noopener noreferrer"
                           >

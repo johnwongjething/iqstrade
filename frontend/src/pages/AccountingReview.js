@@ -51,11 +51,12 @@ function AccountingReview({ t = x => x }) {
     }
   }
 
-  // Always call hooks at the top level
+  // Only run checkUser after user is loaded
   useEffect(() => {
+    if (!user) return;
     checkUser();
     // eslint-disable-next-line
-  }, [navigate]);
+  }, [user, navigate]);
 
   // Fetch all bills once
   useEffect(() => { fetchBills(); }, []);
@@ -97,10 +98,12 @@ function AccountingReview({ t = x => x }) {
     setConfirmModal({ visible: false, record: null });
     setSaving(true);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
       const res = await fetch(`${API_BASE_URL}/api/bill/${record.id}/complete`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+        headers
       });
       if (!res.ok) throw new Error('Failed to mark as completed');
       setSnackbar({ open: true, message: t('markedCompleted'), severity: 'success' });
@@ -127,23 +130,14 @@ Thank you.`);
 const handleSendUniqueEmail = async () => {
   setUniqueSending(true);
   try {
-    if (!csrfToken) {
+    if (csrfToken === undefined) {
       throw new Error('CSRF token not found');
     }
-
-    // Debug log: print payload and currentRecord
-    console.log('Sending unique number email:', {
-      to_email: uniqueEmailTo,
-      subject: uniqueEmailSubject,
-      body: uniqueEmailBody,
-      bill_id: currentRecord?.id,
-      csrfToken,
-      currentRecord
-    });
-
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
     const res = await fetch(`${API_BASE_URL}/api/send_unique_number_email`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+      headers,
       credentials: 'include',
       body: JSON.stringify({
         to_email: uniqueEmailTo,
@@ -172,16 +166,18 @@ const handleSendUniqueEmail = async () => {
 };
 
   const handleSettleReserve = async (record) => {
-    if (!csrfToken) {
+    if (csrfToken === undefined) {
       setSnackbar({ open: true, message: 'Security token not ready. Please wait and try again.', severity: 'error' });
       return;
     }
     setSaving(true);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
       const res = await fetch(`${API_BASE_URL}/api/bill/${record.id}/settle_reserve`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+        headers
       });
       if (!res.ok) throw new Error('Failed to settle reserve');
       setSnackbar({ open: true, message: 'Reserve marked as settled', severity: 'success' });
@@ -237,8 +233,8 @@ const handleSendUniqueEmail = async () => {
   ];
 
   // Conditional rendering for loading state
-  if (csrfToken === null) {
-    return <div>{t('loading') || 'Loading security token...'}</div>;
+  if (!user) {
+    return <div>Loading...</div>;
   }
 
   // Add handleBlSearch for BL number search

@@ -155,11 +155,18 @@ def upload_file():
             # Try content_length first
             if hasattr(f, 'content_length') and f.content_length is not None:
                 return f.content_length == 0
-            # Fallback: read a byte and reset
-            pos = f.stream.tell()
-            data = f.stream.read(1)
-            f.stream.seek(pos)
-            return not data
+            # Try stream size
+            try:
+                pos = f.stream.tell()
+                f.stream.seek(0, os.SEEK_END)
+                size = f.stream.tell()
+                f.stream.seek(0)
+                return size == 0
+            except Exception:
+                # Fallback: read all bytes
+                data = f.read()
+                f.seek(0)
+                return len(data) == 0
         for f in bill_pdfs:
             if is_empty_file(f):
                 return jsonify({'error': f'Bill PDF file {getattr(f, "filename", "")} is empty'}), 400

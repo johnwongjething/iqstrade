@@ -10,62 +10,63 @@ export function UserProvider({ children }) {
   const [csrfToken, setCsrfToken] = useState(null);
   const navigate = useNavigate();
 
-  // Place the improved useEffect after state and navigate declarations
+  // Initial user authentication check
   useEffect(() => {
-    console.log('useEffect /api/me triggered (mount)');
-    if (!user && !loading) {
-      setLoading(true);
+    if (!user && loading) {
       const checkAuth = async () => {
         try {
           const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
-          if (!res.ok && res.status === 401) {
+          if (res.status === 401) {
             setUser(null);
-            navigate('/login');
+            setLoading(false);
+            // Do NOT navigate to /login here; let unauthenticated users stay on home page
           } else if (res.ok) {
             const data = await res.json();
             if (data && !data.error) setUser(data);
+            setLoading(false);
+          } else {
+            setLoading(false);
           }
         } catch (error) {
-          console.error('Error fetching user on mount:', error);
-          if (!user) navigate('/login');
-        } finally {
           setLoading(false);
+          setUser(null);
+          // Do NOT navigate to /login here
         }
       };
       checkAuth();
     }
   }, [navigate, user, loading]);
 
+  // Fetch CSRF token, but do not block UI or log out if token is missing/null
   const fetchCsrfToken = useCallback(async () => {
-    console.log('fetchCsrfToken triggered, user:', user);
     try {
       const res = await fetch(`${API_BASE_URL}/api/csrf-token`, { credentials: 'include' });
       if (res.status === 401) {
         setCsrfToken(null);
         setUser(null);
-        navigate('/login');
+        // Do NOT navigate to /login here
         return null;
       }
       if (res.ok) {
         const data = await res.json();
-        setCsrfToken(data.csrf_token);
-        return data.csrf_token;
+        setCsrfToken(data.csrf_token || null); // Accept null/undefined
+        return data.csrf_token || null;
       }
-    } catch {}
-    setCsrfToken(null);
-    setUser(null);
-    navigate('/login');
+    } catch (e) {
+      // Network or other error: do not block UI, just clear CSRF
+      setCsrfToken(null);
+    }
     return null;
   }, [navigate, API_BASE_URL]);
 
+  // Fetch user if needed, with optional force
   const fetchUserIfNeeded = useCallback(async (force = false) => {
-    console.log('fetchUserIfNeeded triggered, user:', user, 'force:', force);
     if (!force && user && user.username) return true;
     try {
       const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
       if (res.status === 401) {
         setUser(null);
-        navigate('/login');
+        // Only navigate to /login if trying to access a protected route (not here)
         return false;
       }
       if (res.ok) {
@@ -76,20 +77,25 @@ export function UserProvider({ children }) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user:', error);
+      setUser(null);
+      // Only navigate to /login if trying to access a protected route
     }
-    setUser(null);
-    navigate('/login');
     return false;
   }, [user, navigate, API_BASE_URL]);
 
+  // When user changes, fetch CSRF token if logged in, else clear it
   useEffect(() => {
     if (user && user.username) {
       fetchCsrfToken();
     } else {
-      setCsrfToken(null); // Clear token when logged out
+      setCsrfToken(null);
     }
   }, [user, fetchCsrfToken]);
+
+  // Always clear loading if user or CSRF token changes (never block UI)
+  useEffect(() => {
+    if (loading) setLoading(false);
+  }, [user, csrfToken, loading]);
 
   return (
     <UserContext.Provider value={{ user, setUser, loading, csrfToken, setCsrfToken, fetchCsrfToken, fetchUserIfNeeded }}>

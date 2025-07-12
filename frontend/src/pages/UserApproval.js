@@ -45,7 +45,7 @@ function UserApproval({ t = x => x }) {
   }, [navigate]);
 
   const handleApprove = async (id) => {
-    if (!csrfToken) {
+    if (csrfToken === undefined) {
       setSnackbar({ open: true, message: t('securityTokenNotReady'), severity: 'error' });
       return;
     }
@@ -56,12 +56,12 @@ function UserApproval({ t = x => x }) {
       return;
     }
     try {
+      const headers = {};
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
       const res = await fetch(`${API_BASE_URL}/api/approve_user/${id}`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'X-CSRF-TOKEN': csrfToken,
-        },
+        headers
       });
       if (res.ok) {
         setSnackbar({ open: true, message: t('userApprovedSuccessfully'), severity: 'success' });
@@ -75,8 +75,8 @@ function UserApproval({ t = x => x }) {
   };
 
   // Conditional rendering for loading state
-  if (csrfToken === null) {
-    return <div>{t('loading') || 'Loading security token...'}</div>;
+  if (!user) {
+    return <div>Loading...</div>;
   }
 
   return (
