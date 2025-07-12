@@ -149,49 +149,56 @@ def upload_file():
             return jsonify({'error': 'Phone is required'}), 400
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
+        import tempfile
         def save_file_with_timestamp(file, label):
             if not file:
-                return None, None
-            print(f"[DEBUG] Uploading {label} file to Cloudinary: {file.filename}")
-            # Ensure resource_type is 'raw' for PDFs and set type to 'upload' (public)
-            cloud_url = upload_filelike_to_cloudinary(file, folder=label)
+                return None, None, None
+            print(f"[DEBUG] Saving {label} file to local temp storage: {file.filename}")
+            ext = os.path.splitext(file.filename)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                file.save(tmp.name)
+                local_path = tmp.name
+            print(f"[DEBUG] Local file saved at: {local_path}")
+            print(f"[DEBUG] Uploading {label} file to Cloudinary from local file: {local_path}")
+            cloud_url = upload_filepath_to_cloudinary(local_path, folder=label)
             print(f"[DEBUG] Cloudinary result for {label}: {cloud_url}")
-            return cloud_url, None
+            return cloud_url, local_path, file.filename
         uploaded_count = 0
         customer_invoice = None
         customer_packing_list = None
         if invoice_pdf:
-            customer_invoice, _ = save_file_with_timestamp(invoice_pdf, 'invoice')
+            customer_invoice, invoice_local_path, invoice_orig_filename = save_file_with_timestamp(invoice_pdf, 'invoice')
         if packing_pdf:
-            customer_packing_list, _ = save_file_with_timestamp(packing_pdf, 'packing')
+            customer_packing_list, packing_local_path, packing_orig_filename = save_file_with_timestamp(packing_pdf, 'packing')
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
-                pdf_filename, _ = save_file_with_timestamp(bill_pdf, 'bill')
+                pdf_filename, local_path, orig_filename = save_file_with_timestamp(bill_pdf, 'bill')
                 print(f"[DEBUG] Saving secure Cloudinary URL to DB: {pdf_filename}")
-                # Download PDF from Cloudinary and send to Google OCR
+                # Run OCR from local file
                 fields = {}
                 try:
-                    import requests
-                    pdf_response = requests.get(pdf_filename)
-                    if pdf_response.status_code == 200:
-                        print(f"[DEBUG] Downloaded PDF from Cloudinary for OCR, size: {len(pdf_response.content)} bytes")
-                        # Send to Google OCR (Vision API)
-                        from google.cloud import vision
-                        from google.cloud.vision_v1 import types
-                        client = vision.ImageAnnotatorClient()
-                        image = types.Image(content=pdf_response.content)
-                        response = client.document_text_detection(image=image)
-                        ocr_text = ''
-                        if response.text_annotations and response.text_annotations[0].description:
-                            ocr_text = response.text_annotations[0].description
-                            print(f"[DEBUG] OCR extracted text: {ocr_text[:100]}...")
-                        else:
-                            print("[DEBUG] No OCR text found in PDF.")
-                        fields['ocr_text'] = ocr_text
+                    from google.cloud import vision
+                    from google.cloud.vision_v1 import types
+                    client = vision.ImageAnnotatorClient()
+                    with open(local_path, 'rb') as f:
+                        content = f.read()
+                    image = types.Image(content=content)
+                    response = client.document_text_detection(image=image)
+                    ocr_text = ''
+                    if response.text_annotations and response.text_annotations[0].description:
+                        ocr_text = response.text_annotations[0].description
+                        print(f"[DEBUG] OCR extracted text: {ocr_text[:100]}...")
                     else:
-                        print(f"[DEBUG] Failed to download PDF from Cloudinary for OCR, status: {pdf_response.status_code}")
+                        print("[DEBUG] No OCR text found in PDF.")
+                    fields['ocr_text'] = ocr_text
                 except Exception as ocr_exc:
                     print(f"[DEBUG] OCR processing failed: {ocr_exc}")
+                finally:
+                    try:
+                        os.remove(local_path)
+                        print(f"[DEBUG] Deleted local file after OCR: {local_path}")
+                    except Exception as del_exc:
+                        print(f"[DEBUG] Failed to delete local file: {del_exc}")
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 conn = get_db_conn()
