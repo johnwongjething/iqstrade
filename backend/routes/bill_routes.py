@@ -574,6 +574,8 @@ def update_bill(id):
                 print(f"[DEBUG] Deleted local file after Cloudinary upload: {invoice_local_path}")
         except Exception as e:
             print(f"[DEBUG] Error generating/uploading invoice PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
         cur.close()
         conn.close()
         return jsonify(bill)

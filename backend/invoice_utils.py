@@ -6,14 +6,11 @@ import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
 
-def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link=None):
-    invoice_filename = f"invoice_{bill['id']}.pdf"
-    uploads_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'uploads'))
-    if not os.path.exists(uploads_folder):
-        os.makedirs(uploads_folder)
-    invoice_path = os.path.join(uploads_folder, invoice_filename)
-
-    c = canvas.Canvas(invoice_path, pagesize=A4)
+def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link=None, output_path=None):
+    print(f"[DEBUG] generate_invoice_pdf: customer={customer}, bill_id={bill.get('id')}, service_fee={service_fee}, ctn_fee={ctn_fee}, payment_link={payment_link}, output_path={output_path}")
+    if output_path is None:
+        raise ValueError("output_path must be provided for Cloudinary workflow")
+    c = canvas.Canvas(output_path, pagesize=A4)
     c.setFont("Helvetica", 12)
     y = 800
     c.drawString(50, y, "INVOICE")
@@ -48,19 +45,8 @@ def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link
         y -= 30
     c.drawString(50, y, "Thank you for your business!")
     c.save()
-
-    # Save the filename to the database
-    try:
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute("UPDATE bill_of_lading SET invoice_filename=%s WHERE id=%s", (invoice_filename, bill['id']))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return invoice_filename
-    except Exception as e:
-        print(f"Error saving invoice filename: {str(e)}")
-        return None
+    print(f"[DEBUG] generate_invoice_pdf: PDF saved to {output_path}")
+    return output_path
 
 def send_invoice_email(to_email, subject, body, pdf_path):
     try:
