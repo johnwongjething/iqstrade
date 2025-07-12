@@ -56,7 +56,7 @@ app.register_blueprint(admin_routes, url_prefix='/api')
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link, url_prefix='/api')
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
 
 def set_csp_header(response):
     csp = (
@@ -71,11 +71,7 @@ def set_csp_header(response):
     )
     response.headers['Content-Security-Policy'] = csp
     return response
-
-# @app.route('/uploads/<filename>')
-# def uploaded_file(filename):
-#     # Legacy local file serving route, now disabled due to Cloudinary migration
-#     pass
+    # [DEBUG] Migration: /uploads/ route removed. All files now served via Cloudinary URLs.
 
 # --- SESSION MANAGEMENT ---
 active_sessions = set()
