@@ -29,7 +29,7 @@ import json
 import os
 import tempfile
 
-from utils.database import get_db_conn
+from config import get_db_conn
 from cloudinary_utils import upload_filepath_to_cloudinary
 from invoice_utils import generate_invoice_pdf
 
