@@ -82,7 +82,8 @@ def management_overview():
         ]
         for b in bills:
             missing = [field for field in required_fields if not b.get(field)]
-            if missing:
+            # Only show if at least one required field is empty/null
+            if missing and len(missing) > 0:
                 flagged_ocr.append({"id": b["id"], "bl_number": b["bl_number"], "missing": missing})
 
         print("[DEBUG] Ingesting unmatched receipts...")
