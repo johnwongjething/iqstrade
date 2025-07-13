@@ -8,7 +8,7 @@ from datetime import timezone
 
 management_routes = Blueprint('management_routes', __name__)
 
-@management_routes.route('/api/management/overview', methods=['GET'])
+@management_routes.route('/management/overview', methods=['GET'])
 @jwt_required()
 def management_overview():
     try:
