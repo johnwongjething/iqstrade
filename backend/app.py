@@ -21,6 +21,7 @@ from routes.bill_routes import bill_routes
 from routes.stats_routes import stats_routes
 from routes.misc_routes import misc_routes
 from routes.admin_routes import admin_routes
+from routes.management_routes import management_routes
 from payment_webhook import payment_webhook  # Register payment webhook blueprint
 from payment_link import payment_link  # Register payment link blueprint
 
@@ -53,6 +54,7 @@ app.register_blueprint(bill_routes, url_prefix='/api')
 app.register_blueprint(stats_routes, url_prefix='/api')
 app.register_blueprint(misc_routes, url_prefix='/api')
 app.register_blueprint(admin_routes, url_prefix='/api')
+app.register_blueprint(management_routes, url_prefix='/api')
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link, url_prefix='/api')
 
