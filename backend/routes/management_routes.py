@@ -79,11 +79,26 @@ def management_overview():
         print("[DEBUG] Checking OCR missing fields...")
         for b in bills:
             missing = check_missing_fields(b.get("ocr_text"))
-            if missing:
+            # Only flag if at least one required field is missing
+            if missing and any(missing):
                 flagged_ocr.append({"id": b["id"], "bl_number": b["bl_number"], "missing": missing})
 
         print("[DEBUG] Ingesting unmatched receipts...")
-        unmatched_receipts = ingest_emails()
+        unmatched_receipts_raw = ingest_emails()
+        unmatched_receipts = []
+        # Try to extract BL number from filename or add as None if not found
+        for receipt in unmatched_receipts_raw:
+            bl_number = None
+            # Example: try to extract BL number from filename if pattern exists
+            filename = receipt.get("filename", "")
+            # If filename contains BL number, extract it (customize pattern as needed)
+            # Example: payment_receipt_<BLNUMBER>.pdf
+            import re
+            match = re.search(r"([A-Z0-9]+)", filename)
+            if match:
+                bl_number = match.group(1)
+            receipt["bl_number"] = bl_number
+            unmatched_receipts.append(receipt)
 
         print("[DEBUG] Returning overview response...")
         return jsonify({
