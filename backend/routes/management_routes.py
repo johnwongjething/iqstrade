@@ -17,7 +17,8 @@ def management_overview():
         print("[DEBUG] Fetching B/L records...")
         cur.execute("""
             SELECT id, customer_name, bl_number, status, created_at,
-                   invoice_filename, receipt_filename, ocr_text, ctn_fee, service_fee
+                   invoice_filename, receipt_filename, ocr_text, ctn_fee, service_fee,
+                   shipper, consignee, port_of_loading, port_of_discharge, flight_or_vessel, container_numbers
             FROM bill_of_lading
             ORDER BY created_at DESC
         """)
