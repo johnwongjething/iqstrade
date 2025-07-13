@@ -65,28 +65,28 @@ def auto_generate_invoice_for_bill(bill):
         print("Setting default fees for BL id {}".format(bill['id']))
         service_fee = 100
 
-    # --- CTN number generation and DB update ---
+    # --- Unique number generation and DB update ---
     import random
     import string
-    ctn_number = bill.get('ctn_number')
-    if not ctn_number:
-        print(f"[DEBUG] Generating new CTN number for BL id {bill['id']}")
+    unique_number = bill.get('unique_number')
+    if not unique_number:
+        print(f"[DEBUG] Generating new Unique Number for BL id {bill['id']}")
         letters = ''.join(random.choices(string.ascii_uppercase, k=3))
         numbers = ''.join(random.choices(string.digits, k=6))
-        ctn_number = letters + numbers
-        print(f"[DEBUG] Generated new CTN number for BL id {bill['id']}: {ctn_number}")
+        unique_number = letters + numbers
+        print(f"[DEBUG] Generated new Unique Number for BL id {bill['id']}: {unique_number}")
         # Update DB
         cur.execute("""
-            UPDATE bill_of_lading SET ctn_number = %s WHERE id = %s
-        """, (ctn_number, bill['id']))
+            UPDATE bill_of_lading SET unique_number = %s WHERE id = %s
+        """, (unique_number, bill['id']))
         conn.commit()
-        print(f"[DEBUG] DB updated with new CTN number for BL id {bill['id']}")
+        print(f"[DEBUG] DB updated with new Unique Number for BL id {bill['id']}")
 
-    # Generate payment link (after fees and ctn_number are set)
+    # Generate payment link (after fees and unique_number are set)
     payment_link = bill.get('payment_link')
     if not payment_link:
         print("[DEBUG] Generating payment link for BL id {}".format(bill['id']))
-        payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}&ctnnum={ctn_number}"
+        payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}&uniquenum={unique_number}"
 
     # Generate invoice PDF
     print("Generating invoice PDF for BL id {}".format(bill['id']))
