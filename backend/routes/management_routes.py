@@ -75,6 +75,7 @@ def management_overview():
             "sum_outstanding_amount": sum_outstanding_amount
         }
         print(f"[DEBUG] Metrics: {metrics}")
+        
 
         flagged_ocr = []
         print("[DEBUG] Checking missing required fields from DB columns...")
