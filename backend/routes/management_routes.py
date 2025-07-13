@@ -43,8 +43,8 @@ def management_overview():
                 else:
                     created_at_dt = created_at
                 delta = now - created_at_dt.replace(tzinfo=timezone.utc)
-                is_new = delta.total_seconds() < 86400
-                is_overdue = status in ["Pending", "Awaiting Bank In"] and delta.total_seconds() > 604800
+            is_new = delta.total_seconds() < 86400 and status != "Invoice Sent"
+            is_overdue = status in ["Pending", "Awaiting Bank In"] and delta.total_seconds() > 604800
             total_invoice_amount = ctn_fee + service_fee
             bill["is_new"] = is_new
             bill["is_overdue"] = is_overdue
@@ -75,7 +75,7 @@ def management_overview():
             "sum_outstanding_amount": sum_outstanding_amount
         }
         print(f"[DEBUG] Metrics: {metrics}")
-        
+
 
         flagged_ocr = []
         print("[DEBUG] Checking missing required fields from DB columns...")
