@@ -76,11 +76,13 @@ def management_overview():
         print(f"[DEBUG] Metrics: {metrics}")
 
         flagged_ocr = []
-        print("[DEBUG] Checking OCR missing fields...")
+        print("[DEBUG] Checking missing required fields from DB columns...")
+        required_fields = [
+            "shipper", "consignee", "port_of_loading", "port_of_discharge", "bl_number", "flight_or_vessel", "container_numbers"
+        ]
         for b in bills:
-            missing = check_missing_fields(b.get("ocr_text"))
-            # Only flag if at least one required field is missing
-            if missing and any(missing):
+            missing = [field for field in required_fields if not b.get(field)]
+            if missing:
                 flagged_ocr.append({"id": b["id"], "bl_number": b["bl_number"], "missing": missing})
 
         print("[DEBUG] Ingesting unmatched receipts...")
