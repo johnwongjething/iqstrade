@@ -17,7 +17,7 @@ def management_overview():
         print("[DEBUG] Fetching B/L records...")
         cur.execute("""
             SELECT id, customer_name, bl_number, status, created_at,
-                   invoice_filename, receipt_filename, ocr_text, ctn_fee, service_fee, paid_amount
+                   invoice_filename, receipt_filename, ocr_text, ctn_fee, service_fee
             FROM bill_of_lading
             ORDER BY created_at DESC
         """)
@@ -32,7 +32,7 @@ def management_overview():
             status = bill.get("status")
             ctn_fee = bill.get("ctn_fee") or 0
             service_fee = bill.get("service_fee") or 0
-            paid_amount = bill.get("paid_amount") or 0
+            paid_amount = 0  # Column does not exist, set to 0
             # Calculate flags
             is_new = False
             is_overdue = False
