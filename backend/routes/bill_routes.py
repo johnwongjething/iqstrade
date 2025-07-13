@@ -65,12 +65,28 @@ def auto_generate_invoice_for_bill(bill):
         print("Setting default fees for BL id {}".format(bill['id']))
         service_fee = 100
 
-    # Generate payment link (after fees are set)
+    # --- CTN number generation and DB update ---
+    import random
+    import string
+    ctn_number = bill.get('ctn_number')
+    if not ctn_number:
+        print(f"[DEBUG] Generating new CTN number for BL id {bill['id']}")
+        letters = ''.join(random.choices(string.ascii_uppercase, k=3))
+        numbers = ''.join(random.choices(string.digits, k=6))
+        ctn_number = letters + numbers
+        print(f"[DEBUG] Generated new CTN number for BL id {bill['id']}: {ctn_number}")
+        # Update DB
+        cur.execute("""
+            UPDATE bill_of_lading SET ctn_number = %s WHERE id = %s
+        """, (ctn_number, bill['id']))
+        conn.commit()
+        print(f"[DEBUG] DB updated with new CTN number for BL id {bill['id']}")
+
+    # Generate payment link (after fees and ctn_number are set)
     payment_link = bill.get('payment_link')
     if not payment_link:
-        print("Generating payment link for BL id {}".format(bill['id']))
-        # Replace with your actual logic if you have it
-        payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}"
+        print("[DEBUG] Generating payment link for BL id {}".format(bill['id']))
+        payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}&ctnnum={ctn_number}"
 
     # Generate invoice PDF
     print("Generating invoice PDF for BL id {}".format(bill['id']))
@@ -192,10 +208,7 @@ def get_bill(id):
     cur.close()
     conn.close()
       # --- AUTO-INVOICE GENERATION ---
-    try:
-        auto_generate_invoice_for_bill(bill)
-    except Exception as e:
-        print(f"[ERROR] Auto-invoice generation failed for BL id {bill['id']}: {e}")
+    # Removed auto-invoice generation from GET /bill/<id>
 
     return jsonify(bill)
 
@@ -307,6 +320,13 @@ def upload_file():
                     customer_packing_list
                 ))
                 conn.commit()
+                # Fetch newly inserted BOL row
+                cur.execute("SELECT * FROM bill_of_lading WHERE id = (SELECT MAX(id) FROM bill_of_lading)")
+                bill_row = cur.fetchone()
+                columns = [desc[0] for desc in cur.description]
+                bill = dict(zip(columns, bill_row)) if bill_row else None
+                if bill:
+                    auto_generate_invoice_for_bill(bill)
                 cur.close()
                 conn.close()
                 uploaded_count += 1
