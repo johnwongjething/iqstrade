@@ -21,6 +21,95 @@ print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all
 
 # Bill and file-related endpoints
 # /bills, /bill/<id>, /uploads/<filename>, /upload, /bill/<id>/upload_receipt, /bill/<id>/unique_number, /send_unique_number_email, /send_invoice_email, /bill/<id>/delete, /generate_payment_link/<id>, /bills/status/<status>, /bills/awaiting_bank_in
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime
+import pytz
+import json
+import os
+import tempfile
+
+from db import get_db_conn
+from cloudinary_utils import upload_filepath_to_cloudinary
+from invoice_utils import generate_invoice_pdf
+
+# --- AUTO-INVOICE GENERATION FUNCTION ---
+def auto_generate_invoice_for_bill(bill):
+    print(f"Checking OCR completeness for BL id {bill['id']}")
+    try:
+        ocr_fields = json.loads(bill.get('ocr_text') or '{}')
+    except Exception as e:
+        print(f"[ERROR] Could not parse ocr_text for BL id {bill['id']}: {e}")
+        return False
+
+    required = [
+        'shipper', 'consignee', 'port_of_loading', 'port_of_discharge',
+        'bl_number', 'container_numbers', 'flight_or_vessel'
+    ]
+    missing = [field for field in required if not ocr_fields.get(field)]
+    if missing:
+        print(f"OCR incomplete for BL id {bill['id']}, missing: {missing}. Skipping automation.")
+        return False
+
+    print(f"OCR complete, proceeding with auto-invoice for BL id {bill['id']}")
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # Set default fees if blank or 0
+    ctn_fee = bill.get('ctn_fee')
+    service_fee = bill.get('service_fee')
+    if not ctn_fee or float(ctn_fee) == 0:
+        print("Setting default fees for BL id {}".format(bill['id']))
+        ctn_fee = 100
+    if not service_fee or float(service_fee) == 0:
+        print("Setting default fees for BL id {}".format(bill['id']))
+        service_fee = 100
+
+    # Generate payment link (after fees are set)
+    payment_link = bill.get('payment_link')
+    if not payment_link:
+        print("Generating payment link for BL id {}".format(bill['id']))
+        # Replace with your actual logic if you have it
+        payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}"
+
+    # Generate invoice PDF
+    print("Generating invoice PDF for BL id {}".format(bill['id']))
+    customer = {
+        'name': bill.get('customer_name', ''),
+        'email': bill.get('customer_email', ''),
+        'phone': bill.get('customer_phone', '')
+    }
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        invoice_local_path = tmp.name
+
+    generate_invoice_pdf(customer, bill, service_fee, ctn_fee, payment_link, output_path=invoice_local_path)
+    print(f"Invoice generated at: {invoice_local_path}")
+
+    print("Uploading to Cloudinary for BL id {}".format(bill['id']))
+    cloud_url = upload_filepath_to_cloudinary(invoice_local_path, folder="invoices")
+    print(f"Invoice uploaded to Cloudinary: {cloud_url}")
+
+    # Update DB
+    cur.execute("""
+        UPDATE bill_of_lading
+        SET ctn_fee=%s, service_fee=%s, payment_link=%s, invoice_filename=%s
+        WHERE id=%s
+    """, (ctn_fee, service_fee, payment_link, cloud_url, bill['id']))
+    conn.commit()
+    print("DB updated with invoice_filename and payment_link for BL id {}".format(bill['id']))
+
+    cur.close()
+    conn.close()
+
+    try:
+        os.remove(invoice_local_path)
+    except Exception:
+        pass
+
+    return True
+
+
 
 @bill_routes.route('/bills', methods=['GET'])
 @jwt_required()
@@ -102,6 +191,12 @@ def get_bill(id):
         bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
     cur.close()
     conn.close()
+      # --- AUTO-INVOICE GENERATION ---
+    try:
+        auto_generate_invoice_for_bill(bill)
+    except Exception as e:
+        print(f"[ERROR] Auto-invoice generation failed for BL id {bill['id']}: {e}")
+
     return jsonify(bill)
 
 # @bill_routes.route('/uploads/<path:filename>', methods=['GET'])
