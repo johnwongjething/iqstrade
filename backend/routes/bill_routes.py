@@ -258,6 +258,47 @@ def upload_file():
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
         import tempfile
+        def compress_pdf_for_openai(input_path):
+            import os
+            print(f"[DEBUG] Incoming file size: {os.path.getsize(input_path) // 1024} KB")
+            if os.path.getsize(input_path) <= 512 * 1024:
+                return input_path  # No compression needed
+            print("[DEBUG] Compressing PDF for OpenAI")
+            compressed_path = input_path.replace('.pdf', '_compressed.pdf')
+            # Try Ghostscript first
+            try:
+                import subprocess
+                subprocess.run([
+                    'gs',
+                    '-sDEVICE=pdfwrite',
+                    '-dCompatibilityLevel=1.4',
+                    '-dPDFSETTINGS=/ebook',
+                    '-dNOPAUSE',
+                    '-dQUIET',
+                    '-dBATCH',
+                    f'-sOutputFile={compressed_path}',
+                    input_path
+                ], check=True)
+                final_size = os.path.getsize(compressed_path)
+                print(f"[DEBUG] Final compressed size: {final_size // 1024} KB")
+                if final_size <= 220 * 1024:
+                    return compressed_path
+            except Exception as e:
+                print(f"[ERROR] Ghostscript compression failed: {e}")
+            # Fallback to PyMuPDF
+            try:
+                import fitz
+                doc = fitz.open(input_path)
+                doc.save(compressed_path, deflate=True, garbage=3)
+                final_size = os.path.getsize(compressed_path)
+                print(f"[DEBUG] Final compressed size (PyMuPDF): {final_size // 1024} KB")
+                if final_size <= 220 * 1024:
+                    return compressed_path
+            except Exception as e:
+                print(f"[ERROR] PyMuPDF compression failed: {e}")
+            print("[WARNING] Compression failed or file still too large, using original file")
+            return input_path
+
         def save_file_with_timestamp_and_cloudinary(file, label):
             if not file:
                 return None, None, None
@@ -265,7 +306,7 @@ def upload_file():
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                 file.save(tmp.name)
                 local_path = tmp.name
-            # Upload to Cloudinary
+            # Upload to Cloudinary (always original)
             cloud_url = upload_filepath_to_cloudinary(local_path, folder=label)
             return cloud_url, local_path, file.filename
         uploaded_count = 0
@@ -286,10 +327,12 @@ def upload_file():
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
                 pdf_url, local_path, orig_filename = save_file_with_timestamp_and_cloudinary(bill_pdf, 'bill')
+                # Compress for OpenAI if needed
+                file_for_openai = compress_pdf_for_openai(local_path)
                 fields = {}
                 if bill_pdf:
                     try:
-                        fields = extract_fields(local_path)
+                        fields = extract_fields(file_for_openai)
                     except Exception as e:
                         fields = {}
                 fields_json = json.dumps(fields)
@@ -330,10 +373,16 @@ def upload_file():
                 cur.close()
                 conn.close()
                 uploaded_count += 1
+                # Clean up temp files
                 try:
                     os.remove(local_path)
                 except Exception:
                     pass
+                if file_for_openai != local_path:
+                    try:
+                        os.remove(file_for_openai)
+                    except Exception:
+                        pass
         else:
             hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
             conn = get_db_conn()
