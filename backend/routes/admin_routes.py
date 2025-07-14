@@ -1,12 +1,13 @@
 
-import json
-admin_routes = Blueprint('admin_routes', __name__)
-
 from flask import Blueprint, request, jsonify
+import json
+
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from utils.security import decrypt_sensitive_data
 from config import get_db_conn  # Updated import
 from utils.ingest_emails import ingest_emails
+
+admin_routes = Blueprint('admin_routes', __name__)
 
 @admin_routes.route('/admin/ingest-emails', methods=['POST'])
 @jwt_required()
