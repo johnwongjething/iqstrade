@@ -2,6 +2,10 @@ import os
 import imaplib
 import email
 from email.header import decode_header
+import os
+import imaplib
+import email
+from email.header import decode_header
 import tempfile
 import fitz  # PyMuPDF
 # import openai
@@ -11,11 +15,7 @@ import logging
 from PIL import Image
 from google.cloud import vision
 from config import get_db_conn
-from cloudinary_utils import upload_to_cloudinary
-
-# Setup logging
-def debug(msg):
-    print(f"[DEBUG] {msg}")
+from cloudinary_utils import upload_filepath_to_cloudinary
 def warn(msg):
     print(f"[WARNING] {msg}")
 
