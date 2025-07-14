@@ -28,14 +28,24 @@ def get_env(var, default=None):
 # Connect to Gmail IMAP
 def connect_imap():
     host = get_env('EMAIL_HOST', 'imap.mail.yahoo.com')
-    port = int(get_env('EMAIL_PORT', '993'))
-    user = get_env('EMAIL_USERNAME')
-    password = get_env('EMAIL_PASSWORD')
-    debug(f"Connecting to IMAP: {user}@{host}")
-    mail = imaplib.IMAP4_SSL(host, port)
-    mail.login(user, password)
-    debug("Logged in successfully")
-    return mail
+import os
+import imaplib
+import email
+from email.header import decode_header
+import tempfile
+import fitz  # PyMuPDF
+# import openai
+import requests
+import re
+import logging
+from PIL import Image
+from google.cloud import vision
+from config import get_db_conn
+from cloudinary_utils import upload_filepath_to_cloudinary
+
+def debug(msg):
+    print(f"[DEBUG] {msg}")
+
 
 # Fetch unread emails
 def fetch_unread_emails(mail):
