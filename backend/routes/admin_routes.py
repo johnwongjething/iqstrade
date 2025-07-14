@@ -13,7 +13,7 @@ admin_routes = Blueprint('admin_routes', __name__)
 @jwt_required()
 def admin_ingest_emails():
     user = json.loads(get_jwt_identity())
-    if user['role'] not in ['admin']:
+    if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
     print('[DEBUG] Manual ingestion triggered by admin')
     result = ingest_emails()
@@ -23,7 +23,7 @@ def admin_ingest_emails():
 @jwt_required()
 def get_email_ingest_errors():
     user = json.loads(get_jwt_identity())
-    if user['role'] not in ['admin']:
+    if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
     print('[DEBUG] Returning email ingestion errors')
     conn = get_db_conn()
@@ -48,7 +48,7 @@ def get_email_ingest_errors():
 @jwt_required()
 def get_users():
     user = json.loads(get_jwt_identity())
-    if user['role'] not in ['admin']:
+    if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
     conn = get_db_conn()
     if conn is None:
@@ -76,7 +76,7 @@ def get_users():
 @jwt_required()
 def delete_user(user_id):
     user = json.loads(get_jwt_identity())
-    if user['role'] not in ['admin']:
+    if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
     conn = get_db_conn()
     if conn is None:
@@ -92,7 +92,7 @@ def delete_user(user_id):
 @jwt_required()
 def approve_user(user_id):
     user = json.loads(get_jwt_identity())
-    if user['role'] not in ['admin']:
+    if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
     conn = get_db_conn()
     if conn is None:
