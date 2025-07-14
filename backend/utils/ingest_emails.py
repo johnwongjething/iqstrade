@@ -133,7 +133,18 @@ def extract_payment_data(all_text):
     amount = float(amount_match.group(1)) if amount_match else 0.0
     ref_match = re.search(r'Ref[:\s]*([A-Za-z0-9]+)', all_text)
     reference_number = ref_match.group(1) if ref_match else ''
-    bl_numbers = re.findall(r'BL[0-9]+', all_text)
+
+    # Improved BL number detection
+    bl_numbers = set()
+
+    # Common patterns like BL123456
+    bl_numbers.update(re.findall(r'\bBL[ -]?[0-9]{4,}\b', all_text, re.IGNORECASE))
+
+    # "B/L No: 123456" or "Bill of Lading: 123456"
+    bl_numbers.update(re.findall(r'\b(?:B\/L|Bill of Lading)[^\d]{0,10}(\d{4,})', all_text, re.IGNORECASE))
+
+    bl_numbers = list(bl_numbers)
+
     parsed = {
         'amount': amount,
         'reference_number': reference_number,
@@ -141,6 +152,7 @@ def extract_payment_data(all_text):
     }
     debug(f"Parsed fields (placeholder): {parsed}")
     return parsed
+
 
 # Match to DB
 def match_payment_to_bls(payment_data):
