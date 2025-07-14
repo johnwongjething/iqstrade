@@ -106,3 +106,8 @@ def send_simple_email(to_email, subject, body):
     except Exception as e:
         print("Failed to send simple email:", e)
         return False
+
+def send_payment_confirmation_email(to_email, customer_name, bl_number):
+    subject = "Payment Received - Thank You!"
+    body = f"Dear {customer_name},\n\nWe have received your payment for Bill of Lading {bl_number}. Your CTN Number is now valid.\n\nThank you for your business!"
+    send_simple_email(to_email, subject, body)
