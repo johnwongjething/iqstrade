@@ -4,6 +4,7 @@ from utils.security import decrypt_sensitive_data
 from config import get_db_conn  # Updated import
 from utils.ingest_emails import ingest_emails
 
+
 @admin_routes.route('/admin/ingest-emails', methods=['POST'])
 @jwt_required()
 def admin_ingest_emails():
