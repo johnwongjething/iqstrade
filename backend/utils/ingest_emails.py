@@ -134,10 +134,13 @@ def extract_payment_data(all_text):
     ref_match = re.search(r'Ref[:\s]*([A-Za-z0-9]+)', all_text)
     reference_number = ref_match.group(1) if ref_match else ''
 
-    # Improved BL number detection
     bl_numbers = set()
 
-    # Common patterns like BL123456
+    # Flexible B/L number detection (like extract_fields)
+    # Match patterns like NYC22062889
+    bl_numbers.update(re.findall(r'\b[A-Z]{3}\d{6,}\b', all_text))
+
+    # Also pick up simpler BL12345 style
     bl_numbers.update(re.findall(r'\bBL[ -]?[0-9]{4,}\b', all_text, re.IGNORECASE))
 
     # "B/L No: 123456" or "Bill of Lading: 123456"
@@ -152,7 +155,6 @@ def extract_payment_data(all_text):
     }
     debug(f"Parsed fields (placeholder): {parsed}")
     return parsed
-
 
 # Match to DB
 def match_payment_to_bls(payment_data):
