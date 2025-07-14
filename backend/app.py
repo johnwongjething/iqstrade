@@ -170,15 +170,18 @@ def serve_static(filename):
         print(f"[ERROR] File not found: {static_path}")
     return send_from_directory(os.path.join(build_dir, 'static'), filename)
 
+
 # --- SERVE REACT FRONTEND BUILD ---
+@app.route('/reset-password/<token>')
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def serve_react_app(path):
+def serve_react_app(path=None, token=None):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
-    if path != "" and os.path.exists(os.path.join(build_dir, path)):
+    # Serve static files if they exist
+    if path and path != "" and os.path.exists(os.path.join(build_dir, path)):
         return send_from_directory(build_dir, path)
-    else:
-        return send_from_directory(build_dir, 'index.html')
+    # Always serve index.html for React Router routes (including /reset-password/<token>)
+    return send_from_directory(build_dir, 'index.html')
 
 print(f"[DEBUG] FLASK_ENV: {os.getenv('FLASK_ENV')}")
 print(f"[DEBUG] ALLOWED_ORIGINS: {allowed_origins}")
