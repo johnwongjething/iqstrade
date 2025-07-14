@@ -88,7 +88,7 @@ def import_bank_statement():
 
                     cursor.execute("""
                         UPDATE bill_of_lading
-                        SET status = 'Paid', ctn_valid = TRUE, payment_reference = %s
+                        SET status = 'Paid and CTN Valid', payment_reference = %s
                         WHERE id = %s
                     """, (description, bl_id))
                     conn.commit()
