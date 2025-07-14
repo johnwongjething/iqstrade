@@ -22,7 +22,19 @@ def import_bank_statement():
     debug("Received bank CSV file")
 
     content = file.read().decode('utf-8')
-    reader = csv.DictReader(io.StringIO(content))
+
+
+    content_io = io.StringIO(content)
+
+    try:
+            sniffed_dialect = csv.Sniffer().sniff(content_io.read(1024))
+            content_io.seek(0)
+            reader = csv.DictReader(content_io, dialect=sniffed_dialect)
+            debug(f"[BANK IMPORT DEBUG] Detected CSV delimiter: {sniffed_dialect.delimiter}")
+    except Exception as e:
+            debug(f"[BANK IMPORT DEBUG] CSV sniffing failed ({e}). Falling back to default comma delimiter.")
+            content_io.seek(0)
+            reader = csv.DictReader(content_io)
     results = []
 
     conn = get_db_conn()
