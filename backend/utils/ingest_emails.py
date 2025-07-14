@@ -4,7 +4,7 @@ import email
 from email.header import decode_header
 import tempfile
 import fitz  # PyMuPDF
-import openai
+# import openai
 import requests
 import re
 import logging
