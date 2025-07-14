@@ -151,11 +151,14 @@ def match_payment_to_bls(payment_data):
     matched = []
     total_invoice = 0
     for bl in bls:
-        cursor.execute("SELECT id, invoice_amount, status FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        cursor.execute("SELECT id, ctn_fee, service_fee, status FROM bill_of_lading WHERE bl_number = %s", (bl,))
         row = cursor.fetchone()
         if row:
             matched.append(row)
-            total_invoice += float(row[1])
+            ctn_fee = float(row[1]) if row[1] else 0
+            service_fee = float(row[2]) if row[2] else 0
+            total_invoice += ctn_fee + service_fee
+            debug(f"Matched BL number: {bl} | ctn_fee: {ctn_fee} | service_fee: {service_fee}")
     tolerance = 2.0
     if abs(total_invoice - amount) <= tolerance and matched:
         debug(f"Receipt matches payment for BLs: {bls}")
