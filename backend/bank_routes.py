@@ -113,9 +113,9 @@ def import_bank_statement():
                     INSERT INTO bank_unmatched_records (date, description, amount, reason)
                     VALUES (%s, %s, %s, %s)
                 """, (date, description, amount, f'No unpaid record for BL {bl}'))
+                conn.commit()
 
-        if not matched_any:
-            conn.commit()
+        # Remove the commit here, as unmatched records are now committed above
 
     cursor.close()
     conn.close()
