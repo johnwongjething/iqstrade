@@ -9,7 +9,7 @@ import requests
 import re
 import logging
 from PIL import Image
-import pytesseract
+from google.cloud import vision
 from config import get_db_conn
 from cloudinary_utils import upload_to_cloudinary
 
@@ -96,13 +96,26 @@ def extract_text_from_file(filepath):
                             images.append(img_path)
                             pix = None
                 ocr_text = ""
+                client = vision.ImageAnnotatorClient()
                 for img_path in images:
-                    ocr_text += pytesseract.image_to_string(Image.open(img_path))
+                    with open(img_path, "rb") as image_file:
+                        content = image_file.read()
+                    image = vision.Image(content=content)
+                    response = client.text_detection(image=image)
+                    if response.text_annotations:
+                        ocr_text += response.text_annotations[0].description
                     os.remove(img_path)
                 return ocr_text
     elif ext in ['.jpg', '.jpeg', '.png']:
         debug("Attachment type: Image")
-        return pytesseract.image_to_string(Image.open(filepath))
+        client = vision.ImageAnnotatorClient()
+        with open(filepath, "rb") as image_file:
+            content = image_file.read()
+        image = vision.Image(content=content)
+        response = client.text_detection(image=image)
+        if response.text_annotations:
+            return response.text_annotations[0].description
+        return ""
     else:
         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
