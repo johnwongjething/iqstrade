@@ -183,8 +183,9 @@ def ingest_emails():
         matched_bls, is_match = match_payment_to_bls(payment_data)
         if is_match:
             # Upload receipt to Cloudinary
+            from cloudinary_utils import upload_filepath_to_cloudinary
             for att in attachments:
-                url = upload_to_cloudinary(att)
+                url = upload_filepath_to_cloudinary(att)
                 debug(f"Uploaded receipt to Cloudinary: {url}")
                 for row in matched_bls:
                     cursor.execute("UPDATE bill_of_lading SET receipt_filename = ?, status = 'Awaiting Bank In' WHERE id = ?", (url, row[0]))
