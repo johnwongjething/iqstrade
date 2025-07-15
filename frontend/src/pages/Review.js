@@ -6,9 +6,6 @@ import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
 import { Snackbar, Alert } from '@mui/material';
 import LoadingModal from '../components/LoadingModal';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
 
 function Review({ t = x => x }) {
   const [bills, setBills] = useState([]);
@@ -38,8 +35,6 @@ function Review({ t = x => x }) {
   const [uniqueEmailSubject, setUniqueEmailSubject] = useState('');
   const [uniqueSending, setUniqueSending] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  const [pdfZoom, setPdfZoom] = useState(1.2); // Default zoom to fill area
-  const [numPages, setNumPages] = useState(null);
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
 
@@ -142,7 +137,8 @@ function Review({ t = x => x }) {
     }
     setSaving(true);
     try {
-      // Always use the latest generated payment link, never fallback to old DB value
+      // Debug: log paymentLink and updateData before saving
+      console.log('[DEBUG] paymentLink before save:', paymentLink);
       const updateData = {
         ...fields,
         service_fee: serviceFee === '' ? null : Number(serviceFee),
@@ -153,6 +149,7 @@ function Review({ t = x => x }) {
         payment_status: selected?.payment_status || '',
         reserve_status: selected?.reserve_status || ''
       };
+      console.log('[DEBUG] updateData payload:', updateData);
       const res = await fetch(`${API_BASE_URL}/api/bill/${selected.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
@@ -256,8 +253,8 @@ function Review({ t = x => x }) {
   // --- Upload receipt handler ---
   const handleUpload = async (file, record) => {
     const formData = new FormData();
-    formData.append('file', file);
-    await fetch(`${API_BASE_URL}/api/upload`, {
+    formData.append('receipt', file);
+    await fetch(`${API_BASE_URL}/api/bill/${record.id}/upload_receipt`, {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': csrfToken },
       credentials: 'include',
@@ -341,6 +338,7 @@ function Review({ t = x => x }) {
               href={record.receipt_filename}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => console.log('[DEBUG] Opening receipt URL:', record.receipt_filename)}
             >
               <Button size="small">{t('viewReceipt')}</Button>
             </a>
@@ -374,18 +372,20 @@ function Review({ t = x => x }) {
           <Button
             size="small"
             disabled={!record.customer_invoice}
-            href={record.customer_invoice || undefined}
+            href={record.customer_invoice ? record.customer_invoice : undefined}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => console.log('[DEBUG] Opening customer_invoice URL:', record.customer_invoice)}
           >
             {t('invoice')}
           </Button>
           <Button
             size="small"
             disabled={!record.customer_packing_list}
-            href={record.customer_packing_list || undefined}
+            href={record.customer_packing_list ? record.customer_packing_list : undefined}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => console.log('[DEBUG] Opening customer_packing_list URL:', record.customer_packing_list)}
           >
             {t('packingList')}
           </Button>
@@ -451,30 +451,15 @@ function Review({ t = x => x }) {
       >
         {selected && selected.pdf_filename ? (
           <div style={{ display: 'flex', gap: 24 }}>
-            <div style={{ width: '60%', minWidth: 400, background: '#f5f5f5', padding: 12, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                <Button size="small" onClick={() => setPdfZoom(z => Math.max(z - 0.2, 0.4))}>-</Button>
-                <span style={{ minWidth: 40, textAlign: 'center' }}>{Math.round(pdfZoom * 100)}%</span>
-                <Button size="small" onClick={() => setPdfZoom(z => Math.min(z + 0.2, 3))}>+</Button>
-              </div>
-              <div style={{ width: '100%', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 600 }}>
-                <Document
-                  file={selected.pdf_filename}
-                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                  loading={<div>Loading PDF...</div>}
-                  error={<div>Failed to load PDF.</div>}
-                >
-                  <Page
-                    pageNumber={1}
-                    width={Math.max(400, 0.6 * 1100) * pdfZoom}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={true}
-                  />
-                </Document>
-              </div>
-              {numPages && (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#888' }}>1 of {numPages}</div>
-              )}
+            <div style={{ width: '60%', minWidth: 400 }}>
+          <iframe
+            src={selected.pdf_filename}
+            width="100%"
+            height="600px"
+            style={{ border: 'none' }}
+            title="PDF Preview"
+            onLoad={() => console.log('[DEBUG] PDF Preview loaded from Cloudinary URL:', selected.pdf_filename)}
+          />
             </div>
             <div style={{ flex: 1 }}>
               <div>

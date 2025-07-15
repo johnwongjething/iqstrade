@@ -195,18 +195,19 @@ function StaffStats({ t = x => x }) {
                             ).toFixed(2)
                         }
                       </TableCell>
-                      {/* Invoice PDF Link */}
-                      <TableCell>
-                        {row.invoice_filename ? (
-                          <Link
-                            href={row.invoice_filename}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {t('viewPDF')}
-                          </Link>
-                        ) : 'N/A'}
-                      </TableCell>
+                  {/* Invoice PDF Link */}
+                  <TableCell>
+                    {row.invoice_filename ? (
+                      <Link
+                        href={row.invoice_filename}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => console.log('[DEBUG] Opening invoice Cloudinary URL:', row.invoice_filename)}
+                      >
+                        {t('viewPDF')}
+                      </Link>
+                    ) : 'N/A'}
+                  </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

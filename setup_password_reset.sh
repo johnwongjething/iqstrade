@@ -204,7 +204,7 @@ def request_password_reset():
     cur.close()
     conn.close()
 
-    msg = MIMEText(f'Reset your password: {os.getenv('API_BASE_URL', 'https://rayray.onrender.com')}/reset-password/{reset_token}')
+    msg = MIMEText(f'Reset your password: {os.getenv('API_BASE_URL', 'https://iqstrade.onrender.com')}/reset-password/{reset_token}')
     msg['Subject'] = 'Password Reset Request'
     msg['From'] = os.getenv('SMTP_USERNAME')
     msg['To'] = email

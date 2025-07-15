@@ -45,6 +45,20 @@ const AccountPage = ({ t = x => x }) => {
       key: 'bl_number',
     },
     {
+      title: 'Receipt PDF',
+      key: 'receiptPDF',
+      render: (_, record) => record.receipt_filename ? (
+        <a
+          href={record.receipt_filename}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => console.log('[DEBUG] Opening receipt Cloudinary URL:', record.receipt_filename)}
+        >
+          View Receipt
+        </a>
+      ) : 'N/A',
+    },
+    {
       title: 'ctnFee',
       dataIndex: 'display_ctn_fee',
       key: 'display_ctn_fee',

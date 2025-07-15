@@ -27,6 +27,8 @@ import AccountPage from './AccountPage';
 import NotFound from './NotFound';
 import AccountingReview from './AccountingReview';
 import ForgotUsername from './ForgotUsername';
+import ManagementDashboard from './ManagementDashboard';
+import BankImport from './BankImport';
 import './App.css';
 
 //trigger rebuild
@@ -83,6 +85,7 @@ function App() {
           <Route path="/upload" element={<UploadForm t={t} />} />
           <Route path="/search" element={<BillSearch t={t} />} />
           <Route path="/dashboard" element={<Dashboard t={t} />} />
+          <Route path="/admin/dashboard" element={<ManagementDashboard />} />
           <Route path="/faq" element={<FAQ t={t} />} />
           <Route path="/edit-bill/:id" element={<EditBill t={t} />} />
           <Route path="/edit-delete-bills" element={<EditDeleteBills t={t} />} />
@@ -92,6 +95,7 @@ function App() {
           <Route path="/forgot-username" element={<ForgotUsername t={t} />} />
           <Route path="/accounting-review" element={<AccountingReview t={t} />} />
           <Route path="/test" element={<TestRoute />} />
+          <Route path="/bank-import" element={<BankImport />} />
           <Route path="*" element={<NotFound t={t} />} />
         </Routes>
         <WeChatButton />

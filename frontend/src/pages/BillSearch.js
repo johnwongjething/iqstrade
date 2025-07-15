@@ -201,33 +201,78 @@ export default function BillSearch({ t = x => x }) {
 
       <Box sx={{ overflowX: 'auto', mt: 2 }}>
         <Table size="small" sx={{
-          minWidth: 600,
-          '& th, & td': {
+          minWidth: 800,
+          '& th': {
+            backgroundColor: '#f5f7fa',
+            color: '#222',
+            fontWeight: 'bold',
+            fontSize: { xs: '0.95rem', sm: '1.05rem' },
+            borderBottom: '2px solid #e0e0e0',
+            px: { xs: 1, sm: 2 },
+            py: { xs: 1, sm: 1.5 },
+            textAlign: 'center',
+          },
+          '& td': {
             whiteSpace: { xs: 'nowrap', sm: 'normal' },
             fontSize: { xs: '0.85rem', sm: '1rem' },
             px: { xs: 1, sm: 2 },
-            py: { xs: 0.5, sm: 1 }
+            py: { xs: 0.5, sm: 1 },
+            textAlign: 'center',
           }
         }}>
           <TableHead>
             <TableRow>
-              <TableCell>{t('ctnNumber')}</TableCell>
-              <TableCell>{t('billOfLadingNumber')}</TableCell>
-              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('customerName')}</TableCell>
-              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('containerNo')}</TableCell>
+              <TableCell>{t('blNumber')}</TableCell>
+              <TableCell>{t('containerNo')}</TableCell>
               <TableCell>{t('status')}</TableCell>
-              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('createdAt')}</TableCell>
+              <TableCell>{t('ctnNumber')}</TableCell>
+              <TableCell>{t('createdAt')}</TableCell>
+              <TableCell>{t('invoice')}</TableCell>
+              <TableCell>{t('bankReceipt')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {results.map(row => (
               <TableRow key={row.id}>
-                <TableCell>{row.unique_number}</TableCell>
                 <TableCell>{row.bl_number}</TableCell>
-                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.customer_name}</TableCell>
-                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.container_numbers}</TableCell>
+                <TableCell>{row.container_numbers}</TableCell>
                 <TableCell>{getStatus(row)}</TableCell>
-                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{formatDate(row.created_at)}</TableCell>
+                <TableCell>{row.unique_number}</TableCell>
+                <TableCell>{formatDate(row.created_at)}</TableCell>
+                <TableCell>
+                  {row.invoice_filename ? (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      href={row.invoice_filename}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ minWidth: 100 }}
+                    >
+                      {t('viewInvoice')}
+                    </Button>
+                  ) : (
+                    <span style={{ color: '#888' }}>{t('noInvoice') || 'N/A'}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {row.receipt_filename ? (
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      size="small"
+                      href={row.receipt_filename}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ minWidth: 100 }}
+                    >
+                      {t('viewReceipt')}
+                    </Button>
+                  ) : (
+                    <span style={{ color: '#888' }}>{t('noReceipt') || 'N/A'}</span>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

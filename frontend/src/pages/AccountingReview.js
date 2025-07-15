@@ -10,6 +10,32 @@ function AccountingReview({ t = x => x }) {
   const [allBills, setAllBills] = useState([]);
   const [bills, setBills] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [manualCheckLoading, setManualCheckLoading] = useState(false);
+  // Manual check for new payments
+  const handleManualCheckPayments = async () => {
+    setManualCheckLoading(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+      const res = await fetch(`${API_BASE_URL}/admin/ingest-emails`, {
+        method: 'POST',
+        credentials: 'include',
+        headers
+      });
+      const data = await res.json();
+      console.log('[DEBUG] Manual check triggered', data);
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Manual payment check complete.', severity: 'success' });
+        await fetchBills();
+      } else {
+        setSnackbar({ open: true, message: data.error || 'Manual check failed.', severity: 'error' });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setManualCheckLoading(false);
+    }
+  };
   const [confirmModal, setConfirmModal] = useState({ visible: false, record: null });
   const [uniqueEmailModalVisible, setUniqueEmailModalVisible] = useState(false);
   const [uniqueEmailBody, setUniqueEmailBody] = useState('');
@@ -202,6 +228,20 @@ const handleSendUniqueEmail = async () => {
 
   const columns = [
     { title: t('blNumber'), dataIndex: 'bl_number', key: 'bl_number' },
+    {
+      title: t('receiptPDF'),
+      key: 'receiptPDF',
+      render: (_, record) => record.receipt_filename ? (
+        <a
+          href={record.receipt_filename}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => console.log('[DEBUG] Opening receipt Cloudinary URL:', record.receipt_filename)}
+        >
+          {t('viewPDF')}
+        </a>
+      ) : 'N/A',
+    },
     { title: t('receiptUploadedAt'), dataIndex: 'receipt_uploaded_at', key: 'receipt_uploaded_at', render: (text) => text ? new Date(text).toLocaleString() : '' },
     { title: t('ctnNumber'), dataIndex: 'unique_number', key: 'unique_number', render: renderCTNNumber },
     {
@@ -269,6 +309,15 @@ const handleSendUniqueEmail = async () => {
           <Button type="primary" htmlType="submit">{t('search')}</Button>
           <Button onClick={handleClearBlSearch}>{t('clear')}</Button>
         </form>
+        <Button
+          variant="contained"
+          color="secondary"
+          style={{ marginLeft: 8 }}
+          onClick={handleManualCheckPayments}
+          disabled={manualCheckLoading}
+        >
+          Manual Check for New Payments
+        </Button>
       </div>
 
       <Table dataSource={bills} columns={columns} rowKey="id" loading={loading} pagination={false} />
