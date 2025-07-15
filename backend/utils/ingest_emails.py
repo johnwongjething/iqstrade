@@ -15,6 +15,13 @@ from cloudinary_utils import upload_filepath_to_cloudinary
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import datetime
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
+
+bp_ingest = Blueprint("bp_ingest", __name__)
+
+# ...rest of your code...
+
 
 def debug(msg):
     print(f"[DEBUG] {msg}")
@@ -274,6 +281,22 @@ def ingest_emails():
                 warn(f"Failed to remove attachment: {e}")
     mail.logout()
     return results
+
+@bp_ingest.route("/admin/email-ingest-errors/<int:error_id>", methods=["DELETE"])
+@jwt_required()
+def delete_email_ingest_error(error_id):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM email_ingest_errors WHERE id = %s", (error_id,))
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "Error record not found"}), 404
+    cursor.execute("DELETE FROM email_ingest_errors WHERE id = %s", (error_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({"message": "Deleted successfully"}), 200
 
 if __name__ == "__main__":
     ingest_emails()
