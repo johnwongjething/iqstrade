@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Button, Snackbar, Alert, TextField } from '@mui/material';
 import axios from 'axios';
 
 function BankImport() {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [results, setResults] = useState([]);
   const [entryCount, setEntryCount] = useState(0);
@@ -52,7 +54,7 @@ function BankImport() {
           variant="outlined"
           color="primary"
           sx={{ mb: 2, float: 'left' }}
-          href="/dashboard"
+          onClick={() => navigate('/dashboard')}
         >
           Back to Dashboard
         </Button>
