@@ -26,6 +26,7 @@ from routes.management_routes import management_routes
 from payment_webhook import payment_webhook  # Register payment webhook blueprint
 from payment_link import payment_link  # Register payment link blueprint
 from bank_routes import bank_routes
+from utils.ingest_emails import bp_ingest
 
 app = Flask(__name__, static_folder='build', static_url_path='')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -61,6 +62,7 @@ app.register_blueprint(management_routes, url_prefix='/api')
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link, url_prefix='/api')
 app.register_blueprint(bank_routes)
+app.register_blueprint(bp_ingest)
 
 print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
 
