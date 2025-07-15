@@ -63,6 +63,12 @@ def import_bank_statement():
                 INSERT INTO bank_unmatched_records (date, description, amount, reason)
                 VALUES (%s, %s, %s, %s)
             """, (date, description, amount, 'No BL number detected'))
+            results.append({
+                "status": "Unmatched",
+                "description": description,
+                "amount": amount,
+                "reason": "No BL number detected"
+            })
             continue
 
         matched_any = False
@@ -107,6 +113,13 @@ def import_bank_statement():
                         INSERT INTO bank_unmatched_records (date, description, amount, reason)
                         VALUES (%s, %s, %s, %s)
                     """, (date, description, amount, f'Amount mismatch for BL {bl}'))
+                    results.append({
+                        "bl_number": bl,
+                        "status": "Unmatched",
+                        "description": description,
+                        "amount": amount,
+                        "reason": f'Amount mismatch for BL {bl}'
+                    })
             else:
                 debug(f"No unpaid record for BL {bl}. Logging as unmatched.")
                 cursor.execute("""
@@ -114,6 +127,13 @@ def import_bank_statement():
                     VALUES (%s, %s, %s, %s)
                 """, (date, description, amount, f'No unpaid record for BL {bl}'))
                 conn.commit()
+                results.append({
+                    "bl_number": bl,
+                    "status": "Unmatched",
+                    "description": description,
+                    "amount": amount,
+                    "reason": f'No unpaid record for BL {bl}'
+                })
 
         # Remove the commit here, as unmatched records are now committed above
 
