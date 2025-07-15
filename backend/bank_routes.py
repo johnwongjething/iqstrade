@@ -165,7 +165,34 @@ def import_bank_statement():
 
     return jsonify({"message": "Bank statement processed", "results": results})
 
-@bank_routes.route('/admin/bank-unmatched', methods=['GET'])
+# @bank_routes.route('/admin/bank-unmatched', methods=['GET'])
+# def get_unmatched_records():
+#     conn = get_db_conn()
+#     cursor = conn.cursor()
+#     cursor.execute("""
+#         SELECT id, date, description, amount, reason, created_at
+#         FROM bank_unmatched_records
+#         ORDER BY created_at DESC
+#         LIMIT 100
+#     """)
+#     rows = cursor.fetchall()
+#     results = [
+#         {
+#             "id": row[0],
+#             "date": row[1],
+#             "description": row[2],
+#             "amount": float(row[3]),
+#             "reason": row[4],
+#             "created_at": row[5].isoformat()
+#         }
+#         for row in rows
+#     ]
+#     cursor.close()
+#     conn.close()
+#     return jsonify(results)
+
+@bank_routes.route('/admin/unmatched-receipts', methods=['GET'])
+@jwt_required()
 def get_unmatched_records():
     conn = get_db_conn()
     cursor = conn.cursor()
