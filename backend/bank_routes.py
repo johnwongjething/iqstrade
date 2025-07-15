@@ -1,9 +1,28 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
 import csv
 import io
 import re
 from config import get_db_conn
 from email_utils import send_payment_confirmation_email
+@bank_routes.route("/admin/unmatched-receipts/<int:receipt_id>", methods=["DELETE"])
+@jwt_required()
+def delete_unmatched_receipt(receipt_id):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM bank_unmatched_records WHERE id = %s", (receipt_id,))
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "Receipt not found"}), 404
+
+    cursor.execute("DELETE FROM bank_unmatched_records WHERE id = %s", (receipt_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Deleted successfully"}), 200
 
 bank_routes = Blueprint('bank_routes', __name__)
 
