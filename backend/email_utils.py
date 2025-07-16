@@ -1,3 +1,4 @@
+
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -45,6 +46,19 @@ print("Loaded email_utils.py")
 #         print(f"Failed to send invoice email: {str(e)}")
 #         print(f"Email config: {EmailConfig.SMTP_SERVER}, {EmailConfig.SMTP_PORT}, {EmailConfig.SMTP_USERNAME}, {EmailConfig.SMTP_PASSWORD}")
 #         return False
+
+def send_email(to, subject, body, smtp_host, smtp_port, smtp_user, smtp_password):
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = smtp_user
+    msg['To'] = to
+    msg.set_content(body)
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        print(f"[DEBUG] ✅ Email sent to {to}")
 
 # Send unique number email using SMTP (plain text)
 def send_unique_number_email(to_email, subject, body):

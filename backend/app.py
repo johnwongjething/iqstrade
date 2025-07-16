@@ -1,3 +1,4 @@
+from routes.email_routes import email_routes
 from dotenv import load_dotenv
 import os
 # Load .env at the very top, before any other imports
@@ -23,7 +24,6 @@ from routes.misc_routes import misc_routes
 
 from routes.admin_routes import admin_routes
 from routes.management_routes import management_routes
-from email_routes import email_routes
 from payment_webhook import payment_webhook  # Register payment webhook blueprint
 from payment_link import payment_link  # Register payment link blueprint
 from bank_routes import bank_routes

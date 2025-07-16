@@ -251,6 +251,35 @@ def ingest_emails():
                 debug(f"Cleaned up local generated PDF file: {generated_pdf_path}")
             except Exception as e:
                 warn(f"Failed to remove generated PDF: {e}")
+            # === CUSTOMER EMAIL ARCHIVE LOGIC START ===
+            try:
+                import json
+                from_email = None
+                subject = None
+                # Parse sender and subject from email header
+                status, msg_data = mail.fetch(eid, '(RFC822)')
+                msg = email.message_from_bytes(msg_data[0][1])
+                from_email = msg.get('From')
+                subject = msg.get('Subject')
+                bl_numbers = payment_data.get('bl_numbers') if payment_data else []
+                cloudinary_urls = [url] if url else []
+                timestamp = datetime.datetime.now()
+                cursor.execute("""
+                    INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    from_email,
+                    subject,
+                    body_text,
+                    json.dumps(cloudinary_urls),
+                    bl_numbers,
+                    timestamp
+                ))
+                conn.commit()
+                print(f"[DEBUG] \U0001F4EC Stored customer email from {from_email} with B/Ls: {bl_numbers}")
+            except Exception as e:
+                print(f"[ERROR] Failed to store customer email: {e}")
+            # === CUSTOMER EMAIL ARCHIVE LOGIC END ===
             continue
         # --- Normal attachment logic ---
         if not payment_data:
@@ -258,6 +287,32 @@ def ingest_emails():
             cursor.execute("INSERT INTO email_ingest_errors (filename, reason, raw_text) VALUES (%s, %s, %s)", (None, "Failed to extract payment data", all_text))
             conn.commit()
             warn("Inserting error log into email_ingest_errors")
+            # === CUSTOMER EMAIL ARCHIVE LOGIC START ===
+            try:
+                import json
+                status, msg_data = mail.fetch(eid, '(RFC822)')
+                msg = email.message_from_bytes(msg_data[0][1])
+                from_email = msg.get('From')
+                subject = msg.get('Subject')
+                bl_numbers = []
+                cloudinary_urls = []
+                timestamp = datetime.datetime.now()
+                cursor.execute("""
+                    INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    from_email,
+                    subject,
+                    body_text,
+                    json.dumps(cloudinary_urls),
+                    bl_numbers,
+                    timestamp
+                ))
+                conn.commit()
+                print(f"[DEBUG] \U0001F4EC Stored customer email from {from_email} with B/Ls: {bl_numbers}")
+            except Exception as e:
+                print(f"[ERROR] Failed to store customer email: {e}")
+            # === CUSTOMER EMAIL ARCHIVE LOGIC END ===
             continue
         matched_bls, is_match = match_payment_to_bls(payment_data)
         if is_match:
@@ -274,6 +329,39 @@ def ingest_emails():
             cursor.execute("INSERT INTO email_ingest_errors (filename, reason, raw_text) VALUES (%s, %s, %s)", (attachments[0] if attachments else None, "Payment amount mismatch or missing B/L", all_text))
             conn.commit()
             warn("Inserting error log into email_ingest_errors")
+        # === CUSTOMER EMAIL ARCHIVE LOGIC START ===
+        try:
+            import json
+            status, msg_data = mail.fetch(eid, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            from_email = msg.get('From')
+            subject = msg.get('Subject')
+            bl_numbers = payment_data.get('bl_numbers') if payment_data else []
+            # Upload all attachments to Cloudinary
+            cloudinary_urls = []
+            for att in attachments:
+                try:
+                    url = upload_filepath_to_cloudinary(att)
+                    cloudinary_urls.append(url)
+                except Exception as e:
+                    print(f"[ERROR] Failed to upload attachment to Cloudinary: {e}")
+            timestamp = datetime.datetime.now()
+            cursor.execute("""
+                INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                from_email,
+                subject,
+                body_text,
+                json.dumps(cloudinary_urls),
+                bl_numbers,
+                timestamp
+            ))
+            conn.commit()
+            print(f"[DEBUG] \U0001F4EC Stored customer email from {from_email} with B/Ls: {bl_numbers}")
+        except Exception as e:
+            print(f"[ERROR] Failed to store customer email: {e}")
+        # === CUSTOMER EMAIL ARCHIVE LOGIC END ===
         for att in attachments:
             try:
                 os.remove(att)
