@@ -53,28 +53,51 @@ def management_overview():
 
         print(f"[DEBUG] Processed {len(bills)} bills.")
 
-        # Metrics
-        print("[DEBUG] Calculating metrics...")
+
+        # --- Begin: StaffStats.js/stats_summary logic copy ---
+        print("[DEBUG] Calculating metrics (copied from stats_summary logic)...")
         total_bills = len(bills)
-        pending_bills = sum(1 for b in bills if b.get("status") == "Pending")
+        pending_bills = sum(1 for b in bills if b.get("status") in ("Pending", "Invoice Sent", "Awaiting Bank In"))
         awaiting_bank_in = sum(1 for b in bills if b.get("status") == "Awaiting Bank In")
-        completed_bills = sum(1 for b in bills if b.get("status") == "Completed")
-        paid_bills = sum(1 for b in bills if b.get("status") == "Paid")
-        sum_invoice_amount = sum(b.get("total_invoice_amount", 0) for b in bills)
-        sum_paid_amount = sum(b.get("paid_amount", 0) for b in bills)
-        sum_outstanding_amount = sum(b.get("total_invoice_amount", 0) - b.get("paid_amount", 0) for b in bills)
+
+        completed_bills = sum(1 for b in bills if b.get("status") == "Paid and CTN Valid")
+        sum_invoice_amount = sum((b.get("ctn_fee") or 0) + (b.get("service_fee") or 0) for b in bills)
+
+        # Paid and outstanding logic (Allinpay/85%/reserve_status)
+        sum_paid_amount = 0.0
+        sum_outstanding_amount = 0.0
+        for b in bills:
+            ctn_fee = float(b.get("ctn_fee") or 0)
+            service_fee = float(b.get("service_fee") or 0)
+            invoice_amount = ctn_fee + service_fee
+            payment_method = str(b.get("payment_method") or '').strip().lower()
+            reserve_status = str(b.get("reserve_status") or '').strip().lower()
+            status = b.get("status", "")
+            # Paid logic
+            if payment_method != 'allinpay' and status == 'Paid and CTN Valid':
+                sum_paid_amount += invoice_amount
+            elif payment_method == 'allinpay' and status == 'Paid and CTN Valid' and reserve_status == 'reserve settled':
+                sum_paid_amount += invoice_amount
+            elif payment_method == 'allinpay' and status == 'Paid and CTN Valid' and reserve_status == 'unsettled':
+                sum_paid_amount += (ctn_fee * 0.85) + (service_fee * 0.85)
+            # Outstanding logic
+            if status in ('Awaiting Bank In', 'Invoice Sent'):
+                sum_outstanding_amount += invoice_amount
+            elif payment_method == 'allinpay' and reserve_status == 'unsettled':
+                sum_outstanding_amount += (ctn_fee * 0.15) + (service_fee * 0.15)
 
         metrics = {
             "total_bills": total_bills,
             "pending_bills": pending_bills,
             "awaiting_bank_in": awaiting_bank_in,
             "completed_bills": completed_bills,
-            "paid_bills": paid_bills,
-            "sum_invoice_amount": sum_invoice_amount,
-            "sum_paid_amount": sum_paid_amount,
-            "sum_outstanding_amount": sum_outstanding_amount
+            "paid_bills": completed_bills,  # For consistency with previous logic
+            "sum_invoice_amount": round(sum_invoice_amount, 2),
+            "sum_paid_amount": round(sum_paid_amount, 2),
+            "sum_outstanding_amount": round(sum_outstanding_amount, 2)
         }
         print(f"[DEBUG] Metrics: {metrics}")
+        # --- End: StaffStats.js/stats_summary logic copy ---
 
 
         flagged_ocr = []

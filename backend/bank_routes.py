@@ -6,6 +6,9 @@ import io
 import re
 from config import get_db_conn
 from email_utils import send_payment_confirmation_email
+import pytz
+from datetime import datetime
+
 bank_routes = Blueprint('bank_routes', __name__)
 
 
@@ -115,11 +118,16 @@ def import_bank_statement():
                 if abs(expected - amount) <= 2.0:
                     debug(f"Match found for BL {bl_id}. Marking as Paid.")
 
+                    # Get Hong Kong time
+                    
+                    hk_tz = pytz.timezone('Asia/Hong_Kong')
+                    completed_at = datetime.now(hk_tz).strftime('%Y-%m-%d %H:%M:%S')
+
                     cursor.execute("""
                         UPDATE bill_of_lading
-                        SET status = 'Paid and CTN Valid', payment_reference = %s
+                        SET status = 'Paid and CTN Valid', payment_reference = %s, completed_at = %s
                         WHERE id = %s
-                    """, (description, bl_id))
+                    """, (description, completed_at, bl_id))
                     conn.commit()
 
                     try:
