@@ -80,10 +80,11 @@ def reply_to_customer(email_id):
         return jsonify({'error': 'Email not found'}), 404
     to_email = row[0]
     subject = f"Re: {row[1]}"
-    smtp_host = os.environ.get('EMAIL_HOST')
-    smtp_port = int(os.environ.get('EMAIL_PORT', 587))
-    smtp_user = os.environ.get('EMAIL_USERNAME')
-    smtp_password = os.environ.get('EMAIL_PASSWORD')
+    smtp_host = os.environ.get('SMTP_HOST')
+    smtp_port = int(os.environ.get('SMTP_PORT', 587))
+    smtp_user = os.environ.get('SMTP_SERVER')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+    print(f"[DEBUG] Sending email via {smtp_host}:{smtp_port} as {smtp_user}")
     try:
         send_email(to_email, subject, reply_body, smtp_host, smtp_port, smtp_user, smtp_password)
         print(f"[DEBUG] Sent reply to {to_email}")
