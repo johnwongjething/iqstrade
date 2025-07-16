@@ -17,6 +17,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import get_db_conn
 
+
 from routes.auth_routes import auth_routes
 from routes.bill_routes import bill_routes
 from routes.stats_routes import stats_routes
@@ -29,7 +30,7 @@ from payment_link import payment_link  # Register payment link blueprint
 from bank_routes import bank_routes
 from utils.ingest_emails import bp_ingest
 
-app = Flask(__name__, static_folder='frontend/build', static_url_path='/')
+app = Flask(__name__, static_folder='build', static_url_path='/')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Allowed origins for CORS and CSP
@@ -179,16 +180,13 @@ def serve_static(filename):
     return send_from_directory(os.path.join(build_dir, 'static'), filename)
 
 
-
-# --- SERVE REACT FRONTEND BUILD (universal fallback for React Router) ---
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def serve_react_app(path):
-    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'build')
-    if path != "" and os.path.exists(os.path.join(build_dir, path)):
-        return send_from_directory(build_dir, path)
+def serve_react(path):
+    if path != "" and os.path.exists(os.path.join('build', path)):
+        return send_from_directory('build', path)
     else:
-        return send_from_directory(build_dir, 'index.html')
+        return send_from_directory('build', 'index.html')
 
 print(f"[DEBUG] FLASK_ENV: {os.getenv('FLASK_ENV')}")
 print(f"[DEBUG] ALLOWED_ORIGINS: {allowed_origins}")
