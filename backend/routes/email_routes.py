@@ -55,7 +55,7 @@ def get_email_detail(email_id):
         'sender': email_row[1],
         'subject': email_row[2],
         'body': email_row[3],
-        'attachments': json.loads(email_row[4]) if email_row[4] else [],
+        'attachments': email_row[4] if email_row[4] else [],
         'bl_numbers': email_row[5],
         'created_at': email_row[6],
         'replies': replies
