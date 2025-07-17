@@ -80,15 +80,11 @@ def reply_to_customer(email_id):
         return jsonify({'error': 'Email not found'}), 404
     to_email = row[0]
     subject = f"Re: {row[1]}"
-    smtp_host = os.environ.get('SMTP_SERVER')
-    smtp_port = int(os.environ.get('SMTP_PORT', 587))
-    smtp_user = os.environ.get('SMTP_USERNAME')
-    smtp_password = os.environ.get('SMTP_PASSWORD')
-    print(f"[DEBUG] Sending email via {smtp_host}:{smtp_port} as {smtp_user}")
+    send_email(to_email, subject, reply_body)
+    print(f"[DEBUG] Sent reply to {to_email}")
+    from config import EmailConfig
     try:
-        send_email(to_email, subject, reply_body, smtp_host, smtp_port, smtp_user, smtp_password)
-        print(f"[DEBUG] Sent reply to {to_email}")
-        cursor.execute("INSERT INTO customer_email_replies (customer_email_id, sender, body, created_at) VALUES (%s, %s, %s, %s)", (email_id, smtp_user, reply_body, datetime.datetime.now()))
+        cursor.execute("INSERT INTO customer_email_replies (customer_email_id, sender, body, created_at) VALUES (%s, %s, %s, %s)", (email_id, EmailConfig.FROM_EMAIL, reply_body, datetime.datetime.now()))
         conn.commit()
         print(f"[DEBUG] Saved reply to DB for email_id={email_id}")
     except Exception as e:
