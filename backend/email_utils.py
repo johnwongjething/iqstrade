@@ -48,9 +48,12 @@ print("Loaded email_utils.py")
 #         return False
 
 def send_email(to, subject, body, smtp_host, smtp_port, smtp_user, smtp_password):
+    from email.utils import formataddr
+    if not all([smtp_host, smtp_user, smtp_password]):
+        raise ValueError("SMTP host, user, and password must be provided and not None.")
     msg = EmailMessage()
     msg['Subject'] = subject
-    msg['From'] = smtp_user
+    msg['From'] = formataddr(('Logistics Company', smtp_user))  # Add display name
     msg['To'] = to
     msg.set_content(body)
 

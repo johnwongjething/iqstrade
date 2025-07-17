@@ -373,6 +373,8 @@ def ingest_emails():
 @bp_ingest.route("/admin/email-ingest-errors/<int:error_id>", methods=["DELETE"])
 @jwt_required()
 def delete_email_ingest_error(error_id):
+    # Ensure JWTs are accepted from both headers and cookies for frontend compatibility
+    # (Set this in app.py, but add a comment here for clarity)
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM email_ingest_errors WHERE id = %s", (error_id,))

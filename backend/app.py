@@ -42,7 +42,7 @@ if os.getenv('ALLOWED_ORIGINS'):
 CORS(app, origins=allowed_origins, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
-app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
 app.config['JWT_COOKIE_SECURE'] = True
 app.config['JWT_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies
 app.config['JWT_COOKIE_DOMAIN'] = 'iqstrade.onrender.com'  # Set to exact domain for browser compatibility
