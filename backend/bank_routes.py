@@ -121,7 +121,7 @@ def import_bank_statement():
                     # Get Hong Kong time
                     
                     hk_tz = pytz.timezone('Asia/Hong_Kong')
-                    completed_at = datetime.now(hk_tz).strftime('%Y-%m-%d %H:%M:%S')
+                    completed_at = datetime.now(hk_tz)
 
                     cursor.execute("""
                         UPDATE bill_of_lading
