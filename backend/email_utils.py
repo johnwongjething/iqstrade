@@ -47,24 +47,40 @@ print("Loaded email_utils.py")
 #         print(f"Email config: {EmailConfig.SMTP_SERVER}, {EmailConfig.SMTP_PORT}, {EmailConfig.SMTP_USERNAME}, {EmailConfig.SMTP_PASSWORD}")
 #         return False
 
-def send_email(to, subject, body, smtp_host, smtp_port, smtp_user, smtp_password):
+def send_email(to, subject, body):
     from email.utils import formataddr
-    if not all([smtp_host, smtp_user, smtp_password]):
-        raise ValueError("SMTP host, user, and password must be provided and not None.")
+    # Ensure all required config values are present
+    if not all([
+        EmailConfig.SMTP_SERVER,
+        EmailConfig.SMTP_PORT,
+        EmailConfig.SMTP_USERNAME,
+        EmailConfig.SMTP_PASSWORD,
+        EmailConfig.FROM_EMAIL
+    ]):
+        raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
     msg = EmailMessage()
     msg['Subject'] = subject
-    msg['From'] = formataddr(('Logistics Company', smtp_user))  # Add display name
+    msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))  # Use verified sender
     msg['To'] = to
     msg.set_content(body)
 
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
+    with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
         server.starttls()
-        server.login(smtp_user, smtp_password)
+        server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
         server.send_message(msg)
         print(f"[DEBUG] ✅ Email sent to {to}")
 
 # Send unique number email using SMTP (plain text)
 def send_unique_number_email(to_email, subject, body):
+    # Ensure all required config values are present
+    if not all([
+        EmailConfig.SMTP_SERVER,
+        EmailConfig.SMTP_PORT,
+        EmailConfig.SMTP_USERNAME,
+        EmailConfig.SMTP_PASSWORD,
+        EmailConfig.FROM_EMAIL
+    ]):
+        raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
     try:
         msg = EmailMessage()
         msg['Subject'] = subject
@@ -72,9 +88,9 @@ def send_unique_number_email(to_email, subject, body):
         msg['To'] = to_email
         msg.set_content(body)
 
-        with smtplib.SMTP(EmailConfig.SMTP_SERVER, EmailConfig.SMTP_PORT) as server:
+        with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
             server.starttls()
-            server.login(EmailConfig.SMTP_USERNAME, EmailConfig.SMTP_PASSWORD)
+            server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
             server.send_message(msg)
         return True
     except Exception as e:
@@ -82,6 +98,15 @@ def send_unique_number_email(to_email, subject, body):
         return False
 
 def send_contact_email(name, from_email, message):
+    # Ensure all required config values are present
+    if not all([
+        EmailConfig.SMTP_SERVER,
+        EmailConfig.SMTP_PORT,
+        EmailConfig.SMTP_USERNAME,
+        EmailConfig.SMTP_PASSWORD,
+        EmailConfig.FROM_EMAIL
+    ]):
+        raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
     to_email = "johnwongjething@gmail.com"  # Your receiving email
     subject = "New Contact Form Submission"
     body = f"Name: {name}\nEmail: {from_email}\n\nMessage:\n{message}"
@@ -95,9 +120,9 @@ def send_contact_email(name, from_email, message):
 
     try:
         print(f"Attempting to send contact email to: {to_email}")
-        with smtplib.SMTP(EmailConfig.SMTP_SERVER, EmailConfig.SMTP_PORT) as server:
+        with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
             server.starttls()
-            server.login(EmailConfig.SMTP_USERNAME, EmailConfig.SMTP_PASSWORD)
+            server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
             server.send_message(msg)
         print("Contact email sent successfully.")
         return True
@@ -107,6 +132,15 @@ def send_contact_email(name, from_email, message):
 
 # Send a simple plain text email to a customer (for registration approval, upload confirmation, etc.)
 def send_simple_email(to_email, subject, body):
+    # Ensure all required config values are present
+    if not all([
+        EmailConfig.SMTP_SERVER,
+        EmailConfig.SMTP_PORT,
+        EmailConfig.SMTP_USERNAME,
+        EmailConfig.SMTP_PASSWORD,
+        EmailConfig.FROM_EMAIL
+    ]):
+        raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
     try:
         msg = EmailMessage()
         msg['Subject'] = subject
@@ -114,9 +148,9 @@ def send_simple_email(to_email, subject, body):
         msg['To'] = to_email
         msg.set_content(body)
         
-        with smtplib.SMTP(EmailConfig.SMTP_SERVER, EmailConfig.SMTP_PORT) as server:
+        with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
             server.starttls()
-            server.login(EmailConfig.SMTP_USERNAME, EmailConfig.SMTP_PASSWORD)
+            server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
             server.send_message(msg)
         print("Simple email sent successfully.")
         return True
