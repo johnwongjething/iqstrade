@@ -55,15 +55,13 @@ def auto_generate_invoice_for_bill(bill):
     conn = get_db_conn()
     cur = conn.cursor()
 
-    # Set default fees if blank or 0
-    ctn_fee = bill.get('ctn_fee')
-    service_fee = bill.get('service_fee')
-    if not ctn_fee or float(ctn_fee) == 0:
-        print("Setting default fees for BL id {}".format(bill['id']))
-        ctn_fee = 100
-    if not service_fee or float(service_fee) == 0:
-        print("Setting default fees for BL id {}".format(bill['id']))
-        service_fee = 100
+    # Set ctn_fee and service_fee based on number of containers
+    import re
+    container_numbers = bill.get('container_numbers', '')
+    container_list = [c for c in re.split(r'[,\s]+', container_numbers.strip()) if c]
+    num_containers = len(container_list) if container_list else 1
+    ctn_fee = 100 * num_containers
+    service_fee = 100 * num_containers
 
     # --- Unique number generation and DB update ---
     import random

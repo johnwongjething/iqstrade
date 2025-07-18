@@ -211,4 +211,17 @@ print(f"[DEBUG] JWT_COOKIE_HTTPONLY: {app.config['JWT_COOKIE_HTTPONLY']}")
 print(f"[DEBUG] JWT_COOKIE_CSRF_PROTECT: {app.config['JWT_COOKIE_CSRF_PROTECT']}")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    from config import CURRENT_ENV
+    
+    if CURRENT_ENV == 'local':
+        # Local development - use port 8000
+        port = int(os.environ.get('PORT', 8000))
+        debug = True
+        print(f"[LOCAL] Starting Flask app on port {port} with debug=True")
+    else:
+        # Production - use environment port
+        port = int(os.environ.get('PORT', 5000))
+        debug = False
+        print(f"[PRODUCTION] Starting Flask app on port {port} with debug=False")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)

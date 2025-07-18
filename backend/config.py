@@ -4,22 +4,54 @@ import psycopg2
 import time
 from datetime import timedelta
 
+# Environment Detection
+def get_environment():
+    """Detect if we're running locally or in production"""
+    # Check for explicit environment variable
+    env = os.getenv('FLASK_ENV', '').lower()
+    if env in ['production', 'development', 'local']:
+        return env
+    
+    # Auto-detect based on common production indicators
+    if os.getenv('PORT') or os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RENDER'):
+        return 'production'
+    
+    # Default to local if running on localhost
+    return 'local'
+
+CURRENT_ENV = get_environment()
+print(f"[CONFIG] Running in environment: {CURRENT_ENV}")
+
 # Database Configuration
 class DatabaseConfig:
     @staticmethod
     def dbname():
+        if CURRENT_ENV == 'local':
+            return os.getenv('LOCAL_DB_NAME', 'testdb')
         return os.getenv('DB_NAME', 'testdb')
+    
     @staticmethod
     def user():
+        if CURRENT_ENV == 'local':
+            return os.getenv('LOCAL_DB_USER', 'postgres')
         return os.getenv('DB_USER', 'postgres')
+    
     @staticmethod
     def password():
+        if CURRENT_ENV == 'local':
+            return os.getenv('LOCAL_DB_PASSWORD', '123456')
         return os.getenv('DB_PASSWORD', '123456')
+    
     @staticmethod
     def host():
+        if CURRENT_ENV == 'local':
+            return os.getenv('LOCAL_DB_HOST', 'localhost')
         return os.getenv('DB_HOST', 'localhost')
+    
     @staticmethod
     def port():
+        if CURRENT_ENV == 'local':
+            return os.getenv('LOCAL_DB_PORT', '5432')
         return os.getenv('DB_PORT', '5432')
 
 # Email Configuration
