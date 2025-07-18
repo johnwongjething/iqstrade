@@ -71,13 +71,19 @@ def geetest_register():
         "client_type": "web",
         "lang": "en"
     }
+    challenge = ""
     try:
         logging.info(f"[Geetest] Register payload: {payload}")
         resp = requests.post(url, json=payload, timeout=5)
         logging.info(f"[Geetest] Register raw response: {resp.text}")
-        resp_json = resp.json()
-        print("Geetest register API response:", resp_json)
-        challenge = resp_json.get("challenge", "")
+        try:
+            resp_json = resp.json()
+            print("Geetest register API response:", resp_json)
+            challenge = resp_json.get("challenge", "")
+        except Exception as e:
+            print("Geetest v4 register error (JSON parse):", e)
+            logging.error(f"[Geetest] Register error (JSON parse): {e}")
+            challenge = ""
     except Exception as e:
         print("Geetest v4 register error:", e)
         logging.error(f"[Geetest] Register error: {e}")
@@ -112,9 +118,30 @@ def login():
     print("captcha_id being sent:", captcha_id)
     logging.info(f"[Login] captcha_id: {captcha_id}")
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
-        # BYPASS: Always return True for development/testing
-        logging.info('[Geetest] BYPASS: Always returning True for verification')
-        return True
+        # Real Geetest v4 validation
+        url = "https://gcaptcha4.geetest.com/validate"
+        payload = {
+            "lot_number": lot_number,
+            "captcha_output": captcha_output,
+            "pass_token": pass_token,
+            "captcha_id": captcha_id
+        }
+        logging.info(f"[Geetest] Validate payload: {payload}")
+        try:
+            resp = requests.post(url, json=payload, timeout=5)
+            logging.info(f"[Geetest] Validate raw response: {resp.text}")
+            try:
+                resp_json = resp.json()
+                print("Geetest validate API response:", resp_json)
+                return resp_json.get("result") == "success"
+            except Exception as e:
+                print("Geetest v4 validate error (JSON parse):", e)
+                logging.error(f"[Geetest] Validate error (JSON parse): {e}")
+                return False
+        except Exception as e:
+            print("Geetest v4 validate error:", e)
+            logging.error(f"[Geetest] Validate error: {e}")
+            return False
     if not verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
         logging.warning("[Login] Geetest verification failed")
         return jsonify({'error': 'Geetest verification failed'}), 400

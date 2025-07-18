@@ -328,7 +328,8 @@ def upload_file():
                 columns = [desc[0] for desc in cur.description]
                 bill = dict(zip(columns, bill_row)) if bill_row else None
                 if bill:
-                    auto_generate_invoice_for_bill(bill)
+                    if username == 'ray40':
+                        auto_generate_invoice_for_bill(bill)
                 cur.close()
                 conn.close()
                 uploaded_count += 1
