@@ -231,9 +231,11 @@ def ingest_emails():
             if payment_data:
                 matched_bls, is_match = match_payment_to_bls(payment_data)
                 if is_match:
+                    import pytz
+                    hk_now = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                     for row in matched_bls:
-                        cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In' WHERE id = %s", (url, row[0]))
-                        debug(f"Updated DB with receipt_filename from email-body PDF for BL id {row[0]}")
+                        cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s WHERE id = %s", (url, hk_now, row[0]))
+                        debug(f"Updated DB with receipt_filename and receipt_uploaded_at from email-body PDF for BL id {row[0]}")
                     conn.commit()
                     results.append({"filename": generated_pdf_path, "reason": "Receipt processed and attached from email body"})
                 else:
@@ -319,9 +321,11 @@ def ingest_emails():
             for att in attachments:
                 url = upload_filepath_to_cloudinary(att)
                 debug(f"Uploaded receipt to Cloudinary: {url}")
+                import pytz
+                hk_now = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 for row in matched_bls:
-                    cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In' WHERE id = %s", (url, row[0]))
-                    debug(f"Updated BOL with receipt_filename and status for BL id {row[0]}")
+                    cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s WHERE id = %s", (url, hk_now, row[0]))
+                    debug(f"Updated BOL with receipt_filename, receipt_uploaded_at and status for BL id {row[0]}")
             conn.commit()
             results.append({"filename": attachments[0] if attachments else None, "reason": "Receipt processed and attached"})
         else:

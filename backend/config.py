@@ -2,6 +2,7 @@ print("CONFIG.PY LOADED")
 import os
 import psycopg2
 import time
+from datetime import timedelta
 
 # Database Configuration
 class DatabaseConfig:
@@ -44,7 +45,8 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://iqstrade.onrender.com')
 # JWT Configuration
 class JWTConfig:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'change-this-in-production')
-    JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))  # 24 hours
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
 
 # Update database connection function to use config with timeout and retry
 def get_db_conn(max_retries=3, retry_delay=2):
