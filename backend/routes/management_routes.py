@@ -40,7 +40,7 @@ def management_overview():
             is_overdue = False
             if created_at:
                 if isinstance(created_at, str):
-                    created_at_dt = datetime.datetime.fromisoformat(created_at)
+                    created_at_dt = datetime.fromisoformat(created_at)
                 else:
                     created_at_dt = created_at
                 delta = now - created_at_dt.replace(tzinfo=timezone.utc)
