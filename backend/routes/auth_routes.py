@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import pytz
 from utils.security import (
-    encrypt_sensitive_data, decrypt_sensitive_data, validate_password, is_account_locked, increment_failed_attempts, reset_failed_attempts, log_sensitive_operation
+    encrypt_sensitive_data, decrypt_sensitive_data, validate_password, is_account_locked, increment_failed_attempts, reset_failed_attempts, log_sensitive_operation, hash_password
 )
 from utils.helpers import get_hk_date_range
 from config import get_db_conn
@@ -17,6 +17,7 @@ import os
 # from geetest import GeetestLib
 import requests
 import logging
+import re
 
 auth_routes = Blueprint('auth_routes', __name__)
 
@@ -247,77 +248,71 @@ def get_me():
     else:
         return jsonify({"error": "User not found"}), 404
 
-# Password reset request
-@auth_routes.route('/request_password_reset', methods=['POST'])
+def is_strong_password(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r'[A-Z]', password):
+        return False
+    if not re.search(r'[a-z]', password):
+        return False
+    if not re.search(r'[0-9]', password):
+        return False
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False
+    return True
+
+@auth_routes.route('/api/request_password_reset', methods=['POST'])
 def request_password_reset():
     data = request.get_json()
     email = data.get('email')
     if not email:
-        return jsonify({'error': 'Email required'}), 400
+        return jsonify({'error': 'Email is required'}), 400
+
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT id, customer_name, customer_email FROM users")
-    users = cur.fetchall()
-    user = None
-    for row in users:
-        user_id, customer_name, encrypted_email = row
-        try:
-            decrypted_email = decrypt_sensitive_data(encrypted_email)
-            if decrypted_email == email:
-                user = (user_id, customer_name)
-                break
-        except Exception as e:
-            continue
-    if not user:
-        cur.close()
-        conn.close()
-        return jsonify({'message': 'If this email is registered, a reset link will be sent.'})
-    user_id, customer_name = user
-    token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(pytz.timezone('Asia/Hong_Kong')) + timedelta(hours=1)
+    cur.execute("SELECT id FROM users WHERE customer_email = %s", (email,))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({'message': 'If the email exists, a reset link will be sent.'})
+
+    user_id = row[0]
+    token = secrets.token_urlsafe(48)
+    expires_at = datetime.now(pytz.timezone('Asia/Hong_Kong')) + timedelta(hours=2)
     cur.execute("INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (%s, %s, %s)", (user_id, token, expires_at))
     conn.commit()
     cur.close()
     conn.close()
-    reset_link = f"https://iqstrade.onrender.com/reset-password/{token}"
-    subject = "Password Reset Request"
-    body = f"Dear {customer_name},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link will expire in 1 hour."
-    send_simple_email(email, subject, body)
-    return jsonify({'message': 'If this email is registered, a reset link will be sent.'})
 
-# Password reset
-@auth_routes.route('/reset_password/<token>', methods=['POST'])
+    reset_link = f"https://iqstrade.onrender.com/reset-password/{token}"
+    send_simple_email(email, "Password Reset Request", f"Click the link to reset your password: {reset_link}\nThis link will expire in 2 hours.")
+
+    return jsonify({'message': 'If the email exists, a reset link will be sent.'})
+
+@auth_routes.route('/api/reset_password/<token>', methods=['POST'])
 def reset_password(token):
     data = request.get_json()
     new_password = data.get('password')
-    captcha_token = data.get('captcha_token')
-    from utils.helpers import verify_captcha
-    if not new_password:
-        return jsonify({'error': 'Password required'}), 400
-    if not verify_captcha(captcha_token):
-        return jsonify({'error': 'CAPTCHA verification failed'}), 400
+    if not is_strong_password(new_password):
+        return jsonify({'error': 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.'}), 400
+
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT user_id, expires_at FROM password_reset_tokens WHERE token=%s", (token,))
+    cur.execute("SELECT user_id, expires_at FROM password_reset_tokens WHERE token = %s", (token,))
     row = cur.fetchone()
     if not row:
-        cur.close()
-        conn.close()
-        return jsonify({'error': 'Invalid or expired token'}), 400
+        return jsonify({'error': 'Invalid or expired token.'}), 400
+
     user_id, expires_at = row
     if datetime.now(pytz.timezone('Asia/Hong_Kong')) > expires_at:
-        cur.execute("DELETE FROM password_reset_tokens WHERE token=%s", (token,))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({'error': 'Token expired'}), 400
-    password_hash = generate_password_hash(new_password)
-    cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (password_hash, user_id))
-    cur.execute("DELETE FROM password_reset_tokens WHERE token=%s", (token,))
+        return jsonify({'error': 'Token expired.'}), 400
+
+    hashed = hash_password(new_password)
+    cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, user_id))
+    cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Password has been reset successfully.'})
+    return jsonify({'message': 'Password reset successful.'})
 
 # Approve user
 @auth_routes.route('/approve_user/<int:user_id>', methods=['POST'])
