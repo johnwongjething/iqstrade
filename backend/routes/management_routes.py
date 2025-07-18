@@ -3,8 +3,7 @@ from flask_jwt_extended import jwt_required
 from config import get_db_conn
 from utils.ocr_checker import check_missing_fields
 from utils.email_ingest import ingest_emails
-import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 import pytz
 
 management_routes = Blueprint('management_routes', __name__)
@@ -44,8 +43,10 @@ def management_overview():
                 else:
                     created_at_dt = created_at
                 delta = now - created_at_dt.replace(tzinfo=timezone.utc)
-            is_new = delta.total_seconds() < 86400 and status != "Invoice Sent"
-            is_overdue = status in ["Pending", "Awaiting Bank In"] and delta.total_seconds() > 604800
+                is_new = delta.total_seconds() < 86400 and status != "Invoice Sent"
+                is_overdue = status in ["Pending", "Awaiting Bank In"] and delta.total_seconds() > 604800
+            else:
+                delta = None
             total_invoice_amount = ctn_fee + service_fee
             bill["is_new"] = is_new
             bill["is_overdue"] = is_overdue
@@ -53,7 +54,6 @@ def management_overview():
             bills.append(bill)
 
         print(f"[DEBUG] Processed {len(bills)} bills.")
-
 
         # --- Begin: StaffStats.js/stats_summary logic copy ---
         print("[DEBUG] Calculating metrics (copied from stats_summary logic)...")
@@ -99,7 +99,6 @@ def management_overview():
         }
         print(f"[DEBUG] Metrics: {metrics}")
         # --- End: StaffStats.js/stats_summary logic copy ---
-
 
         flagged_ocr = []
         print("[DEBUG] Checking missing required fields from DB columns...")
