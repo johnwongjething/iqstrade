@@ -261,7 +261,7 @@ def is_strong_password(password):
         return False
     return True
 
-@auth_routes.route('/api/request_password_reset', methods=['POST'])
+@auth_routes.route('/request_password_reset', methods=['POST'])
 def request_password_reset():
     data = request.get_json()
     email = data.get('email')
@@ -288,7 +288,7 @@ def request_password_reset():
 
     return jsonify({'message': 'If the email exists, a reset link will be sent.'})
 
-@auth_routes.route('/api/reset_password/<token>', methods=['POST'])
+@auth_routes.route('/reset_password/<token>', methods=['POST'])
 def reset_password(token):
     data = request.get_json()
     new_password = data.get('password')
