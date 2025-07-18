@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
 from config import get_db_conn  # Updated import
 import os
+import bcrypt
 
 # Load encryption key from environment or generate for dev
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
@@ -97,3 +98,6 @@ def log_sensitive_operation(user_id, operation, details):
     except Exception as e:
         # print(f"Error logging operation: {str(e)}")
         pass
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
