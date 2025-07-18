@@ -30,6 +30,9 @@ from payment_link import payment_link  # Register payment link blueprint
 from bank_routes import bank_routes
 from utils.ingest_emails import bp_ingest
 
+from datetime import datetime
+import pytz
+
 app = Flask(__name__, static_folder='build', static_url_path='/')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -125,9 +128,10 @@ def log_sensitive_operation(user_id, operation, details):
     try:
         conn = get_db_conn()
         cur = conn.cursor()
+        hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
         cur.execute(
-            'INSERT INTO audit_logs (user_id, operation, details, timestamp, ip_address) VALUES (%s, %s, %s, NOW(), %s)',
-            (user_id, operation, details, request.remote_addr)
+            'INSERT INTO audit_logs (user_id, operation, details, timestamp, ip_address) VALUES (%s, %s, %s, %s, %s)',
+            (user_id, operation, details, hk_now, request.remote_addr)
         )
         conn.commit()
         cur.close()

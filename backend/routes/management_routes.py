@@ -5,6 +5,7 @@ from utils.ocr_checker import check_missing_fields
 from utils.email_ingest import ingest_emails
 import datetime
 from datetime import timezone
+import pytz
 
 management_routes = Blueprint('management_routes', __name__)
 
@@ -25,7 +26,7 @@ def management_overview():
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         bills = []
-        now = datetime.datetime.now(timezone.utc)
+        now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
         print("[DEBUG] Processing bills...")
         for row in rows:
             bill = dict(zip(columns, row))

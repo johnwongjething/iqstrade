@@ -17,6 +17,7 @@ from reportlab.pdfgen import canvas
 import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
+import pytz
 
 bp_ingest = Blueprint("bp_ingest", __name__)
 
@@ -222,7 +223,7 @@ def ingest_emails():
                     if y < 50:
                         c.showPage()
                         y = 750
-                received_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                received_date = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 c.drawString(30, y, f"[Received via email: {os.environ.get('EMAIL_USERNAME','')}] [Date: {received_date}]")
                 c.save()
             debug(f"Generated PDF from email body at path: {generated_pdf_path}")
@@ -231,7 +232,6 @@ def ingest_emails():
             if payment_data:
                 matched_bls, is_match = match_payment_to_bls(payment_data)
                 if is_match:
-                    import pytz
                     hk_now = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                     for row in matched_bls:
                         cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s WHERE id = %s", (url, hk_now, row[0]))
@@ -265,7 +265,7 @@ def ingest_emails():
                 subject = msg.get('Subject')
                 bl_numbers = payment_data.get('bl_numbers') if payment_data else []
                 cloudinary_urls = [url] if url else []
-                timestamp = datetime.datetime.now()
+                timestamp = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong'))
                 cursor.execute("""
                     INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
@@ -298,7 +298,7 @@ def ingest_emails():
                 subject = msg.get('Subject')
                 bl_numbers = []
                 cloudinary_urls = []
-                timestamp = datetime.datetime.now()
+                timestamp = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong'))
                 cursor.execute("""
                     INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
@@ -321,7 +321,6 @@ def ingest_emails():
             for att in attachments:
                 url = upload_filepath_to_cloudinary(att)
                 debug(f"Uploaded receipt to Cloudinary: {url}")
-                import pytz
                 hk_now = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 for row in matched_bls:
                     cursor.execute("UPDATE bill_of_lading SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s WHERE id = %s", (url, hk_now, row[0]))
@@ -349,7 +348,7 @@ def ingest_emails():
                     cloudinary_urls.append(url)
                 except Exception as e:
                     print(f"[ERROR] Failed to upload attachment to Cloudinary: {e}")
-            timestamp = datetime.datetime.now()
+            timestamp = datetime.datetime.now(pytz.timezone('Asia/Hong_Kong'))
             cursor.execute("""
                 INSERT INTO customer_emails (sender, subject, body, attachments, bl_numbers, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s)

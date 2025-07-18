@@ -86,9 +86,10 @@ def log_sensitive_operation(user_id, operation, details):
     try:
         conn = get_db_conn()
         cur = conn.cursor()
+        hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
         cur.execute(
-            'INSERT INTO audit_logs (user_id, operation, details, timestamp) VALUES (%s, %s, %s, NOW())',
-            (user_id, operation, details)
+            'INSERT INTO audit_logs (user_id, operation, details, timestamp) VALUES (%s, %s, %s, %s)',
+            (user_id, operation, details, hk_now)
         )
         conn.commit()
         cur.close()
