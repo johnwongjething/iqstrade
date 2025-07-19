@@ -176,6 +176,32 @@ def enforce_https():
 def request_entity_too_large(error):
     return jsonify({'error': 'File too large. Maximum size is 10MB.'}), 413
 
+@app.errorhandler(404)
+def not_found(error):
+    print(f"[DEBUG] 404 error handler called for: {request.path}")
+    print(f"[DEBUG] Request method: {request.method}")
+    print(f"[DEBUG] Request headers: {dict(request.headers)}")
+    
+    # If it's an API route, return JSON 404
+    if request.path.startswith('/api/') or request.path.startswith('/admin/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # For all other routes, try to serve index.html
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    index_path = os.path.join(build_dir, 'index.html')
+    
+    if os.path.exists(index_path):
+        print(f"[DEBUG] Serving index.html for 404 path: {request.path}")
+        return send_from_directory(build_dir, 'index.html')
+    else:
+        print(f"[ERROR] index.html not found at: {index_path}")
+        return jsonify({'error': 'Frontend not found'}), 404
+
+# Test route to verify Flask is working
+@app.route('/test')
+def test_route():
+    return jsonify({'message': 'Flask app is working', 'timestamp': datetime.now().isoformat()})
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
@@ -189,31 +215,39 @@ def serve_static(filename):
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react(path):
+    print(f"[DEBUG] serve_react called with path: '{path}'")
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    print(f"[DEBUG] Build directory: {build_dir}")
     
     # Check if build directory exists
     if not os.path.exists(build_dir):
         print(f"[ERROR] Build directory not found: {build_dir}")
-        return jsonify({'error': 'Frontend not built'}), 500
+        return jsonify({'error': 'Frontend not built', 'build_dir': build_dir}), 500
     
     # Check if index.html exists
     index_path = os.path.join(build_dir, 'index.html')
     if not os.path.exists(index_path):
         print(f"[ERROR] index.html not found: {index_path}")
-        return jsonify({'error': 'Frontend index.html not found'}), 500
+        return jsonify({'error': 'Frontend index.html not found', 'index_path': index_path}), 500
 
     # For API routes, return 404 instead of serving index.html
     if path.startswith('api/') or path.startswith('admin/'):
+        print(f"[DEBUG] API route detected, returning 404 for: {path}")
         return jsonify({'error': 'API endpoint not found'}), 404
     
     # For static files, serve them directly
     full_path = os.path.join(build_dir, path)
     if path != "" and os.path.exists(full_path):
+        print(f"[DEBUG] Serving static file: {full_path}")
         return send_from_directory(build_dir, path)
     
     # For all other routes (including /reset-password/:token), serve index.html
     print(f"[DEBUG] Serving index.html for path: {path}")
-    return send_from_directory(build_dir, 'index.html')
+    try:
+        return send_from_directory(build_dir, 'index.html')
+    except Exception as e:
+        print(f"[ERROR] Failed to serve index.html: {e}")
+        return jsonify({'error': f'Failed to serve index.html: {str(e)}'}), 500
 
 
 # @app.route('/', defaults={'path': ''})
