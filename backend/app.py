@@ -190,12 +190,30 @@ def serve_static(filename):
 @app.route('/<path:path>')
 def serve_react(path):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    
+    # Check if build directory exists
+    if not os.path.exists(build_dir):
+        print(f"[ERROR] Build directory not found: {build_dir}")
+        return jsonify({'error': 'Frontend not built'}), 500
+    
+    # Check if index.html exists
+    index_path = os.path.join(build_dir, 'index.html')
+    if not os.path.exists(index_path):
+        print(f"[ERROR] index.html not found: {index_path}")
+        return jsonify({'error': 'Frontend index.html not found'}), 500
 
+    # For API routes, return 404 instead of serving index.html
+    if path.startswith('api/') or path.startswith('admin/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # For static files, serve them directly
     full_path = os.path.join(build_dir, path)
     if path != "" and os.path.exists(full_path):
         return send_from_directory(build_dir, path)
-    else:
-        return send_from_directory(build_dir, 'index.html')
+    
+    # For all other routes (including /reset-password/:token), serve index.html
+    print(f"[DEBUG] Serving index.html for path: {path}")
+    return send_from_directory(build_dir, 'index.html')
 
 
 # @app.route('/', defaults={'path': ''})
@@ -213,6 +231,15 @@ print(f"[DEBUG] JWT_COOKIE_SAMESITE: {app.config['JWT_COOKIE_SAMESITE']}")
 print(f"[DEBUG] JWT_COOKIE_SECURE: {app.config['JWT_COOKIE_SECURE']}")
 print(f"[DEBUG] JWT_COOKIE_HTTPONLY: {app.config['JWT_COOKIE_HTTPONLY']}")
 print(f"[DEBUG] JWT_COOKIE_CSRF_PROTECT: {app.config['JWT_COOKIE_CSRF_PROTECT']}")
+
+# Debug build directory
+build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+print(f"[DEBUG] Build directory path: {build_dir}")
+print(f"[DEBUG] Build directory exists: {os.path.exists(build_dir)}")
+if os.path.exists(build_dir):
+    print(f"[DEBUG] Build directory contents: {os.listdir(build_dir)}")
+    index_path = os.path.join(build_dir, 'index.html')
+    print(f"[DEBUG] index.html exists: {os.path.exists(index_path)}")
 
 if __name__ == '__main__':
     from config import CURRENT_ENV
