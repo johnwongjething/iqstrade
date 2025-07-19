@@ -180,11 +180,25 @@ def request_entity_too_large(error):
 def not_found(error):
     print(f"[DEBUG] 404 error handler called for: {request.path}")
     print(f"[DEBUG] Request method: {request.method}")
-    print(f"[DEBUG] Request headers: {dict(request.headers)}")
     
     # If it's an API route, return JSON 404
     if request.path.startswith('/api/') or request.path.startswith('/admin/'):
         return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Handle static file requests that might have wrong paths
+    if request.path.startswith('/reset-password/static/') or request.path.startswith('/static/'):
+        # Extract the actual static file path
+        static_path = request.path.replace('/reset-password/static/', '/static/')
+        if static_path.startswith('/static/'):
+            build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+            static_file = static_path.replace('/static/', '')
+            static_file_path = os.path.join(build_dir, 'static', static_file)
+            
+            if os.path.exists(static_file_path):
+                print(f"[DEBUG] Serving static file: {static_file_path}")
+                return send_from_directory(os.path.join(build_dir, 'static'), static_file)
+            else:
+                print(f"[ERROR] Static file not found: {static_file_path}")
     
     # For all other routes, try to serve index.html
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
@@ -234,6 +248,20 @@ def serve_react(path):
     if path.startswith('api/') or path.startswith('admin/'):
         print(f"[DEBUG] API route detected, returning 404 for: {path}")
         return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Handle static file requests that might have wrong paths
+    if path.startswith('reset-password/static/') or path.startswith('static/'):
+        # Extract the actual static file path
+        static_path = path.replace('reset-password/static/', 'static/')
+        if static_path.startswith('static/'):
+            static_file = static_path.replace('static/', '')
+            static_file_path = os.path.join(build_dir, 'static', static_file)
+            
+            if os.path.exists(static_file_path):
+                print(f"[DEBUG] Serving static file from catch-all: {static_file_path}")
+                return send_from_directory(os.path.join(build_dir, 'static'), static_file)
+            else:
+                print(f"[ERROR] Static file not found in catch-all: {static_file_path}")
     
     # For static files, serve them directly
     full_path = os.path.join(build_dir, path)
