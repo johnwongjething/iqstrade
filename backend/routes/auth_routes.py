@@ -376,3 +376,203 @@ def csrf_token():
         # Return a dummy token or a message for frontend compatibility
         return jsonify({'csrf_token': None, 'message': 'CSRF protection is disabled on the server.'})
     return jsonify({'csrf_token': csrf_token})
+
+@auth_routes.route('/verify_sensitive_access', methods=['POST'])
+def verify_sensitive_access():
+    """
+    POST body: { email, bl_number, invoice_number, ctn_number, ctn (optional) }
+    At least one of bl_number, invoice_number, ctn_number must be provided.
+    Returns 200 with {success: true} if email matches the record, else 200 with {success: false}.
+    """
+    import sys
+    data = request.get_json()
+    email = data.get('email')
+    bl_number = data.get('bl_number')
+    invoice_number = data.get('invoice_number')
+    ctn_number = data.get('ctn_number')
+    ctn = data.get('ctn')
+    print(f"[DEBUG] Incoming verify_sensitive_access: email={email}, bl_number={bl_number}, invoice_number={invoice_number}, ctn_number={ctn_number}, ctn={ctn}", file=sys.stderr)
+    if not email or not (bl_number or invoice_number or ctn_number):
+        print(f"[DEBUG] Missing required fields", file=sys.stderr)
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+    # Try BL first
+    if bl_number:
+        print(f"[DEBUG] Executing SQL for BL: SELECT customer_email FROM bill_of_lading WHERE bl_number = %s", (bl_number,), file=sys.stderr)
+        cur.execute("SELECT customer_email FROM bill_of_lading WHERE bl_number = %s", (bl_number,))
+        bl_row = cur.fetchone()
+        print(f"[DEBUG] bill_of_lading row: {bl_row}", file=sys.stderr)
+        if not bl_row:
+            cur.close(); conn.close()
+            print(f"[DEBUG] BL not found for bl_number={bl_number}", file=sys.stderr)
+            return jsonify({'success': False, 'message': 'BL not found'}), 200
+        bl_email = bl_row[0]
+        # Now scan users table and decrypt each email to find a match
+        cur.execute("SELECT customer_email, customer_phone FROM users")
+        user_rows = cur.fetchall()
+        print(f"[DEBUG] Users fetched: {len(user_rows)}", file=sys.stderr)
+        found = False
+        for db_email, db_phone in user_rows:
+            decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+            decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+            if decrypted_email.lower() == bl_email.lower():
+                print(f"[DEBUG] Decrypted user email matches BL email: {decrypted_email}", file=sys.stderr)
+                found = True
+                break
+        if not found:
+            cur.close(); conn.close()
+            print(f"[DEBUG] No user found with decrypted email matching BL email {bl_email}", file=sys.stderr)
+            return jsonify({'success': False, 'message': 'No user found matching BL email'}), 200
+        # Now check if provided email matches
+        if bl_email.lower() != email.lower():
+            cur.close(); conn.close()
+            print(f"[DEBUG] Provided email does not match BL email: {email} != {bl_email}", file=sys.stderr)
+            return jsonify({'success': False, 'message': 'Email does not match record for this BL'}), 200
+        # Optionally check CTN if needed (using decrypted_phone)
+        if ctn and decrypted_phone and ctn != decrypted_phone:
+            cur.close(); conn.close()
+            print(f"[DEBUG] CTN does not match: {ctn} != {decrypted_phone}", file=sys.stderr)
+            return jsonify({'success': False, 'message': 'CTN does not match record for this BL'}), 200
+        cur.close(); conn.close()
+        print(f"[DEBUG] Success: Verified for BL", file=sys.stderr)
+        return jsonify({'success': True, 'message': 'Verified for BL'}), 200
+    # Try invoice
+    if invoice_number:
+        cur.execute("SELECT customer_email, customer_phone FROM users u JOIN invoice_table i ON u.id = i.user_id WHERE i.invoice_number = %s", (invoice_number,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'Invoice not found'}), 200
+        db_email, db_phone = row
+        decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+        decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+        if decrypted_email.lower() != email.lower():
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'Email does not match record for this invoice'}), 200
+        if ctn and decrypted_phone and ctn != decrypted_phone:
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'CTN does not match record for this invoice'}), 200
+        cur.close(); conn.close()
+        return jsonify({'success': True, 'message': 'Verified for invoice'}), 200
+    # Try CTN
+    if ctn_number:
+        cur.execute("SELECT customer_email, customer_phone FROM users u JOIN ctn_table c ON u.id = c.user_id WHERE c.ctn_number = %s", (ctn_number,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'CTN not found'}), 200
+        db_email, db_phone = row
+        decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+        decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+        if decrypted_email.lower() != email.lower():
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'Email does not match record for this CTN'}), 200
+        if ctn and decrypted_phone and ctn != decrypted_phone:
+            cur.close(); conn.close()
+            return jsonify({'success': False, 'message': 'CTN does not match record for this CTN'}), 200
+        cur.close(); conn.close()
+        return jsonify({'success': True, 'message': 'Verified for CTN'}), 200
+    cur.close(); conn.close()
+    return jsonify({'success': False, 'message': 'No valid identifier provided'}), 400
+
+# @auth_routes.route('/verify_sensitive_access', methods=['POST'])
+# def verify_sensitive_access():
+#     """
+#     POST body: { email, bl_number, invoice_number, ctn_number, ctn (optional) }
+#     At least one of bl_number, invoice_number, ctn_number must be provided.
+#     Returns 200 if email matches the record for the BL/invoice/CTN, else 403.
+#     """
+#     import sys
+#     data = request.get_json()
+#     email = data.get('email')
+#     bl_number = data.get('bl_number')
+#     invoice_number = data.get('invoice_number')
+#     ctn_number = data.get('ctn_number')
+#     ctn = data.get('ctn')
+#     print(f"[DEBUG] Incoming verify_sensitive_access: email={email}, bl_number={bl_number}, invoice_number={invoice_number}, ctn_number={ctn_number}, ctn={ctn}", file=sys.stderr)
+#     if not email or not (bl_number or invoice_number or ctn_number):
+#         print(f"[DEBUG] Missing required fields", file=sys.stderr)
+#         return jsonify({'error': 'Missing required fields'}), 400
+
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+#     # Try BL first
+#     if bl_number:
+#         print(f"[DEBUG] Executing SQL for BL: SELECT customer_email FROM bill_of_lading WHERE bl_number = {bl_number}", file=sys.stderr)
+#         cur.execute("SELECT customer_email FROM bill_of_lading WHERE bl_number = %s", (bl_number,))
+#         bl_row = cur.fetchone()
+#         print(f"[DEBUG] bill_of_lading row: {bl_row}", file=sys.stderr)
+#         if not bl_row:
+#             cur.close(); conn.close()
+#             print(f"[DEBUG] BL not found for bl_number={bl_number}", file=sys.stderr)
+#             return jsonify({'error': 'BL not found'}), 404
+#         bl_email = bl_row[0]
+#         # Now scan users table and decrypt each email to find a match
+#         cur.execute("SELECT customer_email, customer_phone FROM users")
+#         user_rows = cur.fetchall()
+#         print(f"[DEBUG] Users fetched: {len(user_rows)}", file=sys.stderr)
+#         found = False
+#         for db_email, db_phone in user_rows:
+#             decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+#             decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+#             if decrypted_email.lower() == bl_email.lower():
+#                 print(f"[DEBUG] Decrypted user email matches BL email: {decrypted_email}", file=sys.stderr)
+#                 found = True
+#                 break
+#         if not found:
+#             cur.close(); conn.close()
+#             print(f"[DEBUG] No user found with decrypted email matching BL email {bl_email}", file=sys.stderr)
+#             return jsonify({'error': 'BL not found'}), 404
+#         # Now check if provided email matches
+#         if bl_email.lower() != email.lower():
+#             cur.close(); conn.close()
+#             print(f"[DEBUG] Provided email does not match BL email: {email} != {bl_email}", file=sys.stderr)
+#             return jsonify({'error': 'Email does not match record for this BL'}), 403
+#         # Optionally check CTN if needed (using decrypted_phone)
+#         if ctn and decrypted_phone and ctn != decrypted_phone:
+#             cur.close(); conn.close()
+#             print(f"[DEBUG] CTN does not match: {ctn} != {decrypted_phone}", file=sys.stderr)
+#             return jsonify({'error': 'CTN does not match record for this BL'}), 403
+#         cur.close(); conn.close()
+#         print(f"[DEBUG] Success: Verified for BL", file=sys.stderr)
+#         return jsonify({'success': True, 'message': 'Verified for BL'})
+#     # Try invoice
+#     if invoice_number:
+#         cur.execute("SELECT customer_email, customer_phone FROM users u JOIN invoice_table i ON u.id = i.user_id WHERE i.invoice_number = %s", (invoice_number,))
+#         row = cur.fetchone()
+#         if not row:
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'Invoice not found'}), 404
+#         db_email, db_phone = row
+#         decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+#         decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+#         if decrypted_email.lower() != email.lower():
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'Email does not match record for this invoice'}), 403
+#         if ctn and decrypted_phone and ctn != decrypted_phone:
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'CTN does not match record for this invoice'}), 403
+#         cur.close(); conn.close()
+#         return jsonify({'success': True, 'message': 'Verified for invoice'})
+#     # Try CTN
+#     if ctn_number:
+#         cur.execute("SELECT customer_email, customer_phone FROM users u JOIN ctn_table c ON u.id = c.user_id WHERE c.ctn_number = %s", (ctn_number,))
+#         row = cur.fetchone()
+#         if not row:
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'CTN not found'}), 404
+#         db_email, db_phone = row
+#         decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
+#         decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
+#         if decrypted_email.lower() != email.lower():
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'Email does not match record for this CTN'}), 403
+#         if ctn and decrypted_phone and ctn != decrypted_phone:
+#             cur.close(); conn.close()
+#             return jsonify({'error': 'CTN does not match record for this CTN'}), 403
+#         cur.close(); conn.close()
+#         return jsonify({'success': True, 'message': 'Verified for CTN'})
+#     cur.close(); conn.close()
+#     return jsonify({'error': 'No valid identifier provided'}), 400

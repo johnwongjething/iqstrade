@@ -5,6 +5,9 @@ from config import get_db_conn, EmailConfig
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 
 def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link=None, output_path=None):
     print(f"[DEBUG] generate_invoice_pdf: customer={customer}, bill_id={bill.get('id')}, service_fee={service_fee}, ctn_fee={ctn_fee}, payment_link={payment_link}, output_path={output_path}")
@@ -115,3 +118,96 @@ def send_invoice_email(to_email, subject, body, pdf_path):
         print(f"Failed to send invoice email: {str(e)}")
         print(f"Email config: {EmailConfig.SMTP_SERVER}, {EmailConfig.SMTP_PORT}, {EmailConfig.SMTP_USERNAME}, {EmailConfig.SMTP_PASSWORD}")
         return False
+
+def generate_pdf_from_text(text_content, filename):
+    """
+    Generates a PDF from a simple text string.
+    """
+    pdf = SimpleDocTemplate(filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    p = Paragraph(text_content, styles["Normal"])
+    pdf.build([p])
+    return filename
+
+def find_ctn_info(bl_numbers):
+    """
+    Accepts a single BL number (string) or a list of BL numbers.
+    Returns a list of dicts with ctn info for each found BL.
+    """
+    if not bl_numbers:
+        return []
+    if isinstance(bl_numbers, str):
+        bl_numbers = [bl_numbers]
+    
+    conn = None
+    results = []
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        for bl in bl_numbers:
+            cur.execute("""
+                SELECT bl_number, unique_number
+                FROM bill_of_lading
+                WHERE bl_number = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (bl,))
+            row = cur.fetchone()
+            if row:
+                results.append({
+                    "bl_number": row[0],
+                    "ctn_number": row[1]
+                })
+    except Exception as e:
+        print(f"[ERROR] Database error in find_ctn_info: {e}")
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+    return results
+
+def find_invoice_info(bl_numbers):
+    """
+    Accepts a single BL number (string) or a list of BL numbers.
+    Returns a list of dicts with invoice info for each found BL.
+    """
+    if not bl_numbers:
+        return []
+    if isinstance(bl_numbers, str):
+        bl_numbers = [bl_numbers]
+
+    conn = None
+    results = []
+    print(f"[DEBUG] Looking up invoices for BLs: {bl_numbers}")
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        for bl in bl_numbers:
+            bl_clean = bl.strip()
+            cur.execute("""
+                SELECT bl_number, invoice_filename, customer_name, service_fee, ctn_fee, payment_link
+                FROM bill_of_lading
+                WHERE bl_number = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (bl_clean,))
+            row = cur.fetchone()
+            if row:
+                print(f"[DEBUG] Found invoice for BL {bl_clean}: {row[1]}")
+                results.append({
+                    "bl_number": row[0],
+                    "invoice_filename": row[1],
+                    "customer_name": row[2],
+                    "service_fee": row[3],
+                    "ctn_fee": row[4],
+                    "payment_link": row[5]
+                })
+            else:
+                print(f"[DEBUG] No invoice found for BL {bl_clean} in database.")
+    except Exception as e:
+        print(f"[ERROR] Database error in find_invoice_info: {e}")
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+    return results

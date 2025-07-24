@@ -12,26 +12,15 @@ import pytz
 from datetime import datetime
 from email_utils import send_unique_number_email, send_invoice_email, send_simple_email
 from invoice_utils import generate_invoice_pdf
+import tempfile
+from ocr_processor import extract_fields_openai
+from extract_fields import extract_fields as extract_fields_legacy
 
-bill_routes = Blueprint('bill_routes', __name__)
-
-print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
 bill_routes = Blueprint('bill_routes', __name__)
 print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
 
 # Bill and file-related endpoints
 # /bills, /bill/<id>, /uploads/<filename>, /upload, /bill/<id>/upload_receipt, /bill/<id>/unique_number, /send_unique_number_email, /send_invoice_email, /bill/<id>/delete, /generate_payment_link/<id>, /bills/status/<status>, /bills/awaiting_bank_in
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
-import pytz
-import json
-import os
-import tempfile
-
-from config import get_db_conn
-from cloudinary_utils import upload_filepath_to_cloudinary
-from invoice_utils import generate_invoice_pdf
 
 # --- AUTO-INVOICE GENERATION FUNCTION ---
 def auto_generate_invoice_for_bill(bill):
@@ -240,6 +229,7 @@ def upload_file():
     # [DEBUG] Migration: No local upload dir, using Cloudinary
     user = json.loads(get_jwt_identity())
     username = user['username']
+    print(f"[DEBUG] Upload triggered by username: {username}")
     try:
         name = request.form.get('name')
         email = request.form.get('email')
@@ -289,8 +279,14 @@ def upload_file():
                 fields = {}
                 if bill_pdf:
                     try:
-                        fields = extract_fields(local_path)
+                        if username == 'ray40':
+                            print('[DEBUG] Using OpenAI extraction for user ray40')
+                            fields = extract_fields_openai(local_path)
+                        else:
+                            print(f'[DEBUG] Using legacy extraction for user {username}')
+                            fields = extract_fields_legacy(local_path)
                     except Exception as e:
+                        print(f'[DEBUG] Extraction error: {e}')
                         fields = {}
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
@@ -951,10 +947,209 @@ def extract_fields_endpoint():
     """
     Expects a PDF file upload as 'pdf' in form-data.
     Returns extracted fields as JSON.
+    Uses OpenAI for user 'ray40', Google Vision for others.
     """
     if 'pdf' not in request.files:
         return jsonify({'error': 'No PDF file uploaded'}), 400
     pdf_file = request.files['pdf']
-    print("[DEBUG] Skipping Google OCR - not implemented for Cloudinary URLs")
-    # TODO: download PDF from Cloudinary before sending to Google OCR
-    return jsonify({'fields': {}})
+    user = json.loads(get_jwt_identity())
+    username = user.get('username')
+    # Save PDF to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        pdf_path = tmp.name
+        pdf_file.save(pdf_path)
+    try:
+        if username == 'ray40':
+            fields = extract_fields_openai(pdf_path)
+        else:
+            fields = extract_fields_legacy(pdf_path)
+        return jsonify({'fields': fields})
+    finally:
+        try:
+            os.remove(pdf_path)
+        except Exception:
+            pass
+
+
+@bill_routes.route('/account_bills_monthly', methods=['GET'])
+@jwt_required()
+def account_bills_monthly():
+    completed_month = request.args.get('completed_month')
+    bl_number = request.args.get('bl_number')
+    conn = get_db_conn()
+    cur = conn.cursor()
+    select_clause = '''
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
+               shipper, consignee, port_of_loading, port_of_discharge, bl_number,
+               container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
+               status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
+               completed_at, allinpay_85_received_at,
+               customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
+        FROM bill_of_lading
+        WHERE status = 'Paid and CTN Valid'
+    '''
+    where_clauses = []
+    params = []
+    if completed_month:
+        # Parse YYYY-MM and get first and last day of month
+        try:
+            start_date = datetime.strptime(completed_month, '%Y-%m')
+            hk_tz = pytz.timezone('Asia/Hong_Kong')
+            start_date = hk_tz.localize(start_date)
+            # Get first day of next month, then subtract 1 second for end of month
+            if start_date.month == 12:
+                next_month = start_date.replace(year=start_date.year+1, month=1, day=1)
+            else:
+                next_month = start_date.replace(month=start_date.month+1, day=1)
+            end_date = next_month
+        except Exception as e:
+            return jsonify({'error': 'Invalid completed_month format, should be YYYY-MM'}), 400
+        where_clauses.append(
+            "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
+            "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
+            "OR (payment_method != 'Allinpay' AND completed_at >= %s AND completed_at < %s))"
+        )
+        params.extend([start_date, end_date, start_date, end_date, start_date, end_date])
+    if bl_number:
+        where_clauses.append("bl_number ILIKE %s")
+        params.append(f'%{bl_number}%')
+    if where_clauses:
+        select_clause += " AND " + " AND ".join(where_clauses)
+    select_clause += " ORDER BY id DESC"
+    cur.execute(select_clause, tuple(params))
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    bills = []
+    total_bank_ctn = 0
+    total_bank_service = 0
+    total_allinpay_85_ctn = 0
+    total_allinpay_85_service = 0
+    total_reserve_ctn = 0
+    total_reserve_service = 0
+    from dateutil import parser
+    for row in rows:
+        bill = dict(zip(columns, row))
+        # Decrypt sensitive fields
+        if bill.get('customer_email'):
+            bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
+        if bill.get('customer_phone'):
+            bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+        try:
+            ctn_fee = float(bill.get('ctn_fee') or 0)
+            service_fee = float(bill.get('service_fee') or 0)
+        except (TypeError, ValueError):
+            ctn_fee = 0
+            service_fee = 0
+        if bill.get('payment_method') == 'Allinpay':
+            # 85% entry
+            allinpay_85_dt = bill.get('allinpay_85_received_at')
+            if allinpay_85_dt:
+                if isinstance(allinpay_85_dt, str):
+                    try:
+                        allinpay_85_dt = parser.isoparse(allinpay_85_dt)
+                    except Exception:
+                        allinpay_85_dt = None
+                if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
+                    allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
+                if completed_month and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
+                    bill_85 = bill.copy()
+                    bill_85['display_ctn_fee'] = round(ctn_fee * 0.85, 2)
+                    bill_85['display_service_fee'] = round(service_fee * 0.85, 2)
+                    bill_85['split_type'] = 'Allinpay 85%'
+                    # Set the date field to allinpay_85_received_at for 85% split
+                    bill_85['completed_at'] = bill.get('allinpay_85_received_at')
+                    bills.append(bill_85)
+                    total_allinpay_85_ctn += bill_85['display_ctn_fee']
+                    total_allinpay_85_service += bill_85['display_service_fee']
+            # 15% reserve entry
+            reserve_status = (bill.get('reserve_status') or '').lower()
+            completed_dt = bill.get('completed_at')
+            if completed_dt:
+                if isinstance(completed_dt, str):
+                    try:
+                        completed_dt = parser.isoparse(completed_dt)
+                    except Exception:
+                        completed_dt = None
+                if completed_dt and completed_dt.tzinfo is None:
+                    completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
+            if reserve_status in ['settled', 'reserve settled'] and completed_month and completed_dt and start_date <= completed_dt < end_date:
+                bill_15 = bill.copy()
+                bill_15['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
+                bill_15['display_service_fee'] = round(service_fee * 0.15, 2)
+                bill_15['split_type'] = 'Allinpay Reserve'
+                bills.append(bill_15)
+                total_reserve_ctn += bill_15['display_ctn_fee']
+                total_reserve_service += bill_15['display_service_fee']
+        else:
+            # Bank Transfer or other: single entry
+            completed_dt = bill.get('completed_at')
+            if completed_dt:
+                if isinstance(completed_dt, str):
+                    try:
+                        completed_dt = parser.isoparse(completed_dt)
+                    except Exception:
+                        completed_dt = None
+                if completed_dt and completed_dt.tzinfo is None:
+                    completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
+            if completed_month and completed_dt and start_date <= completed_dt < end_date:
+                bill_bank = bill.copy()
+                bill_bank['display_ctn_fee'] = ctn_fee
+                bill_bank['display_service_fee'] = service_fee
+                bill_bank['split_type'] = 'Bank Transfer'
+                bills.append(bill_bank)
+                total_bank_ctn += ctn_fee
+                total_bank_service += service_fee
+    # Convert all 'completed_at' values to Asia/Hong_Kong timezone for display and sorting
+    hk_tz = pytz.timezone('Asia/Hong_Kong')
+    def to_hk_time(val):
+        if val is None:
+            return None
+        if isinstance(val, str):
+            try:
+                val = parser.isoparse(val)
+            except Exception:
+                return None
+        if val.tzinfo is None:
+            val = val.replace(tzinfo=pytz.UTC)
+        return val.astimezone(hk_tz)
+
+
+    # Also convert allinpay_85_received_at to HK time for all bills (for frontend display if needed)
+    for bill in bills:
+        # completed_at
+        completed_at = bill.get('completed_at')
+        hk_completed = to_hk_time(completed_at)
+        if hk_completed:
+            bill['completed_at'] = hk_completed.isoformat()
+        else:
+            bill['completed_at'] = None
+        # allinpay_85_received_at
+        allinpay_85 = bill.get('allinpay_85_received_at')
+        hk_85 = to_hk_time(allinpay_85)
+        if hk_85:
+            bill['allinpay_85_received_at'] = hk_85.isoformat()
+        else:
+            bill['allinpay_85_received_at'] = None
+
+    # Sort bills by HK time (descending), treating None as oldest
+    def get_completed_at_hk(bill):
+        val = bill.get('completed_at')
+        if val is None:
+            return datetime.min.replace(tzinfo=hk_tz)
+        try:
+            return parser.isoparse(val)
+        except Exception:
+            return datetime.min.replace(tzinfo=hk_tz)
+    bills.sort(key=get_completed_at_hk, reverse=True)
+    summary = {
+        'totalEntries': len(bills),
+        'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
+        'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
+        'bankTotal': round(total_bank_ctn + total_bank_service, 2),
+        'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
+        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
+    }
+    cur.close()
+    conn.close()
+    return jsonify({'bills': bills, 'summary': summary})

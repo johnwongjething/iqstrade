@@ -1,3 +1,9 @@
+from flask import Flask
+from routes.auth_routes import auth_routes
+from routes.email_routes import email_routes
+from dotenv import load_dotenv
+import os
+...
 from routes.email_routes import email_routes
 from dotenv import load_dotenv
 import os
@@ -32,6 +38,7 @@ from utils.ingest_emails import bp_ingest
 
 from datetime import datetime
 import pytz
+from datetime import timedelta
 
 app = Flask(__name__, static_folder='build', static_url_path='/')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -43,6 +50,9 @@ if os.getenv('ALLOWED_ORIGINS'):
     allowed_origins.extend(prod_domains)
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
+
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # 1 hour access token
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)  # 7 days refresh token
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']

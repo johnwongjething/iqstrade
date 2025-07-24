@@ -70,6 +70,35 @@ def send_email(to, subject, body):
         server.send_message(msg)
         print(f"[DEBUG] ✅ Email sent to {to}")
 
+def send_email_with_attachment(to, subject, body, attachments):
+    if not all([
+        EmailConfig.SMTP_SERVER,
+        EmailConfig.SMTP_PORT,
+        EmailConfig.SMTP_USERNAME,
+        EmailConfig.SMTP_PASSWORD,
+        EmailConfig.FROM_EMAIL
+    ]):
+        raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))
+    msg['To'] = to
+    msg.set_content(body)
+    for file_path in attachments:
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+            file_name = os.path.basename(file_path)
+        maintype = 'application'
+        subtype = 'octet-stream'
+        if file_name.lower().endswith('.pdf'):
+            subtype = 'pdf'
+        msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
+    with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
+        server.starttls()
+        server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
+        server.send_message(msg)
+        print(f"[DEBUG] ✅ Email with attachment sent to {to}")
+
 # Send unique number email using SMTP (plain text)
 def send_unique_number_email(to_email, subject, body):
     # Ensure all required config values are present

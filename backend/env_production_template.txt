@@ -1,0 +1,28 @@
+# ========================================
+# PRODUCTION ENVIRONMENT VARIABLES FOR RENDER
+# ========================================
+
+# === EXISTING VARIABLES (Keep these) ===
+SECRET_KEY=your_secret_key_here
+DATABASE_URL=postgresql://username:password@host:port/database_name
+EMAIL_HOST=imap.gmail.com
+EMAIL_USERNAME=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+JWT_SECRET_KEY=your_jwt_secret
+CORS_ORIGINS=https://your-frontend-domain.onrender.com
+
+# === NEW VARIABLES FOR OPENAI INTEGRATION ===
+OPENAI_API_KEY=sk-your_openai_api_key_here
+
+# === OPTIONAL: EMAIL SCHEDULER SETTINGS ===
+EMAIL_CHECK_INTERVAL=300  # Check emails every 5 minutes (in seconds)
+AUTO_SEND_ENABLED=true    # Enable/disable auto-send functionality
+CONFIDENCE_THRESHOLD=0.8  # Minimum confidence for auto-send (0.0-1.0)
+
+# === OPTIONAL: LOGGING SETTINGS ===
+LOG_LEVEL=INFO
+ENABLE_EMAIL_LOGGING=true
+
+# === OPTIONAL: SECURITY SETTINGS ===
+MAX_EMAIL_SIZE=10485760   # 10MB max email size
+ALLOWED_ATTACHMENT_TYPES=pdf,jpg,jpeg,png 

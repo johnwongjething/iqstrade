@@ -26,32 +26,22 @@ print(f"[CONFIG] Running in environment: {CURRENT_ENV}")
 class DatabaseConfig:
     @staticmethod
     def dbname():
-        if CURRENT_ENV == 'local':
-            return os.getenv('LOCAL_DB_NAME', 'testdb')
         return os.getenv('DB_NAME', 'testdb')
     
     @staticmethod
     def user():
-        if CURRENT_ENV == 'local':
-            return os.getenv('LOCAL_DB_USER', 'postgres')
         return os.getenv('DB_USER', 'postgres')
     
     @staticmethod
     def password():
-        if CURRENT_ENV == 'local':
-            return os.getenv('LOCAL_DB_PASSWORD', '123456')
         return os.getenv('DB_PASSWORD', '123456')
     
     @staticmethod
     def host():
-        if CURRENT_ENV == 'local':
-            return os.getenv('LOCAL_DB_HOST', 'localhost')
         return os.getenv('DB_HOST', 'localhost')
     
     @staticmethod
     def port():
-        if CURRENT_ENV == 'local':
-            return os.getenv('LOCAL_DB_PORT', '5432')
         return os.getenv('DB_PORT', '5432')
 
 # Email Configuration
@@ -61,6 +51,11 @@ class EmailConfig:
     SMTP_USERNAME = os.getenv('SMTP_USERNAME')
     SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
     FROM_EMAIL = os.getenv('FROM_EMAIL', 'ray6330099@gmail.com')
+
+# Cloudinary Configuration
+class CloudinaryConfig:
+    CLOUDINARY_BASE_URL = os.getenv('CLOUDINARY_BASE_URL')
+
 
 # OCR Configuration
 class OCRConfig:
@@ -82,11 +77,8 @@ class JWTConfig:
 
 # Update database connection function to use config with timeout and retry
 def get_db_conn(max_retries=3, retry_delay=2):
-    # Remove or comment out debug prints for production
-    # print("get_db_conn CALLED")
     for attempt in range(max_retries):
         try:
-            # print(f"[DEBUG] DB_NAME={DatabaseConfig.dbname()} DB_USER={DatabaseConfig.user()} DB_HOST={DatabaseConfig.host()} DB_PORT={DatabaseConfig.port()} (attempt {attempt + 1})")
             conn = psycopg2.connect(
                 dbname=DatabaseConfig.dbname(),
                 user=DatabaseConfig.user(),
@@ -96,36 +88,23 @@ def get_db_conn(max_retries=3, retry_delay=2):
                 connect_timeout=10,  # 10 second connection timeout
                 options='-c statement_timeout=30000'  # 30 second query timeout
             )
-            # print("Database connection established successfully")
             return conn
         except Exception as e:
-            # print(f"Error connecting to database (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
-                # print(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                # print(f"Failed to connect to database after {max_retries} attempts")
-                # print(f"Database config: {DatabaseConfig.dbname()}, {DatabaseConfig.user()}, {DatabaseConfig.host()}, {DatabaseConfig.port()}")
                 return None
 
-# --- HTTPS Enforcement Helper ---
 def is_https_enforced():
-    # Only enforce HTTPS in production, never in development or testing
     flask_env = os.getenv('FLASK_ENV', '').lower()
     force_https = os.getenv('FORCE_HTTPS', '0') == '1'
     enforce = flask_env == 'production' or force_https
-    # print(f"[DEBUG] HTTPS enforcement: {enforce} (FLASK_ENV={flask_env}, FORCE_HTTPS={force_https})")
     return enforce
 
-# --- Backup & Monitoring Guidance ---
-# These are operational, not code, but provide reminders/logs
-
 def backup_reminder():
-    # print("[SECURITY] Ensure regular, automated database backups are scheduled (e.g., pg_dump, managed snapshots). Test recovery procedures regularly.")
     pass
 
 def monitoring_reminder():
-    # print("[SECURITY] Set up monitoring/logging for database and application (e.g., CloudWatch, Sentry, pg_stat_statements). Enable alerts for suspicious activity.")
     pass
 
 backup_reminder()

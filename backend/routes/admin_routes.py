@@ -1,6 +1,6 @@
 
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 import json
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from utils.security import decrypt_sensitive_data
@@ -12,10 +12,14 @@ admin_routes = Blueprint('admin_routes', __name__)
 @admin_routes.route('/admin/ingest-emails', methods=['POST'])
 @jwt_required()
 def admin_ingest_emails():
+    print('[DEBUG] /admin/ingest-emails called')
+    print('[DEBUG] get_jwt_identity:', get_jwt_identity())
+    from flask import request
+    print('[DEBUG] request headers:', dict(request.headers))
     user = json.loads(get_jwt_identity())
     if user.get('username') != 'ray40':
         return jsonify({'error': 'Admins only!'}), 403
-    print('[DEBUG] Manual ingestion triggered by admin')
+    print('[DEBUG] Manual ingestion triggered by admin - IMAP ingestion will run now.')
     result = ingest_emails()
     return jsonify({'result': result})
 
@@ -41,6 +45,31 @@ def get_email_ingest_errors():
     cur.close()
     conn.close()
     return jsonify(errors)
+
+@admin_routes.route('/admin/unmatched-receipts', methods=['GET'])
+@jwt_required()
+def get_unmatched_receipts():
+    user = json.loads(get_jwt_identity())
+    if user.get('username') != 'ray40':
+        return jsonify({'error': 'Admins only!'}), 403
+    print('[DEBUG] Returning unmatched receipts')
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, date, description, amount, reason, created_at, raw_text FROM unmatched_receipts ORDER BY created_at DESC")
+    receipts = []
+    for row in cur.fetchall():
+        receipts.append({
+            'id': row[0],
+            'date': row[1],
+            'description': row[2],
+            'amount': row[3],
+            'reason': row[4],
+            'created_at': str(row[5]),
+            'raw_text': row[6]
+        })
+    cur.close()
+    conn.close()
+    return jsonify(receipts)
 
 # Admin-only endpoints
 
@@ -103,3 +132,12 @@ def approve_user(user_id):
     cur.close()
     conn.close()
     return jsonify({'message': 'User approved'})
+
+@admin_routes.route('/admin/canned-responses', methods=['GET'])
+@jwt_required()
+def get_canned_responses():
+    try:
+        # Assuming the file is in the backend directory
+        return send_from_directory('.', 'canned_responses.json')
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
