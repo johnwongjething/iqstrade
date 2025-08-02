@@ -74,10 +74,10 @@ if app.debug or os.getenv('FLASK_ENV') == 'development':
 else:
     # Production settings
     app.config['JWT_COOKIE_SECURE'] = True
-    app.config['JWT_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies
-    app.config['JWT_COOKIE_DOMAIN'] = 'iqstrade.onrender.com'  # Set to exact domain for browser compatibility
+    app.config['JWT_COOKIE_SAMESITE'] = 'Lax'  # Allow same-site cookies for single service
+    app.config['JWT_COOKIE_DOMAIN'] = None  # No domain restriction for single service
     app.config['JWT_COOKIE_HTTPONLY'] = True
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection for production
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Disable CSRF for single service
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 jwt = JWTManager(app)
