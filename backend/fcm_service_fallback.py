@@ -79,6 +79,25 @@ class FCMServiceFallback:
                 print(f"✅ Access token refreshed: {self.access_token[:20]}...")
         except Exception as e:
             print(f"❌ Error refreshing access token: {e}")
+            # If it's a JWT signature error, show file debugging
+            if 'Invalid JWT Signature' in str(e):
+                print("🔍 JWT Signature error detected - checking service account file...")
+                try:
+                    import json
+                    with open(self.service_account_path, 'r') as f:
+                        content = json.load(f)
+                    print(f"📄 Service account file contains: {list(content.keys())}")
+                    if 'private_key' in content:
+                        print(f"🔑 Private key length: {len(content['private_key'])} characters")
+                        print(f"🔑 Private key starts with: {content['private_key'][:50]}...")
+                    else:
+                        print("❌ No private_key found in service account file")
+                    if 'project_id' in content:
+                        print(f"📋 Project ID: {content['project_id']}")
+                    else:
+                        print("❌ No project_id found in service account file")
+                except Exception as read_error:
+                    print(f"❌ Cannot read service account file: {read_error}")
             self.access_token = None
     
     def _get_valid_access_token(self):
