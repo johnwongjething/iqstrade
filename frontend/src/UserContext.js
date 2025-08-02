@@ -63,18 +63,7 @@ export function UserProvider({ children }) {
   const fetchUserIfNeeded = useCallback(async (force = false) => {
     if (!force && user && user.username) return true;
     try {
-      // Check if we have a temporary token from login
-      const tempToken = localStorage.getItem('temp_access_token');
-      const headers = { 'Content-Type': 'application/json' };
-      
-      if (tempToken) {
-        headers['Authorization'] = `Bearer ${tempToken}`;
-      }
-      
-      const res = await fetch(`${API_BASE_URL}/api/me`, { 
-        credentials: 'include',
-        headers: headers
-      });
+      const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
       if (res.status === 401) {
         setUser(null);
         // Only navigate to /login if trying to access a protected route (not here)

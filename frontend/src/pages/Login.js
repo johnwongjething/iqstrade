@@ -114,18 +114,8 @@ function Login({ t = x => x }) {
       }
       // Login response received
       if (res.ok) {
-        // Use the token from response body immediately
-        if (data.access_token) {
-          // Store the token temporarily and use it for the next request
-          localStorage.setItem('temp_access_token', data.access_token);
-        }
-        
-        // Add a small delay to allow browser to process new cookies
-        await new Promise(resolve => setTimeout(resolve, 200));
         const success = await fetchUserIfNeeded(true);
         if (success) {
-          // Clear the temporary token
-          localStorage.removeItem('temp_access_token');
           await fetchCsrfToken();
           navigate('/dashboard');
         } else {
