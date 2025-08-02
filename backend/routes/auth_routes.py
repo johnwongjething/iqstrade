@@ -282,6 +282,12 @@ def login():
         'role': role,
         'username': username
     }), 200)
+    
+    # Clear old cookies first
+    response.delete_cookie('access_token_cookie')
+    response.delete_cookie('refresh_token_cookie')
+    
+    # Set new cookies
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
     
@@ -326,6 +332,17 @@ def get_me():
     logging.info(f"[DEBUG] All cookies: {dict(request.cookies)}")
     logging.info(f"[DEBUG] Access token cookie: {request.cookies.get('access_token_cookie')}")
     logging.info(f"[DEBUG] Refresh token cookie: {request.cookies.get('refresh_token_cookie')}")
+    
+    # Debug: Decode the token being used
+    import jwt as pyjwt
+    try:
+        token = request.cookies.get('access_token_cookie')
+        if token:
+            decoded = pyjwt.decode(token, os.environ.get('JWT_SECRET_KEY', 'your-secret-key'), algorithms=['HS256'])
+            logging.info(f"[DEBUG] Token being used - created at: {decoded.get('iat')}, expires at: {decoded.get('exp')}")
+    except Exception as e:
+        logging.error(f"[DEBUG] Error decoding token in /me: {e}")
+    
     user = json.loads(get_jwt_identity())
     conn = get_db_conn()
     cur = conn.cursor()
