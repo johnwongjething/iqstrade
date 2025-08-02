@@ -1,0 +1,402 @@
+[
+  {
+    "email_id": 1087,
+    "test_type": "Simple",
+    "test_number": 8,
+    "subject": "Fwd: 8 - Invoice + CTN Request (Invalid BL Test)",
+    "body": "can i have invoice and ctn number for bl number 001-123, NYC220, 445566",
+    "reply": "Dear customer,\nThank you for your request. Please find the details for the valid Bill of Lading (BL) numbers below:\n1. BL Number: 001-123\n   - CTN Number: ray010101\n   - Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)\n2. BL Number: NYC220\n   - CTN Number: Ray000006\n   - Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)\nPlease note that BL number 445566 is invalid, and we cannot provide details for it.\nIf you have any further questions, feel free to reply to this message.\nThank you!\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:03:43.587789",
+    "reply_created_at": "2025-07-28T11:04:50.175123"
+  },
+  {
+    "email_id": 1087,
+    "test_type": "Simple",
+    "test_number": 8,
+    "subject": "Fwd: 8 - Invoice + CTN Request (Invalid BL Test)",
+    "body": "can i have invoice and ctn number for bl number 001-123, NYC220, 445566",
+    "reply": "Dear customer,\nThank you for reaching out to us. Here are the details for your requests:\nFor BL number 001-123:\n- CTN Number: ray010101\n- Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)\nFor BL number NYC220:\n- CTN Number: Ray000006\n- Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)\nPlease note that BL number 445566 is invalid, and we cannot provide details for it.\nIf you have any further questions, feel free to reply to this message.\nThank you!\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:03:43.587789",
+    "reply_created_at": "2025-07-28T11:03:59.354454"
+  },
+  {
+    "email_id": 1085,
+    "test_type": "Simple",
+    "test_number": 7,
+    "subject": "Fwd: 7 - Complex Payment with Multiple BLs",
+    "body": "Dear IQS Trade Team,\r\n\r\nWe have just transferred USD 320 for BL NYC220 and USD 200 for BL 001-123. Please confirm receipt and send us the invoices for both shipments. Also, let us know if there are any outstanding fees.\r\n\r\nBest regards,\r\nJohn Doe",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n💰 OVERPAYMENT: We have received your payment of $520.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $120.00.\nPayment status:\n  - BL 001-123: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\n  - BL NYC220: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\nFee details:\n  - BL 001-123: CTN Fee: $100.00, Service Fee: $100.00, Total: $200.00\n  - BL NYC220: CTN Fee: $100.00, Service Fee: $100.00, Total: $200.00\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:03:20.438365",
+    "reply_created_at": "2025-07-28T11:04:28.347532"
+  },
+  {
+    "email_id": 1085,
+    "test_type": "Simple",
+    "test_number": 7,
+    "subject": "Fwd: 7 - Complex Payment with Multiple BLs",
+    "body": "Dear IQS Trade Team,\r\n\r\nWe have just transferred USD 320 for BL NYC220 and USD 200 for BL 001-123. Please confirm receipt and send us the invoices for both shipments. Also, let us know if there are any outstanding fees.\r\n\r\nBest regards,\r\nJohn Doe",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n💰 OVERPAYMENT: We have received your payment of $520.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $120.00.\nPayment status:\n  - BL 001-123: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\n  - BL NYC220: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\nFee details:\n  - BL 001-123: CTN Fee: $100.00, Service Fee: $100.00, Total: $200.00\n  - BL NYC220: CTN Fee: $100.00, Service Fee: $100.00, Total: $200.00\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:03:20.438365",
+    "reply_created_at": "2025-07-28T11:03:38.923333"
+  },
+  {
+    "email_id": 1083,
+    "test_type": "Simple",
+    "test_number": 6,
+    "subject": "Fwd: 6 - PDF Payment Receipt",
+    "body": "",
+    "reply": "Dear customer, \n\nThank you for your email regarding the payment receipt. We have received a payment of $420.0. Please find the payment details for the valid Bill of Ladings (BLs) below:\n\n- BL Number: 001-123\n  - CTN: ray010101\n  - Invoice Link: [Click here to view the invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)\n  - CTN Fee: $100.0\n  - Service Fee: $100.0\n\n- BL Number: NYC220\n  - CTN: Ray000006\n  - Invoice Link: [Click here to view the invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)\n  - CTN Fee: $100.0\n  - Service Fee: $100.0\n\nIf you have any further questions or require assistance, please feel free to reply to this email. \n\nThank you! \nIQSTrade Support Team\n\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\n\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:02:12.430919",
+    "reply_created_at": "2025-07-28T11:03:31.107318"
+  },
+  {
+    "email_id": 1083,
+    "test_type": "Simple",
+    "test_number": 6,
+    "subject": "Fwd: 6 - PDF Payment Receipt",
+    "body": "",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\n\nBest regards,\nIQS Trade Team",
+    "confidence": 0.9500000000000002,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:02:12.430919",
+    "reply_created_at": "2025-07-28T11:03:15.606044"
+  },
+  {
+    "email_id": 1081,
+    "test_type": "Simple",
+    "test_number": 5,
+    "subject": "Fwd: 5 - Payment Receipt (Bank Reference Test)",
+    "body": "Payment for B/L 001-123, NYC220 Amount: $420 Ref: TEST987",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\nPayment status:\n  - BL 001-123: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\n  - BL NYC220: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\nBest regards,\nIQS Trade Team",
+    "confidence": 0.9000000000000001,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:01:40.556457",
+    "reply_created_at": "2025-07-28T11:02:13.709061"
+  },
+  {
+    "email_id": 1081,
+    "test_type": "Simple",
+    "test_number": 5,
+    "subject": "Fwd: 5 - Payment Receipt (Bank Reference Test)",
+    "body": "Payment for B/L 001-123, NYC220 Amount: $420 Ref: TEST987",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\nPayment status:\n  - BL 001-123: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\n  - BL NYC220: Total Fee: $200.00, Paid: $0.00, Status: Awaiting Bank In\nBest regards,\nIQS Trade Team",
+    "confidence": 0.9000000000000001,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:01:40.556457",
+    "reply_created_at": "2025-07-28T11:02:07.758375"
+  },
+  {
+    "email_id": 1080,
+    "test_type": "Simple",
+    "test_number": 4,
+    "subject": "Fwd: 4 - Multiple BL Fee Inquiry",
+    "body": "Hi Team,\r\n\r\nCan you provide the total fees for BL 001-123 NYC220? Also, I need to track the payment status? Is there any payment due?\r\n\r\nThanks,\r\nAlice",
+    "reply": "Dear Alice,\nThank you for reaching out to us. Here is the information you requested:\n1. **Fee Inquiry**:\n   - For BL 001-123:\n     - CTN Fee: $100\n     - Service Fee: $100\n     - Total Fees: $200\n   - For BL NYC220:\n     - CTN Fee: $100\n     - Service Fee: $100\n     - Total Fees: $200\n2. **Payment Status**:\n   - BL 001-123: The payment status is 'Awaiting Bank In'.\n   - BL NYC220: The payment status is 'Awaiting Bank In'.\nIf you have any further questions, please feel free to reach out.\nThank you!\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:01:35.520262",
+    "reply_created_at": "2025-07-28T11:01:48.109725"
+  },
+  {
+    "email_id": 1079,
+    "test_type": "Simple",
+    "test_number": 3,
+    "subject": "Fwd: 3 - Payment Receipt (Overpayment)",
+    "body": "I have paid $500 for BL 777888, but the invoice total is $400. Please confirm the excess payment and send me the invoice. See attached payment receipt.\r\n\r\nRegards,\r\nMichael",
+    "reply": "Hello,\nThe following BL numbers could not be found in our system: 777888. Please double-check or contact us for assistance.\nBest regards,\nIQS Trade Team\n\nNote: You mentioned an attachment in your email, but no files were attached. If you intended to send a file, please resend your email with the attachment included.\n\n注意：您在邮件中提到有附件，但未检测到任何文件。如需补发，请重新发送带附件的邮件。",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:00:57.128595",
+    "reply_created_at": "2025-07-28T11:01:31.884711"
+  },
+  {
+    "email_id": 1078,
+    "test_type": "Simple",
+    "test_number": 2,
+    "subject": "Fwd: 2 - Fee Inquiry + Payment Status",
+    "body": "Hi Team,\r\n\r\nCan you provide the total fees for BL 445566? Also, I need to track the shipment status. Is there any payment due? Please advise.\r\n\r\nThanks,\r\nAlice",
+    "reply": "Dear Alice,\nThank you for reaching out to us.\nRegarding your fee inquiry for BL 445566, please note that this BL is currently invalid, and we are unable to provide fee details for invalid BLs.\nAs for the payment status, there is no payment due for BL 445566 as it is invalid.\nIf you have any further questions or need assistance with a valid BL, please let us know.\nThank you!\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T11:00:41.282723",
+    "reply_created_at": "2025-07-28T11:00:55.324188"
+  },
+  {
+    "email_id": 1077,
+    "test_type": "Simple",
+    "test_number": 1,
+    "subject": "Fwd: 1 - CTN Request + Business Hours",
+    "body": "Hello IQS Trade,\n\n请问BL 001-123和BL 654321的CTN号码是多少？另外，请告知客户的营业时间。谢谢！\n\nBest,\nClient",
+    "reply": "您好，客户，\n对于提单 001-123，CTN 号码是 ray010101。不幸的是，我们无法为提单 654321 提供 CTN 号码，因为它在我们的系统中不是有效的提单。\n我们的营业时间是周一至周五，上午 9:00 至下午 5:00（香港时间）。\n谢谢！\nIQSTrade 支持团队\n祝商祺！\nIQS Trade Team",
+    "confidence": 0.8500000000000001,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [
+        "business_hours"
+      ],
+      "amount_validation_issues": [],
+      "recommendations": [
+        "Add 'business_hours' to request types - found pattern: \\b(?:what\\s+are\\s+)?(?:your\\s+)?(?:business\\s+hours|operating\\s+hours|office\\s+hours)\\b"
+      ],
+      "needs_reclassification": true
+    },
+    "created_at": "2025-07-28T10:59:44.565582",
+    "reply_created_at": "2025-07-28T11:00:39.559890"
+  },
+  {
+    "email_id": 1076,
+    "test_type": "Complex",
+    "test_number": 8,
+    "subject": "Complex Test 8 - Empty Body with PDF",
+    "body": "",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\n\nBest regards,\nIQS Trade Team",
+    "confidence": 0.7500000000000001,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T10:59:24.752458",
+    "reply_created_at": "2025-07-28T10:59:39.909889"
+  },
+  {
+    "email_id": 1075,
+    "test_type": "Complex",
+    "test_number": 7,
+    "subject": "Complex Test 7 - CTN Processing Time",
+    "body": "Dear Team,\r\n\r\nHow long does it take to process CTN for BL NAM20, BL 001-123, and BL NYC220?\r\n\r\nAlso, what are the total fees for each shipment?\r\n\r\nBest regards,\r\nJohn Doe",
+    "reply": "Dear John Doe,\nThank you for your inquiry regarding the fees for your shipments. Here are the details for each Bill of Lading (BL):\n- **BL NAM20**: The total fees amount to $1000, which includes a CTN fee of $500 and a service fee of $500. You can view the invoice [here](https://res.cloudinary.com/dtm46mski/image/upload/v1753164521/invoices/b40frniluowxpc48pw6g.pdf).\n- **BL 001-123**: The total fees amount to $200, which includes a CTN fee of $100 and a service fee of $100. You can view the invoice [here](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf).\n- **BL NYC220**: The total fees amount to $200, which includes a CTN fee of $100 and a service fee of $100. You can view the invoice [here](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf).\nIf you have any further questions, please feel free to reach out.\nThank you!\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [
+        "ctn_process"
+      ],
+      "amount_validation_issues": [],
+      "recommendations": [
+        "Add 'ctn_process' to request types - found pattern: \\b(how\\s+long|time|duration|process)\\s+(?:does\\s+it\\s+take\\s+)?(?:to\\s+)?(?:process\\s+)?(?:ctn|container)\\b"
+      ],
+      "needs_reclassification": true
+    },
+    "created_at": "2025-07-28T10:59:01.356016",
+    "reply_created_at": "2025-07-28T10:59:22.525793"
+  },
+  {
+    "email_id": 1074,
+    "test_type": "Complex",
+    "test_number": 6,
+    "subject": "Complex Test 6 - Business Hours + Payment Methods",
+    "body": "Hi IQS Trade,\r\n\r\nWhat are your business hours? Also, what payment methods do you accept?\r\n\r\nI need to pay for BL NAM20 ($250), BL 001-123 ($200), and BL NYC220 ($200).\r\n\r\nPlease provide payment instructions.\r\n\r\nThanks,\r\nJohn",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL NAM20: Payment record found.\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n⚠️ UNDERPAYMENT: We have received your payment of $450.00, but the invoice amount is $1400.00. There is an outstanding balance of $950.00.\nOur business hours are: Monday to Friday, 9:00 AM to 5:00 PM (Hong Kong time)\nBest regards,\nIQS Trade Team",
+    "confidence": 0.9000000000000001,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [
+        "payment_methods",
+        "business_hours",
+        "amount_validation"
+      ],
+      "amount_validation_issues": [],
+      "recommendations": [
+        "Add 'payment_methods' to request types - found pattern: \\b(?:what\\s+)?(?:payment\\s+)?(?:methods?|options?)\\s+(?:do\\s+you\\s+)?(?:accept|offer)\\b",
+        "Add 'business_hours' to request types - found pattern: \\b(?:what\\s+are\\s+)?(?:your\\s+)?(?:business\\s+hours|operating\\s+hours|office\\s+hours)\\b",
+        "Add 'amount_validation' to request types - found pattern: \\b(?:i\\s+need\\s+to\\s+pay|paying|payment)\\s+(?:for\\s+)?(?:bl\\s+)?(?:nam20|001-123|nyc220)\\b"
+      ],
+      "needs_reclassification": true
+    },
+    "created_at": "2025-07-28T10:58:40.671925",
+    "reply_created_at": "2025-07-28T10:58:56.670941"
+  },
+  {
+    "email_id": 1073,
+    "test_type": "Complex",
+    "test_number": 5,
+    "subject": "Complex Test 5 - Invalid BL Mixed with Valid",
+    "body": "Hello,\r\n\r\nI need information for:\r\n- BL NAM20 (valid)\r\n- BL 001-123 (valid) \r\n- BL NYC220 (valid)\r\n- BL INVALID999 (invalid)\r\n- BL TEST123 (invalid)\r\n\r\nPlease provide CTN numbers and payment status for all shipments.\r\n\r\nRegards,\r\nJohn",
+    "reply": "Hello John,\nThank you for reaching out. Here is the information you requested for the valid BLs:\n- **BL NAM20**:\n  - CTN Number: MYS306581\n  - Payment Status: Awaiting Bank In\n  - Invoice Link: [View Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753164521/invoices/b40frniluowxpc48pw6g.pdf)\n- **BL 001-123**:\n  - CTN Number: ray010101\n  - Payment Status: Awaiting Bank In\n  - Invoice Link: [View Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)\n- **BL NYC220**:\n  - CTN Number: Ray000006\n  - Payment Status: Awaiting Bank In\n  - Invoice Link: [View Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)\nPlease note that we cannot provide information for invalid BLs such as INVALID999 and TEST123.\nIf you have any further questions, feel free to reach out.\nRegards,\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T10:58:19.320425",
+    "reply_created_at": "2025-07-28T10:58:37.001834"
+  },
+  {
+    "email_id": 1072,
+    "test_type": "Complex",
+    "test_number": 4,
+    "subject": "Complex Test 4 - Underpayment Scenario",
+    "body": "Hi Team,\r\n\r\nI'm sending payment for:\r\n- BL NAM20: $100 (should be $250 total)\r\n- BL 001-123: $150 (should be $200 total)\r\n- BL NYC220: $50 (should be $200 total)\r\n\r\nTotal sent: $300. Please confirm what's still due.\r\n\r\nThanks,\r\nJohn",
+    "reply": "Dear John,\nThank you for your payment. Here is the status of your payments for the specified BLs:\n- **BL NAM20**: The total amount due is $250. You have sent $100, leaving a balance of $150.\n- **BL 001-123**: The total amount due is $200. You have sent $150, leaving a balance of $50.\n- **BL NYC220**: The total amount due is $200. You have sent $50, leaving a balance of $150.\nPlease let us know if you need further assistance.\nThank you!\nIQSTrade Support Team\n⚠️ UNDERPAYMENT: We have received your payment of $1050.00, but the invoice amount is $1400.00. There is an outstanding balance of $350.00.\nBest regards,\nIQS Trade Team",
+    "confidence": 0.9500000000000002,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [
+        "amount_validation"
+      ],
+      "amount_validation_issues": [
+        {
+          "bl": "NAM20",
+          "customer_amount": 100,
+          "correct_amount": 1000,
+          "issue": "Customer mentioned $100 for NAM20, but correct amount is $1000"
+        },
+        {
+          "bl": "001-123",
+          "customer_amount": 150,
+          "correct_amount": 200,
+          "issue": "Customer mentioned $150 for 001-123, but correct amount is $200"
+        },
+        {
+          "bl": "NYC220",
+          "customer_amount": 50,
+          "correct_amount": 200,
+          "issue": "Customer mentioned $50 for NYC220, but correct amount is $200"
+        }
+      ],
+      "recommendations": [
+        "Add 'amount_validation' to request types - found pattern: \\b(?:bl\\s+)?(?:nam20|001-123|nyc220)\\s*[:：]?\\s*\\$?\\d+\\b",
+        "Add amount validation to catch incorrect customer amounts"
+      ],
+      "needs_reclassification": true
+    },
+    "created_at": "2025-07-28T10:58:00.991521",
+    "reply_created_at": "2025-07-28T10:58:14.563604"
+  },
+  {
+    "email_id": 1071,
+    "test_type": "Complex",
+    "test_number": 3,
+    "subject": "Complex Test 3 - PDF with Multiple BLs",
+    "body": "Please process the attached payment receipt for multiple shipments.",
+    "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\n\n💰 OVERPAYMENT: We have received your payment of $420.00, but the invoice amount is $400.00. We will contact you regarding the excess payment of $20.00.\n\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T10:57:38.754337",
+    "reply_created_at": "2025-07-28T10:57:54.518803"
+  },
+  {
+    "email_id": 1070,
+    "test_type": "Complex",
+    "test_number": 2,
+    "subject": "Complex Test 2 - Chinese + English Mixed",
+    "body": "Hello IQS Trade,\n\n请问BL NAM20和BL 001-123的CTN号码是多少？\n\nAlso, I have paid $500 for BL NYC220. Please confirm receipt.\n\n另外，请告知营业时间和付款方式。\n\nThanks,\nJohn",
+    "reply": "Hello John,\nThank you for reaching out to IQS Trade.\nFor your request regarding the CTN numbers:\n- The CTN number for BL NAM20 is MYS306581.\n- The CTN number for BL 001-123 is ray010101.\nRegarding your payment for BL NYC220, we have not yet received the payment of $500. Please ensure that the payment has been processed and provide a receipt if possible.\nIf you have any further questions, feel free to reach out.\nThank you!\nIQSTrade Support Team\n⚠️ UNDERPAYMENT: We have received your payment of $500.00, but the invoice amount is $1400.00. There is an outstanding balance of $900.00.\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T10:57:19.252857",
+    "reply_created_at": "2025-07-28T10:57:33.351542"
+  },
+  {
+    "email_id": 1069,
+    "test_type": "Complex",
+    "test_number": 1,
+    "subject": "Complex Test 1 - Mixed Payment Types",
+    "body": "Dear IQS Trade Team,\r\n\r\nI need to make payments for multiple shipments:\r\n\r\n1. BL NAM20: USD 250 (partial payment)\r\n2. BL 001-123: USD 200 (full payment) \r\n3. BL NYC220: USD 180 (overpayment)\r\n\r\nAlso, please provide CTN numbers for all three shipments and send invoices.\r\n\r\nBest regards,\r\nJohn Doe",
+    "reply": "Dear John Doe,\nThank you for reaching out to IQS Trade. Below are the details for your requests:\n1. **BL NAM20**:\n   - CTN Number: MYS306581\n   - Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753164521/invoices/b40frniluowxpc48pw6g.pdf)\n   - Payment: You have made a partial payment of USD 250. The total amount due is USD 1000.\n2. **BL 001-123**:\n   - CTN Number: ray010101\n   - Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)\n   - Payment: You have made a full payment of USD 200. The total amount due was USD 200.\n3. **BL NYC220**:\n   - CTN Number: Ray000006\n   - Invoice: [Download Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)\n   - Payment: You have made an overpayment of USD 180. The total amount due was USD 200.\nPlease let us know if you need further assistance.\nBest regards,\nIQSTrade Support Team\nBest regards,\nIQS Trade Team",
+    "confidence": 1.0,
+    "validation_result": {
+      "original_request_types": [],
+      "missed_request_types": [],
+      "amount_validation_issues": [],
+      "recommendations": [],
+      "needs_reclassification": false
+    },
+    "created_at": "2025-07-28T10:56:53.395692",
+    "reply_created_at": "2025-07-28T10:57:10.915539"
+  }
+]

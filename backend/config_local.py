@@ -88,7 +88,7 @@ class LocalConfig:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-your_openai_api_key_here')
     
     # Email scheduler settings
-    EMAIL_CHECK_INTERVAL = int(os.getenv('EMAIL_CHECK_INTERVAL', 300))
+    EMAIL_CHECK_INTERVAL = int(os.getenv('EMAIL_CHECK_INTERVAL', 900))
     AUTO_SEND_ENABLED = os.getenv('AUTO_SEND_ENABLED', 'true').lower() == 'true'
     CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.8))
     
@@ -121,12 +121,12 @@ class LocalConfig:
         app.config['JWT_COOKIE_SECURE'] = False
         app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
         
-        print(f"[LOCAL CONFIG] Environment: {os.getenv('FLASK_ENV', 'local')}")
-        print(f"[LOCAL CONFIG] CORS origins: {LocalConfig.CORS_ORIGINS}")
-        print(f"[LOCAL CONFIG] Database: {LocalConfig.DATABASE_URL}")
-        print(f"[LOCAL CONFIG] Email: {LocalConfig.EMAIL_USERNAME}")
-        print(f"[LOCAL CONFIG] Google OCR: {LocalConfig.GOOGLE_APPLICATION_CREDENTIALS}")
-        print(f"[LOCAL CONFIG] OpenAI API: {'✅ Set' if LocalConfig.OPENAI_API_KEY != 'sk-your_openai_api_key_here' else '❌ NOT SET'}")
+        pass  # Environment: {os.getenv('FLASK_ENV', 'local')}
+        pass  # CORS origins: {LocalConfig.CORS_ORIGINS}
+        pass  # Database: {LocalConfig.DATABASE_URL}
+        pass  # Email: {LocalConfig.EMAIL_USERNAME}
+        pass  # Google OCR: {LocalConfig.GOOGLE_APPLICATION_CREDENTIALS}
+        pass  # OpenAI API: {'✅ Set' if LocalConfig.OPENAI_API_KEY != 'sk-your_openai_api_key_here' else '❌ NOT SET'}
 
 class ProductionConfig:
     """Configuration for production (Render) - same variable names"""
@@ -199,7 +199,7 @@ class ProductionConfig:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     
     # Email scheduler settings
-    EMAIL_CHECK_INTERVAL = int(os.getenv('EMAIL_CHECK_INTERVAL', 300))
+    EMAIL_CHECK_INTERVAL = int(os.getenv('EMAIL_CHECK_INTERVAL', 900))
     AUTO_SEND_ENABLED = os.getenv('AUTO_SEND_ENABLED', 'true').lower() == 'true'
     CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.8))
     

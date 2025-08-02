@@ -48,7 +48,7 @@ This guide shows how to map your Render production environment variables to loca
 | **Variable** | **Value** | **Description** |
 |--------------|-----------|-----------------|
 | `OPENAI_API_KEY` | `sk-...` | Your OpenAI API key |
-| `EMAIL_CHECK_INTERVAL` | `300` | Check emails every 5 minutes |
+| `EMAIL_CHECK_INTERVAL` | `900` | Check emails every 15 minutes |
 | `AUTO_SEND_ENABLED` | `true` | Enable auto-send functionality |
 | `CONFIDENCE_THRESHOLD` | `0.8` | Minimum confidence for auto-send |
 

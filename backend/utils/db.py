@@ -12,7 +12,7 @@ def find_invoice_info(bl_numbers):
     results = []
     for bl in bl_numbers:
         cur.execute("""
-            SELECT bl_number, invoice_filename, customer_name, service_fee, ctn_fee, payment_link
+            SELECT bl_number, invoice_filename, customer_name, service_fee, ctn_fee, payment_link, status
             FROM bill_of_lading
             WHERE bl_number = %s
             ORDER BY id DESC
@@ -26,7 +26,8 @@ def find_invoice_info(bl_numbers):
                 "customer_name": row[2],
                 "service_fee": row[3],
                 "ctn_fee": row[4],
-                "payment_link": row[5]
+                "payment_link": row[5],
+                "status": row[6] or 'Not available',
             })
     cur.close()
     conn.close()

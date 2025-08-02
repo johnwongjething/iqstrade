@@ -6,14 +6,72 @@ import json
 from dotenv import load_dotenv
 import logging
 import base64
+from openai_config import OpenAIConfig
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load env from .env
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env.local'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
+
+def openai_call_with_fallback(messages, temperature=0, max_tokens=None):
+    """
+    Make OpenAI API call with production fallback strategy
+    OCR: GPT-4o → GPT-3.5-turbo (high accuracy for document processing)
+    """
+    # Get OCR-specific configuration
+    ocr_config = OpenAIConfig.get_ocr_settings()
+    
+    # Check if the message contains image content
+    has_image = False
+    for message in messages:
+        if isinstance(message.get('content'), list):
+            for content_item in message['content']:
+                if content_item.get('type') == 'image_url':
+                    has_image = True
+                    break
+        if has_image:
+            break
+    
+    # Use vision-capable models if image is present
+    if has_image:
+        models = [ocr_config['primary_model'], ocr_config['fallback_model']]
+        # Ensure GPT-4o is used for vision tasks
+        if 'gpt-4o' not in models:
+            models = ['gpt-4o'] + [m for m in models if m != 'gpt-4o']
+    else:
+        models = [ocr_config['primary_model'], ocr_config['fallback_model']]
+    
+    for i, model in enumerate(models):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature
+            }
+            if max_tokens:
+                kwargs["max_tokens"] = max_tokens
+                
+            response = openai.chat.completions.create(**kwargs)
+            content = response.choices[0].message.content
+            logger.info(f"[OpenAI OCR] Successfully used {model} for OCR processing")
+            return content
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "quota" in error_msg or "rate limit" in error_msg or "billing" in error_msg:
+                if i < len(models) - 1:
+                    logger.warning(f"[OpenAI OCR] {model} quota/rate limit exceeded, falling back to {models[i+1]}")
+                    continue
+                else:
+                    logger.error(f"[OpenAI OCR] All models exhausted: {e}")
+                    raise e
+            else:
+                logger.error(f"[OpenAI OCR] Error with {model}: {e}")
+                raise e
+    
+    raise Exception("All OpenAI models failed")
 
 BILL_FIELDS = [
     'document_type', 'bl_number', 'shipper', 'consignee', 'port_of_loading',
@@ -42,23 +100,22 @@ def call_openai_vision_fallback(pdf, all_text):
         "document_type, bl_number, shipper, consignee, port_of_loading, "
         "port_of_discharge, container_numbers, flight_or_vessel, product_description, paid_amount. "
         "The paid_amount is the payment amount shown on the document (e.g., $420, 420 USD, Amount: 420, etc). "
+        "For consignee extraction, look for 'CONSIGNED TO' or 'CONSIGNEE' sections and extract ONLY the company name (not the address). "
+        "For container_numbers, look for patterns like 'OOCU7645789', 'TGBU8072614', etc. "
+        "For flight_or_vessel, look for vessel names like 'OOCL BERLIN v.041E' or flight numbers. "
         "Return a valid JSON object with these fields. If a field is missing, use an empty string."
     )
-    vision_response = openai.chat.completions.create(
-        model="gpt-4o",  # Updated to gpt-4o as vision-preview is deprecated
-        messages=[
-            {"role": "system", "content": "You're an expert shipping document parser."},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": vision_prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
-                ]
-            }
-        ],
-        max_tokens=1024,
-    )
-    vision_content = vision_response.choices[0].message.content
+    messages = [
+        {"role": "system", "content": "You're an expert shipping document parser."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": vision_prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+            ]
+        }
+    ]
+    vision_content = openai_call_with_fallback(messages, max_tokens=1024)
     try:
         vision_data = json.loads(vision_content)
     except Exception:
@@ -80,12 +137,11 @@ def call_openai_vision_fallback(pdf, all_text):
     # Post-process shipper and consignee to only keep the first line or first part before comma
     vision_data['shipper'] = get_first_line(vision_data.get('shipper', ''))
     vision_data['consignee'] = get_first_line(vision_data.get('consignee', ''))
-    print(f"[DEBUG] [OpenAI] extract_fields_openai returning Vision data: {vision_data}")
-    logger.info(f"[OpenAI Vision] Extracted fields: {vision_data}")
+
+            # OpenAI Vision extracted fields
     return vision_data
 
 def extract_fields_openai(pdf_path):
-    print(f"[DEBUG] [OpenAI] extract_fields_openai called with pdf_path: {pdf_path}")
     logger.info(f"[OpenAI OCR] Extracting fields from: {pdf_path}")
     try:
         pdf = fitz.open(pdf_path)
@@ -93,7 +149,6 @@ def extract_fields_openai(pdf_path):
         
         # If text is empty, go straight to Vision
         if not all_text.strip():
-            print("[DEBUG] [OpenAI] No text extracted from PDF, falling back to Vision API directly.")
             return call_openai_vision_fallback(pdf, all_text)
 
         prompt = f"""
@@ -101,29 +156,28 @@ You are an expert in logistics document processing. Given the following text fro
 - document_type: (BOL or AWB)
 - bl_number
 - shipper
-- consignee
+- consignee: Look for "CONSIGNED TO" or "CONSIGNEE" sections. Extract ONLY the company name (not the address). If you see "CONSIGNED TO" followed by a company name, that is the consignee. Do not include address information, phone numbers, or other details - just the company name.
 - port_of_loading
 - port_of_discharge
-- container_numbers
-- flight_or_vessel
+- container_numbers: Look for container numbers like "OOCU7645789", "TGBU8072614", etc. Extract all container numbers found.
+- flight_or_vessel: Look for vessel names like "OOCL BERLIN v.041E" or flight numbers
 - product_description
 - paid_amount: the payment amount shown on the document (e.g., $420, 420 USD, Amount: 420, etc)
+
+IMPORTANT: For consignee extraction, pay special attention to:
+1. "CONSIGNED TO" sections - this is the primary consignee
+2. "CONSIGNEE" sections
+3. Company names that appear after these labels
 
 TEXT:\n{all_text}
 
 Return a valid JSON object with these fields. If a field is missing, use an empty string.
 """
-        print("[DEBUG] [OpenAI] Calling openai.ChatCompletion.create for OCR...")
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You're an expert shipping document parser."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.0,
-        )
-        print("[DEBUG] [OpenAI] openai.ChatCompletion.create response received.")
-        content = response.choices[0].message.content
+        messages = [
+            {"role": "system", "content": "You're an expert shipping document parser."},
+            {"role": "user", "content": prompt},
+        ]
+        content = openai_call_with_fallback(messages, temperature=0.0)
         try:
             data = json.loads(content)
         except Exception:
@@ -133,10 +187,8 @@ Return a valid JSON object with these fields. If a field is missing, use an empt
                 try:
                     data = json.loads(match.group(0))
                 except Exception:
-                    print("[DEBUG] [OpenAI] Regex fallback failed, falling back to Vision API...")
                     return call_openai_vision_fallback(pdf, all_text)
             else:
-                print("[DEBUG] [OpenAI] No JSON found in response, falling back to Vision API...")
                 return call_openai_vision_fallback(pdf, all_text)
 
         data['raw_text'] = all_text
@@ -144,10 +196,7 @@ Return a valid JSON object with these fields. If a field is missing, use an empt
             if field not in data:
                 data[field] = ''
         if all(data.get(field, '') == '' for field in BILL_FIELDS if field != 'raw_text'):
-            print("[DEBUG] [OpenAI] Text extraction returned all empty, falling back to Vision API...")
             return call_openai_vision_fallback(pdf, all_text)
-
-        print(f"[DEBUG] [OpenAI] extract_fields_openai returning data: {data}")
         logger.info(f"[OpenAI OCR] Extracted fields: {data}")
         return data
     except Exception as e:

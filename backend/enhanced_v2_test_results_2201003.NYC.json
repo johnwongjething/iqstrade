@@ -1,0 +1,54 @@
+{
+  "document_type": "BOL",
+  "bl_number": "NYC2201003",
+  "shipper": "STAR RAPID LIMITED",
+  "consignee": "HAYWARD INDUSTRIES, INC.",
+  "port_of_loading": "NANSHA, CHINA",
+  "port_of_discharge": "NEW YORK, NY",
+  "container_numbers": "SLVU4877415, VOLU4543799",
+  "flight_or_vessel": "TIMON v.2201E",
+  "product_description": "G1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL, G1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL, G1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL",
+  "paid_amount": "",
+  "raw_text": "BILL OF LADING\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nSTAR RAPID LIMITED\n15 HUANMAO 1 ROAD\n6. EXPORT REFERENCES\nZHONGSHAN TORCH DEVELOPMENT ZONE\n528437 ZHONGSHAN CITY,\n ZIP CODE\nGUANGDONG PROVINCE CHINA\nMISS HELEN HUANG\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nHAYWARD INDUSTRIES, INC. \nFREIGHT BROKERS GLOBAL SERVICES,INC.\nC/O DEAN WAREHOUSE SVC. 292\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\nKILVERT STREET WARWICK, RI 02886 USA\nTEL:347-926-7002 FAX:718-327-5318\nATTN: DIANNE BARBOSA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTel #401 583 1161\n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nHAYWARD INDUSTRIES, INC. \nC/O DEAN WAREHOUSE SVC. 292\nKILVERT STREET WARWICK, RI 02886 USA\nATTN: DIANNE BARBOSA\nTel #401 583 1161\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAINERIZED(Vessel Only)\nNEW YORK, NY\nNEW YORK, NY\nCY/CY\nYES\n NO\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B deta      Gross Weight\n          Measurement\nOF PACKAGES\n \n   (Kilos)\n                  (18)\n(19)\n(20)\n(21)\n(22)\n2x40'HQ SHIPPER'S LOAD & COUNT\n8170.00\n76.633\n852 CTNS (IN 36 x PLTS)\nG1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL\nSTAR RAPID\nG1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nH.S CODE:8421990040\n\" FREIGHT COLLECT \"\nCONTR #     / SEAL #                                               S/O #\nSLVU4877415 / D225859/40'HQ  480 CTNS / 3740.000 KGS / 43.181 CBM /SLSNSAS00064 \nVOLU4543799 / D225867/40'HQ  372 CTNS / 4430.000 KGS / 33.452 CBM /SLSNSAS00063\nTOTAL: TWO(40'HQ) CONTAINERS ONLY.\nSHIPPED ON BOARD :\nTHIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS.\n25,JAN.,2022\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and port of \n                 SUBJECT TO CORRECTION\nPREPAID COLLECT\ndischage, and for arragement or  procurement of per-carriage from place of receipt and \non-carriage to place of delivery, where stated above, the goods as specified above \nin apparent good order and condition unless otherwise stated. The goods to be delivered at the abov\nport of discharge or place of delivery, whichever is applicable, subject always to the exceptions, limit\nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Consignee \nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise stated \nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                      \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\nFreight Brokers Global Services, Inc.\nTIMON v.2201E\nNANSHA, CHINA\nNYC2201003\nZHONGSHAN\n\n",
+  "container_count": 2,
+  "container_types": [
+    "40ft",
+    "40ft_hc"
+  ],
+  "container_type": "40ft",
+  "container_count_20ft": 0,
+  "container_count_40ft": 1,
+  "container_count_40ft_hc": 1,
+  "total_weight_kg": 4430.0,
+  "weight_unit": "kg",
+  "shipment_type": "ocean",
+  "pricing_method": "ocean_container",
+  "calculated_ctn_fee": 450.0,
+  "calculated_service_fee": 225.0,
+  "calculated_total_fee": 675.0,
+  "ocr_confidence_score": 0.8700000000000001,
+  "pricing_calculation_log": {
+    "method": "ocean_container",
+    "container_types": [
+      "40ft",
+      "40ft_hc"
+    ],
+    "container_count": 2,
+    "rates_used": {
+      "40ft": {
+        "ctn_fee": 200.0,
+        "service_fee": 100.0
+      },
+      "40ft_hc": {
+        "ctn_fee": 250.0,
+        "service_fee": 125.0
+      }
+    }
+  },
+  "confidence_breakdown": {
+    "container_detection": 0.9,
+    "weight_detection": 0.8,
+    "shipment_classification": 0.9,
+    "overall": 0.8700000000000001
+  }
+}

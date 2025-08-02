@@ -14,7 +14,7 @@ def upload_filelike_to_cloudinary(file_obj, folder=None):
     """
     Uploads a file-like object to Cloudinary and returns the secure_url.
     """
-    print(f"[DEBUG] cloudinary_utils: Uploading file to Cloudinary, folder={folder}")
+
     # Always upload PDFs as resource_type='raw' for direct access
     filename = getattr(file_obj, 'filename', None)
     ext = ''
@@ -36,14 +36,23 @@ def upload_filelike_to_cloudinary(file_obj, folder=None):
         base_id = str(uuid.uuid4()).replace('-', '')[:20]
         public_id = f"{folder}/{base_id}"
     result = cloudinary.uploader.upload(file_obj, folder=None, public_id=public_id, resource_type='raw', type='upload')
-    print(f"[DEBUG] cloudinary_utils: Cloudinary upload result: {result}")
     return result.get('secure_url')
 
 def upload_filepath_to_cloudinary(filepath, folder=None):
     """
     Uploads a file from disk to Cloudinary and returns the secure_url.
     """
-    print(f"[DEBUG] cloudinary_utils: Uploading file from path to Cloudinary: {filepath}, folder={folder}")
-    result = cloudinary.uploader.upload(filepath, folder=folder)
-    print(f"[DEBUG] cloudinary_utils: Cloudinary upload result: {result}")
+
+    
+    # Get file extension
+    ext = os.path.splitext(filepath)[1].lower()
+    
+    # For PDFs and other documents, use resource_type='raw'
+    if ext in ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx']:
+        result = cloudinary.uploader.upload(filepath, folder=folder, resource_type='raw')
+    else:
+        # For images, use default resource_type
+        result = cloudinary.uploader.upload(filepath, folder=folder)
+    
+
     return result.get('secure_url')

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+  xsi:type="MailApp">
+
+  <!-- Begin Basic Settings: Add-in metadata, used for all versions of Office unless override provided. -->
+
+  <!-- IMPORTANT! Id must be unique for your add-in, if you reuse this manifest ensure that you change this id to a new GUID. -->
+  <Id>12345678-1234-1234-1234-123456789012</Id>
+
+  <!--Version. Updates from the store only get triggered if there is a version change. -->
+  <Version>1.0.0.0</Version>
+  <ProviderName>IQS Trade</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <!-- The display name of your add-in. Used on the store and various places of the Office UI such as the add-ins dialog. -->
+  <DisplayName DefaultValue="IQS Trade AI Assistant" />
+  <Description DefaultValue="View and send AI-generated email responses directly in Outlook." />
+
+  <!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
+  <IconUrl DefaultValue="https://192.168.50.244:5001/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://192.168.50.244:5001/assets/icon-64.png" />
+
+  <!--If you plan to submit this add-in to the Office Store, uncomment the SupportUrl element below-->
+  <!--<SupportUrl DefaultValue="[Insert the URL of a page that provides support information for the app]">-->
+
+  <!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
+  <AppDomains>
+    <AppDomain>192.168.50.244</AppDomain>
+    <AppDomain>localhost</AppDomain>
+  </AppDomains>
+
+  <!--End Basic Settings. -->
+
+  <!--Begin TaskPane Mode integration. -->
+  <Hosts>
+    <Host Name="Mailbox" />
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+
+  <!-- The following are the permissions that your add-in will request. -->
+  <Permissions>ReadWriteMailbox</Permissions>
+
+  <!-- Form factor. Currently only DesktopFormFactor is supported. -->
+  <Form>
+    <DesktopFormFactor>
+      <FunctionFile resid="functionFile" />
+
+      <!-- Message Compose -->
+      <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+        <OfficeTab id="TabDefault">
+          <Group id="msgReadGroup">
+            <Label resid="groupLabel" />
+            <Control xsi:type="Button" id="msgReadOpenPaneButton">
+              <Label resid="paneReadButtonLabel" />
+              <Supertip>
+                <Title resid="paneReadSuperTipTitle" />
+                <Description resid="paneReadSuperTipText" />
+              </Supertip>
+              <Icon>
+                <bt:Image size="small" resid="icon-small" />
+                <bt:Image size="large" resid="icon-large" />
+              </Icon>
+              <Action xsi:type="ShowTaskpane">
+                <SourceLocation resid="messageReadTaskPaneUrl" />
+              </Action>
+            </Control>
+          </Group>
+        </OfficeTab>
+      </ExtensionPoint>
+
+      <!-- Message Read -->
+      <ExtensionPoint xsi:type="MessageReadCommandSurface">
+        <OfficeTab id="TabDefault">
+          <Group id="msgReadGroup">
+            <Label resid="groupLabel" />
+            <Control xsi:type="Button" id="msgReadOpenPaneButton">
+              <Label resid="paneReadButtonLabel" />
+              <Supertip>
+                <Title resid="paneReadSuperTipTitle" />
+                <Description resid="paneReadSuperTipText" />
+              </Supertip>
+              <Icon>
+                <bt:Image size="small" resid="icon-small" />
+                <bt:Image size="large" resid="icon-large" />
+              </Icon>
+              <Action xsi:type="ShowTaskpane">
+                <SourceLocation resid="messageReadTaskPaneUrl" />
+              </Action>
+            </Control>
+          </Group>
+        </OfficeTab>
+      </ExtensionPoint>
+    </DesktopFormFactor>
+  </Form>
+
+  <Resources>
+    <bt:Images>
+      <bt:Image id="icon-small" DefaultValue="https://192.168.50.244:5001/assets/icon-32.png" />
+      <bt:Image id="icon-large" DefaultValue="https://192.168.50.244:5001/assets/icon-64.png" />
+    </bt:Images>
+    <bt:Urls>
+      <bt:Url id="functionFile" DefaultValue="https://192.168.50.244:5001/outlook_addin/function.html" />
+      <bt:Url id="messageReadTaskPaneUrl" DefaultValue="https://192.168.50.244:5001/outlook_addin/taskpane.html" />
+    </bt:Urls>
+    <bt:ShortStrings>
+      <bt:String id="groupLabel" DefaultValue="IQS Trade AI" />
+      <bt:String id="paneReadButtonLabel" DefaultValue="AI Assistant" />
+      <bt:String id="paneReadSuperTipTitle" DefaultValue="IQS Trade AI Assistant" />
+    </bt:ShortStrings>
+    <bt:LongStrings>
+      <bt:String id="paneReadSuperTipText" DefaultValue="View AI-generated responses and send them directly from Outlook." />
+    </bt:LongStrings>
+  </Resources>
+</OfficeApp> 

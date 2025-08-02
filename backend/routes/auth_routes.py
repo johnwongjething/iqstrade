@@ -18,6 +18,7 @@ import os
 import requests
 import logging
 import re
+import bcrypt
 
 auth_routes = Blueprint('auth_routes', __name__)
 
@@ -28,6 +29,54 @@ def set_max_content_length(app: Flask):
     app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 # Registration
+@auth_routes.route('/check-username', methods=['POST'])
+def check_username():
+    """Check if username is available"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'available': False, 'error': 'Username is required'}), 400
+        
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        exists = cur.fetchone() is not None
+        cur.close()
+        conn.close()
+        
+        return jsonify({'available': not exists, 'username': username})
+    except Exception as e:
+        return jsonify({'available': False, 'error': 'Server error'}), 500
+
+@auth_routes.route('/check-email', methods=['POST'])
+def check_email():
+    """Check if email is available"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return jsonify({'available': False, 'error': 'Email is required'}), 400
+        
+        # Basic email validation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'available': False, 'error': 'Invalid email format'}), 400
+        
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE customer_email = %s", (email,))
+        exists = cur.fetchone() is not None
+        cur.close()
+        conn.close()
+        
+        return jsonify({'available': not exists, 'email': email})
+    except Exception as e:
+        return jsonify({'available': False, 'error': 'Server error'}), 500
+
 @auth_routes.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -37,14 +86,39 @@ def register():
     customer_name = data.get('customer_name')
     customer_email = data.get('customer_email')
     customer_phone = data.get('customer_phone')
+    
     if not all([username, password, role, customer_name, customer_email, customer_phone]):
         return jsonify({'error': 'Missing fields'}), 400
+    
+    # Basic email validation
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, customer_email):
+        return jsonify({'error': 'Invalid email format'}), 400
+    
+    # Password validation
     is_valid, message = validate_password(password)
     if not is_valid:
         return jsonify({'error': message}), 400
+    
     try:
         conn = get_db_conn()
         cur = conn.cursor()
+        
+        # Check if username is already taken
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Username is already taken'}), 400
+        
+        # Check if email is already taken
+        cur.execute("SELECT id FROM users WHERE customer_email = %s", (customer_email,))
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Email is already taken by another user'}), 400
+        
         encrypted_email = encrypt_sensitive_data(customer_email)
         encrypted_phone = encrypt_sensitive_data(customer_phone)
         cur.execute(
@@ -64,7 +138,7 @@ def register():
 def geetest_register():
     import os
     geetest_id = os.environ.get('GEETEST_ID')
-    print(f"[DEBUG] GEETEST_ID in /geetest/register: {geetest_id}")
+    # GEETEST_ID loaded from environment
     logging.info(f"[Geetest] /register called, captcha_id: {geetest_id}")
     url = "https://gcaptcha4.geetest.com/register"
     payload = {
@@ -79,14 +153,14 @@ def geetest_register():
         logging.info(f"[Geetest] Register raw response: {resp.text}")
         try:
             resp_json = resp.json()
-            print("Geetest register API response:", resp_json)
+            # Geetest register API response: {resp_json}
             challenge = resp_json.get("challenge", "")
         except Exception as e:
-            print("Geetest v4 register error (JSON parse):", e)
+            # Geetest v4 register error (JSON parse): {e}
             logging.error(f"[Geetest] Register error (JSON parse): {e}")
             challenge = ""
     except Exception as e:
-        print("Geetest v4 register error:", e)
+        # Geetest v4 register error: {e}
         logging.error(f"[Geetest] Register error: {e}")
         challenge = ""
     return (
@@ -103,7 +177,6 @@ def geetest_register():
 # Login
 @auth_routes.route('/login', methods=['POST'])
 def login():
-    print("AUTH ROUTE LOGIN CALLED")
     logging.info("[Login] /login called")
     data = request.get_json()
     logging.info(f"[Login] Request data: {data}")
@@ -113,14 +186,13 @@ def login():
     captcha_output = data.get('captcha_output')
     pass_token = data.get('pass_token')
     captcha_id = os.environ.get('GEETEST_ID')
-    print(f"[DEBUG] GEETEST_ID in /login: {captcha_id}")
+    # GEETEST_ID loaded from environment
     if not (lot_number and captcha_output and pass_token):
         logging.warning("[Login] Missing Geetest data")
         return jsonify({'error': 'Missing Geetest data'}), 400
-    print("captcha_id being sent:", captcha_id)
     logging.info(f"[Login] captcha_id: {captcha_id}")
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
-        print(f"[DEBUG] Geetest verify called with lot_number={lot_number}, captcha_output={captcha_output}, pass_token={pass_token}, captcha_id={captcha_id}")
+        # Geetest verification called
         logging.info(f"[Geetest] Validate payload: {{'lot_number': lot_number, 'captcha_output': captcha_output, 'pass_token': pass_token, 'captcha_id': captcha_id}}")
         # BYPASS: Always return True for development/testing
         logging.info('[Geetest] BYPASS: Always returning True for verification')
@@ -153,7 +225,6 @@ def login():
         return jsonify({'error': 'Geetest verification failed'}), 400
     # Proceed with login logic
     conn = get_db_conn()
-    print("conn from get_db_conn:", conn)
     logging.info(f"[Login] DB connection: {conn}")
     cur = conn.cursor()
     cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
@@ -227,7 +298,6 @@ def logout():
 @auth_routes.route('/me', methods=['GET'])
 @jwt_required()
 def get_me():
-    print("🔍 /me route hit")
     user = json.loads(get_jwt_identity())
     conn = get_db_conn()
     cur = conn.cursor()
@@ -391,52 +461,41 @@ def verify_sensitive_access():
     invoice_number = data.get('invoice_number')
     ctn_number = data.get('ctn_number')
     ctn = data.get('ctn')
-    print(f"[DEBUG] Incoming verify_sensitive_access: email={email}, bl_number={bl_number}, invoice_number={invoice_number}, ctn_number={ctn_number}, ctn={ctn}", file=sys.stderr)
     if not email or not (bl_number or invoice_number or ctn_number):
-        print(f"[DEBUG] Missing required fields", file=sys.stderr)
         return jsonify({'success': False, 'message': 'Missing required fields'}), 400
 
     conn = get_db_conn()
     cur = conn.cursor()
     # Try BL first
     if bl_number:
-        print(f"[DEBUG] Executing SQL for BL: SELECT customer_email FROM bill_of_lading WHERE bl_number = %s", (bl_number,), file=sys.stderr)
         cur.execute("SELECT customer_email FROM bill_of_lading WHERE bl_number = %s", (bl_number,))
         bl_row = cur.fetchone()
-        print(f"[DEBUG] bill_of_lading row: {bl_row}", file=sys.stderr)
         if not bl_row:
             cur.close(); conn.close()
-            print(f"[DEBUG] BL not found for bl_number={bl_number}", file=sys.stderr)
             return jsonify({'success': False, 'message': 'BL not found'}), 200
         bl_email = bl_row[0]
         # Now scan users table and decrypt each email to find a match
         cur.execute("SELECT customer_email, customer_phone FROM users")
         user_rows = cur.fetchall()
-        print(f"[DEBUG] Users fetched: {len(user_rows)}", file=sys.stderr)
         found = False
         for db_email, db_phone in user_rows:
             decrypted_email = decrypt_sensitive_data(db_email) if db_email else ''
             decrypted_phone = decrypt_sensitive_data(db_phone) if db_phone else ''
             if decrypted_email.lower() == bl_email.lower():
-                print(f"[DEBUG] Decrypted user email matches BL email: {decrypted_email}", file=sys.stderr)
                 found = True
                 break
         if not found:
             cur.close(); conn.close()
-            print(f"[DEBUG] No user found with decrypted email matching BL email {bl_email}", file=sys.stderr)
             return jsonify({'success': False, 'message': 'No user found matching BL email'}), 200
         # Now check if provided email matches
         if bl_email.lower() != email.lower():
             cur.close(); conn.close()
-            print(f"[DEBUG] Provided email does not match BL email: {email} != {bl_email}", file=sys.stderr)
             return jsonify({'success': False, 'message': 'Email does not match record for this BL'}), 200
         # Optionally check CTN if needed (using decrypted_phone)
         if ctn and decrypted_phone and ctn != decrypted_phone:
             cur.close(); conn.close()
-            print(f"[DEBUG] CTN does not match: {ctn} != {decrypted_phone}", file=sys.stderr)
             return jsonify({'success': False, 'message': 'CTN does not match record for this BL'}), 200
         cur.close(); conn.close()
-        print(f"[DEBUG] Success: Verified for BL", file=sys.stderr)
         return jsonify({'success': True, 'message': 'Verified for BL'}), 200
     # Try invoice
     if invoice_number:
@@ -576,3 +635,151 @@ def verify_sensitive_access():
 #         return jsonify({'success': True, 'message': 'Verified for CTN'})
 #     cur.close(); conn.close()
 #     return jsonify({'error': 'No valid identifier provided'}), 400
+
+@auth_routes.route('/update-profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """Update customer profile information"""
+    try:
+        user = json.loads(get_jwt_identity())
+        user_id = user['id']
+        username = user['username']
+        
+        data = request.get_json()
+        customer_name = data.get('customer_name', '').strip()
+        customer_email = data.get('customer_email', '').strip()
+        customer_phone = data.get('customer_phone', '').strip()
+        
+        # Validation
+        if not customer_name:
+            return jsonify({'error': 'Customer name is required'}), 400
+        
+        if not customer_email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        # Basic email validation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, customer_email):
+            return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Check if email is already taken by another user
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id FROM users 
+            WHERE customer_email = %s AND id != %s
+        """, (customer_email, user_id))
+        
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Email is already taken by another user'}), 400
+        
+        # Update profile
+        cur.execute("""
+            UPDATE users 
+            SET customer_name = %s, customer_email = %s, customer_phone = %s
+            WHERE id = %s
+        """, (customer_name, customer_email, customer_phone, user_id))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Log the action
+        # User {username} updated their profile
+        
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'profile': {
+                'customer_name': customer_name,
+                'customer_email': customer_email,
+                'customer_phone': customer_phone
+            }
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] Profile update failed: {e}")
+        return jsonify({'error': 'Failed to update profile'}), 500
+
+@auth_routes.route('/change-password', methods=['PUT'])
+@jwt_required()
+def change_password():
+    """Change user password"""
+    try:
+        user = json.loads(get_jwt_identity())
+        user_id = user['id']
+        username = user['username']
+        
+        data = request.get_json()
+        current_password = data.get('current_password', '')
+        new_password = data.get('new_password', '')
+        confirm_password = data.get('confirm_password', '')
+        
+        # Validation
+        if not current_password or not new_password or not confirm_password:
+            return jsonify({'error': 'All password fields are required'}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({'error': 'New password and confirmation do not match'}), 400
+        
+        # Password strength validation
+        if len(new_password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+        
+        import re
+        if not re.search(r'[A-Z]', new_password):
+            return jsonify({'error': 'Password must include an uppercase letter'}), 400
+        
+        if not re.search(r'[a-z]', new_password):
+            return jsonify({'error': 'Password must include a lowercase letter'}), 400
+        
+        if not re.search(r'\d', new_password):
+            return jsonify({'error': 'Password must include a number'}), 400
+        
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password):
+            return jsonify({'error': 'Password must include a special character'}), 400
+        
+        # Verify current password
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        result = cur.fetchone()
+        
+        if not result:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        stored_password_hash = result[0]
+        
+        if not check_password_hash(stored_password_hash, current_password):
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Current password is incorrect'}), 400
+        
+        # Hash new password
+        new_password_hash = generate_password_hash(new_password)
+        
+        # Update password
+        cur.execute("""
+            UPDATE users 
+            SET password_hash = %s
+            WHERE id = %s
+        """, (new_password_hash, user_id))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Log the action
+        print(f"[PASSWORD CHANGE] User {username} changed their password")
+        
+        return jsonify({'message': 'Password changed successfully'})
+        
+    except Exception as e:
+        print(f"[ERROR] Password change failed: {e}")
+        return jsonify({'error': 'Failed to change password'}), 500

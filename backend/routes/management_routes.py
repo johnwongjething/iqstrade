@@ -14,7 +14,7 @@ def management_overview():
     try:
         conn = get_db_conn()
         cur = conn.cursor()
-        print("[DEBUG] Fetching B/L records...")
+
         cur.execute("""
             SELECT id, customer_name, bl_number, status, created_at,
                    invoice_filename, receipt_filename, ocr_text, ctn_fee, service_fee,
@@ -26,7 +26,7 @@ def management_overview():
         columns = [desc[0] for desc in cur.description]
         bills = []
         now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
-        print("[DEBUG] Processing bills...")
+
         for row in rows:
             bill = dict(zip(columns, row))
             created_at = bill.get("created_at")
@@ -53,10 +53,7 @@ def management_overview():
             bill["total_invoice_amount"] = total_invoice_amount
             bills.append(bill)
 
-        print(f"[DEBUG] Processed {len(bills)} bills.")
-
-        # --- Begin: StaffStats.js/stats_summary logic copy ---
-        print("[DEBUG] Calculating metrics (copied from stats_summary logic)...")
+        # --- Use the same SQL logic as Staff Stats for consistency ---
         total_bills = len(bills)
         pending_bills = sum(1 for b in bills if b.get("status") in ("Pending", "Invoice Sent", "Awaiting Bank In"))
         awaiting_bank_in = sum(1 for b in bills if b.get("status") == "Awaiting Bank In")
@@ -64,28 +61,39 @@ def management_overview():
         completed_bills = sum(1 for b in bills if b.get("status") == "Paid and CTN Valid")
         sum_invoice_amount = sum((b.get("ctn_fee") or 0) + (b.get("service_fee") or 0) for b in bills)
 
-        # Paid and outstanding logic (Allinpay/85%/reserve_status)
-        sum_paid_amount = 0.0
-        sum_outstanding_amount = 0.0
-        for b in bills:
-            ctn_fee = float(b.get("ctn_fee") or 0)
-            service_fee = float(b.get("service_fee") or 0)
-            invoice_amount = ctn_fee + service_fee
-            payment_method = str(b.get("payment_method") or '').strip().lower()
-            reserve_status = str(b.get("reserve_status") or '').strip().lower()
-            status = b.get("status", "")
-            # Paid logic
-            if payment_method != 'allinpay' and status == 'Paid and CTN Valid':
-                sum_paid_amount += invoice_amount
-            elif payment_method == 'allinpay' and status == 'Paid and CTN Valid' and reserve_status == 'reserve settled':
-                sum_paid_amount += invoice_amount
-            elif payment_method == 'allinpay' and status == 'Paid and CTN Valid' and reserve_status == 'unsettled':
-                sum_paid_amount += (ctn_fee * 0.85) + (service_fee * 0.85)
-            # Outstanding logic
-            if status in ('Awaiting Bank In', 'Invoice Sent'):
-                sum_outstanding_amount += invoice_amount
-            elif payment_method == 'allinpay' and reserve_status == 'unsettled':
-                sum_outstanding_amount += (ctn_fee * 0.15) + (service_fee * 0.15)
+        # Use SQL queries for payment calculations (same as Staff Stats)
+        cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee), 0) FROM bill_of_lading")
+        total_invoice_amount = float(cur.fetchone()[0] or 0)
+        
+        # Payment received calculation (same as Staff Stats)
+        cur.execute("""
+            SELECT COALESCE(SUM(
+                CASE
+                    WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid'
+                        THEN ctn_fee + service_fee
+                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled'
+                        THEN ctn_fee + service_fee
+                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled'
+                        THEN (ctn_fee * 0.85) + (service_fee * 0.85)
+                    ELSE 0
+                END
+            ), 0)
+            FROM bill_of_lading
+        """)
+        sum_paid_amount = float(cur.fetchone()[0] or 0)
+        
+        # Payment outstanding calculation (same as Staff Stats)
+        cur.execute("""
+            SELECT COALESCE(SUM(service_fee + ctn_fee), 0)
+            FROM bill_of_lading
+            WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
+        """)
+        awaiting_payment = float(cur.fetchone()[0] or 0)
+        
+        cur.execute("SELECT COALESCE(SUM(reserve_amount), 0) FROM bill_of_lading WHERE LOWER(TRIM(reserve_status)) = 'unsettled'")
+        unsettled_reserve = float(cur.fetchone()[0] or 0)
+        
+        sum_outstanding_amount = awaiting_payment + unsettled_reserve
 
         metrics = {
             "total_bills": total_bills,
@@ -97,11 +105,9 @@ def management_overview():
             "sum_paid_amount": round(sum_paid_amount, 2),
             "sum_outstanding_amount": round(sum_outstanding_amount, 2)
         }
-        print(f"[DEBUG] Metrics: {metrics}")
         # --- End: StaffStats.js/stats_summary logic copy ---
 
         flagged_ocr = []
-        print("[DEBUG] Checking missing required fields from DB columns...")
         required_fields = [
             "shipper", "consignee", "port_of_loading", "port_of_discharge", "bl_number", "flight_or_vessel", "container_numbers"
         ]
@@ -111,7 +117,6 @@ def management_overview():
             if missing and len(missing) > 0:
                 flagged_ocr.append({"id": b["id"], "bl_number": b["bl_number"], "missing": missing})
 
-        print("[DEBUG] Ingesting unmatched receipts...")
         unmatched_receipts_raw = ingest_emails()
         unmatched_receipts = []
         # Try to extract BL number from filename or add as None if not found
@@ -128,7 +133,6 @@ def management_overview():
             receipt["bl_number"] = bl_number
             unmatched_receipts.append(receipt)
 
-        print("[DEBUG] Returning overview response...")
         return jsonify({
             "bills": bills,
             "flags": {

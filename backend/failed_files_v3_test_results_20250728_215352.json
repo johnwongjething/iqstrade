@@ -1,0 +1,229 @@
+[
+  {
+    "file": "b0994f47-71dc-48ef-a6b1-c3add4a356ab.pdf",
+    "status": "failed",
+    "processing_time": 9.076752424240112,
+    "extraction_method": "improved_regex",
+    "document_format": "standard",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.7,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "BILL6.pdf",
+    "status": "success",
+    "processing_time": 2.3108670711517334,
+    "extraction_method": "ai",
+    "document_format": "unknown",
+    "field_accuracy": 100.0,
+    "populated_fields": 6,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS LTD",
+      "port_of_loading": "JAPAN",
+      "port_of_discharge": "HONG KONG",
+      "bl_number": "NYC2212345",
+      "container_numbers": "OOCU7645765, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "raw_text_length": 3110,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "Screenshot_20250702_151730_Chrome.PDF",
+    "status": "failed",
+    "processing_time": 7.92636513710022,
+    "extraction_method": "improved_regex",
+    "document_format": "standard",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.7,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "__ MAERSK LINE - New Page 1.pdf",
+    "status": "failed",
+    "processing_time": 28.092000484466553,
+    "extraction_method": "improved_regex",
+    "document_format": "standard",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.7,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "account_page (4).pdf",
+    "status": "failed",
+    "processing_time": 1.9168486595153809,
+    "extraction_method": "improved_regex",
+    "document_format": "standard",
+    "field_accuracy": 16.666666666666664,
+    "populated_fields": 1,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.7,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "ctnFee",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "raw_text_length": 308,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  }
+]

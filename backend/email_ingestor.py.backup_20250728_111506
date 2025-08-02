@@ -1,0 +1,1233 @@
+"""
+Email Ingestor for IQSTrade
+- Connects to IMAP inbox
+- Filters unread emails with PDF attachments
+- Downloads PDFs and passes to ocr_processor
+- Uses OpenAI to draft reply based on pre-classified requests
+- Marks emails as read
+- Logs all actions
+"""
+import os
+import imaplib
+import email
+from email.header import decode_header
+import logging
+from ocr_processor import process_pdf
+from dotenv import load_dotenv
+import openai
+from config import CloudinaryConfig
+import json
+import re
+from db_utils import get_db_conn
+import datetime
+from utils.unified_response_handler import get_response_handler
+from utils.confidence_scorer import confidence_scorer
+from invoice_utils import find_invoice_info, find_ctn_info, generate_pdf_from_text
+from decimal import Decimal
+import tempfile
+import pytz
+from cloudinary_utils import upload_filepath_to_cloudinary
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load env from .env.local (or .env as fallback)
+env_file = os.path.join(os.path.dirname(__file__), '.env.local')
+if not os.path.exists(env_file):
+    env_file = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(env_file)
+
+IMAP_SERVER = os.getenv('EMAIL_HOST')
+EMAIL_USER = os.getenv('EMAIL_USERNAME')
+EMAIL_PASS = os.getenv('EMAIL_PASSWORD')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+openai.api_key = OPENAI_API_KEY
+
+PDF_SAVE_DIR = 'downloads'
+os.makedirs(PDF_SAVE_DIR, exist_ok=True)
+
+# Initialize unified response handler
+response_handler = get_response_handler(get_db_conn)
+
+# Static configurations
+BUSINESS_HOURS = "Monday to Friday, 9:00 AM to 5:00 PM (Hong Kong time)"
+PAYMENT_METHODS = ["Bank Transfer", "Allinpay", "Stripe"]
+CTN_PROCESSING_TIME = "24 to 48 hours after payment confirmation"
+
+def connect_imap():
+    return imaplib.IMAP4_SSL(IMAP_SERVER)
+
+def process_payment_receipt_email(email_id, from_addr, subject, body_text, attachments, bl_payment_map, conn=None):
+    """
+    Centralized logic to process a payment receipt email using BL-to-amount mapping.
+    - Uses a provided dict of BL numbers to paid amounts.
+    - Uploads receipt (if any) to Cloudinary.
+    - Updates the corresponding bill in bill_of_lading.
+    - Mark the email as processed_for_payments = TRUE.
+    - Compares paid amount to invoice amount for each BL before updating.
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_db_conn()
+        close_conn = True
+    cursor = conn.cursor()
+
+    if not bl_payment_map or not isinstance(bl_payment_map, dict):
+        logger.warning(f"No BL payment map provided for email {email_id}. Marking as processed.")
+        cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
+        conn.commit()
+        if close_conn:
+            cursor.close()
+            conn.close()
+        return False
+
+    logger.info(f"Processing payment for email {email_id} with BL payment map: {bl_payment_map}")
+
+    tolerance = 2.0 # Allow for small discrepancies
+    hk_now = datetime.datetime.now(datetime.timezone.utc).astimezone(pytz.timezone('Asia/Hong_Kong')).isoformat()
+
+    # 1. Look for a PDF attachment first
+    receipt_url = None
+    for att in attachments:
+        if att.lower().endswith('.pdf'):
+            receipt_url = upload_filepath_to_cloudinary(att, folder="receipts")
+            logger.info(f"\033[92m🎉 SUCCESS! RECEIPT UPLOADED: {receipt_url} for BLs {list(bl_payment_map.keys())} 🎉\033[0m")
+            break
+
+    # 2. If no PDF, generate one from the email body
+    if not receipt_url and body_text:
+        try:
+            temp_pdf_path = generate_pdf_from_text(body_text, f"temp_receipt_{email_id}.pdf")
+            receipt_url = upload_filepath_to_cloudinary(temp_pdf_path, folder="receipts")
+            logger.info(f"\033[92m🎉 SUCCESS! RECEIPT UPLOADED (from email body): {receipt_url} for BLs {list(bl_payment_map.keys())} 🎉\033[0m")
+            os.remove(temp_pdf_path)
+        except Exception as e:
+            logger.error(f"Failed to generate or upload PDF from email body: {e}")
+
+    # 3. For each BL, verify and update
+    for bl, paid_amount in bl_payment_map.items():
+        cursor.execute("SELECT id, ctn_fee, service_fee FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        bill_row = cursor.fetchone()
+        if not bill_row:
+            logger.warning(f"BL {bl} not found in DB for email {email_id}. Skipping.")
+            continue
+        bill_id = bill_row[0]
+        ctn_fee = float(bill_row[1] or 0)
+        service_fee = float(bill_row[2] or 0)
+        invoice_amount = ctn_fee + service_fee
+        if paid_amount is None or not isinstance(paid_amount, (int, float)):
+            logger.warning(f"No valid payment amount for BL {bl} in email {email_id}. Skipping.")
+            continue
+        paid_amount_f = float(paid_amount)
+        if paid_amount_f < invoice_amount - tolerance:
+            logger.warning(f"Underpayment for BL {bl} in email {email_id}. Expected: {invoice_amount}, Paid: {paid_amount_f}. Skipping.")
+            continue
+        # If exact or overpaid, proceed to process and upload receipt
+        if receipt_url:
+            cursor.execute("""
+                UPDATE bill_of_lading
+                SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s
+                WHERE id = %s
+            """, (receipt_url, hk_now, bill_id))
+            logger.info(f"Updated bill {bill_id} with receipt from email {email_id}")
+        else:
+            logger.warning(f"No receipt could be generated for email {email_id}. Bill {bill_id} not updated.")
+
+    # Mark email as processed
+    cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
+    conn.commit()
+    if close_conn:
+        cursor.close()
+        conn.close()
+    return True
+
+def openai_call_with_fallback(messages, temperature=0, max_retries=2):
+    """
+    Make OpenAI API call with fallback from GPT-3.5-turbo to GPT-4o
+    """
+    models = ["gpt-3.5-turbo", "gpt-4o"]
+    
+    for i, model in enumerate(models):
+        try:
+            logger.info(f"[OpenAI] Attempting call with {model}")
+            response = openai.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature
+            )
+            content = response.choices[0].message.content
+            logger.info(f"[OpenAI] Successfully received response from {model}")
+            return content
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "quota" in error_msg or "rate limit" in error_msg or "billing" in error_msg:
+                if i < len(models) - 1:
+                    logger.warning(f"[OpenAI] {model} quota/rate limit exceeded, falling back to {models[i+1]}")
+                    continue
+                else:
+                    logger.error(f"[OpenAI] All models exhausted: {e}")
+                    raise e
+            else:
+                logger.error(f"[OpenAI] Error with {model}: {e}")
+                raise e
+    
+    raise Exception("All OpenAI models failed")
+
+def handle_email_via_openai(subject, body, attachments, from_addr):
+    # Initialize variables
+    paid_amount = None
+    custom_reply = "Hello,\n\nThank you for your email. Please provide more details or contact us for assistance."
+    confidence_score = 0.0
+    auto_send = False
+
+    # --- Pre-Processing: Extract payment and BLs from PDFs ---
+    def extract_payment_amount(text):
+        if not text:
+            return None
+        patterns = [
+            r'\$\s?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'USD\s*([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Amount[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Paid[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Payment[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Total[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+        ]
+        for pat in patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                try:
+                    return float(match.group(1))
+                except Exception:
+                    continue
+        return None
+
+    def extract_all_payment_amounts(text):
+        """Extract all payment amounts from text and return total"""
+        if not text:
+            return None
+        patterns = [
+            r'\$\s?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'USD\s*([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Amount[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Paid[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Payment[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+            r'Total[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)',
+        ]
+        amounts = set()  # Use set to avoid duplicates
+        for pat in patterns:
+            matches = re.findall(pat, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    amount = float(match)
+                    # Filter out amounts that are likely BL numbers (too small or too large)
+                    if amount >= 10 and amount <= 10000:  # Reasonable payment range
+                        amounts.add(amount)  # Use add() instead of append() to avoid duplicates
+                        logger.info(f"\033[92m[Payment Extraction] Found amount: {amount} from pattern match: {match}\033[0m")
+                    else:
+                        logger.info(f"\033[93m[Payment Extraction] Skipping amount: {amount} (likely BL number)\033[0m")
+                except Exception:
+                    continue
+        total = sum(amounts) if amounts else None
+        logger.info(f"\033[92m[Payment Extraction] Total extracted amount: {total}\033[0m")
+        return total
+
+    def extract_bl_specific_payments(text, bl_numbers):
+        """Extract payment amounts specific to each BL number"""
+        if not text or not bl_numbers:
+            return {}
+        
+        bl_payments = {}
+        
+        # Pattern to match "USD X for BL Y" or "BL Y USD X" or similar
+        patterns = [
+            r'USD\s*([0-9]+(?:\.[0-9]{1,2})?)\s+(?:for\s+)?(?:BL\s*)?([A-Z0-9\-]+)',
+            r'(?:BL\s*)?([A-Z0-9\-]+)\s+USD\s*([0-9]+(?:\.[0-9]{1,2})?)',
+            r'\$\s*([0-9]+(?:\.[0-9]{1,2})?)\s+(?:for\s+)?(?:BL\s*)?([A-Z0-9\-]+)',
+            r'(?:BL\s*)?([A-Z0-9\-]+)\s+\$\s*([0-9]+(?:\.[0-9]{1,2})?)',
+        ]
+        
+        # First try to find BL-specific payments
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for amount_str, bl_match in matches:
+                try:
+                    amount = float(amount_str)
+                    # Find the closest matching BL number
+                    for bl in bl_numbers:
+                        if bl.upper() in bl_match.upper() or bl_match.upper() in bl.upper():
+                            bl_payments[bl] = amount
+                            break
+                except ValueError:
+                    continue
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for amount_str, bl_match in matches:
+                try:
+                    amount = float(amount_str)
+                    # Find the closest matching BL number
+                    for bl in bl_numbers:
+                        if bl.upper() in bl_match.upper() or bl_match.upper() in bl.upper():
+                            bl_payments[bl] = amount
+                            break
+                except ValueError:
+                    continue
+        
+        # Handle case where amount is for multiple BLs (e.g., "Payment for B/L 001-123, NYC220 Amount: $420")
+        # Also handle case where we have a paid amount from PDF but no body text
+        if not bl_payments and len(bl_numbers) > 1:
+            # Look for pattern like "Payment for B/L X, Y Amount: $Z"
+            combined_pattern = r'(?:payment|paid|amount)[^0-9]*\$?([0-9]+(?:\.[0-9]{1,2})?)[^0-9]*(?:for\s+)?(?:b/l\s*)?([A-Z0-9\-\s,]+)'
+            
+            # Also try a simpler pattern for "Amount: $X"
+            simple_pattern = r'amount[:：]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)'
+            logger.info(f"\033[92m[Payment Distribution] Testing pattern: {combined_pattern}\033[0m")
+            logger.info(f"\033[92m[Payment Distribution] Text to match: {text}\033[0m")
+            matches = re.findall(combined_pattern, text, re.IGNORECASE)
+            logger.info(f"\033[92m[Payment Distribution] Pattern matches: {matches}\033[0m")
+            
+            for amount_str, bls_text in matches:
+                try:
+                    total_amount = float(amount_str)
+                    # Extract BL numbers from the text
+                    found_bls = []
+                    for bl in bl_numbers:
+                        if bl.upper() in bls_text.upper():
+                            found_bls.append(bl)
+                    
+                    logger.info(f"\033[92m[Payment Distribution] Found BLs in text '{bls_text}': {found_bls}\033[0m")
+                    
+                    # Only use this match if we found at least 2 BLs (indicating it's a real multi-BL payment)
+                    if len(found_bls) >= 2:
+                        # Distribute amount evenly among found BLs
+                        amount_per_bl = total_amount / len(found_bls)
+                        for bl in found_bls:
+                            bl_payments[bl] = amount_per_bl
+                        logger.info(f"\033[92m[Payment Distribution] Distributed payment: {total_amount} among {found_bls} = {amount_per_bl} each\033[0m")
+                        break
+                    else:
+                        logger.info(f"\033[93m[Payment Distribution] Skipping match - only found {len(found_bls)} BLs, need at least 2\033[0m")
+                except ValueError:
+                    continue
+            
+            # Try simple pattern if complex pattern didn't work
+            if not bl_payments:
+                simple_matches = re.findall(simple_pattern, text, re.IGNORECASE)
+                logger.info(f"\033[92m[Payment Distribution] Simple pattern matches: {simple_matches}\033[0m")
+                
+                if simple_matches:
+                    try:
+                        total_amount = float(simple_matches[0])
+                        # If we have a total amount and multiple BLs, distribute evenly
+                        amount_per_bl = total_amount / len(bl_numbers)
+                        for bl in bl_numbers:
+                            bl_payments[bl] = amount_per_bl
+                        logger.info(f"\033[92m[Payment Distribution] Simple pattern: distributed {total_amount} among {bl_numbers} = {amount_per_bl} each\033[0m")
+                    except ValueError:
+                        pass
+            
+            # If still no BL-specific payments found, try to extract from text with BL numbers
+            if not bl_payments:
+                # Look for patterns like "B/L 001-123, NYC220 Amount: $420"
+                bl_amount_pattern = r'(?:b/l\s*|bl\s*)([a-z0-9\-\s,]+)[^0-9]*\$?([0-9]+(?:\.[0-9]{1,2})?)'
+                matches = re.findall(bl_amount_pattern, text, re.IGNORECASE)
+                for bls_text, amount_str in matches:
+                    try:
+                        total_amount = float(amount_str)
+                        # Extract BL numbers from the text
+                        found_bls = []
+                        for bl in bl_numbers:
+                            if bl.upper() in bls_text.upper():
+                                found_bls.append(bl)
+                        
+                        if found_bls:
+                            # Distribute amount evenly among found BLs
+                            amount_per_bl = total_amount / len(found_bls)
+                            for bl in found_bls:
+                                bl_payments[bl] = amount_per_bl
+                            logger.info(f"\033[92m[Payment Distribution] Distributed payment from BL pattern: {total_amount} among {found_bls} = {amount_per_bl} each\033[0m")
+                            break
+                    except ValueError:
+                        continue
+            
+            # Final fallback: if we have a total amount and multiple BLs, distribute evenly
+            if not bl_payments and paid_amount is not None and len(bl_numbers) > 1:
+                amount_per_bl = paid_amount / len(bl_numbers)
+                for bl in bl_numbers:
+                    bl_payments[bl] = amount_per_bl
+                logger.info(f"\033[92m[Payment Distribution] Final fallback: distributed {paid_amount} among {bl_numbers} = {amount_per_bl} each\033[0m")
+            
+            # Super fallback: if still no BL-specific payments, use the total amount for all BLs
+            if not bl_payments and paid_amount is not None:
+                for bl in bl_numbers:
+                    bl_payments[bl] = paid_amount
+                logger.info(f"\033[92m[Payment Distribution] Super fallback: using total amount {paid_amount} for all BLs {bl_numbers}\033[0m")
+            
+            # If still no BL-specific payments found, try to extract from text with BL numbers
+            if not bl_payments:
+                # Look for patterns like "B/L 001-123, NYC220 Amount: $420"
+                bl_amount_pattern = r'(?:b/l\s*|bl\s*)([a-z0-9\-\s,]+)[^0-9]*\$?([0-9]+(?:\.[0-9]{1,2})?)'
+                matches = re.findall(bl_amount_pattern, text, re.IGNORECASE)
+                for bls_text, amount_str in matches:
+                    try:
+                        total_amount = float(amount_str)
+                        # Extract BL numbers from the text
+                        found_bls = []
+                        for bl in bl_numbers:
+                            if bl.upper() in bls_text.upper():
+                                found_bls.append(bl)
+                        
+                        if found_bls:
+                            # Distribute amount evenly among found BLs
+                            amount_per_bl = total_amount / len(found_bls)
+                            for bl in found_bls:
+                                bl_payments[bl] = amount_per_bl
+                            logger.debug(f"[DEBUG] Distributed payment from BL pattern: {total_amount} among {found_bls} = {amount_per_bl} each")
+                            break
+                    except ValueError:
+                        continue
+        
+        return bl_payments
+
+    # More flexible BL regex: matches various BL formats but excludes bank references
+    # Excludes patterns like TEST987, REF123, etc. that are common bank reference formats
+    expanded_bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|[A-Z]{2,4}\d{2,})', re.IGNORECASE)
+    logger.info(f"\033[92m[BL Processing] BL regex pattern: {expanded_bl_pattern.pattern}\033[0m")
+    bls_from_pdfs = set()
+    fallback_paid_amount = None
+    
+    logger.info(f"\033[92m[PDF Processing] Starting with {len(attachments) if attachments else 0} attachments\033[0m")
+    
+    if attachments:
+        for att_path in attachments:
+            if att_path.lower().endswith('.pdf'):
+                try:
+                    logger.info(f"[PDF Processing] Processing attachment: {att_path}")
+                    pdf_fields = process_pdf(att_path)
+                    logger.info(f"[PDF Processing] PDF fields: {pdf_fields}")
+                    if pdf_fields and isinstance(pdf_fields, dict):
+                        # Try structured paid_amount first
+                        paid_amt_struct = pdf_fields.get('paid_amount')
+                        if paid_amt_struct is not None:
+                            try:
+                                fallback_paid_amount = float(re.sub(r'[^0-9.]+', '', str(paid_amt_struct)))
+                                logger.info(f"[PDF Processing] Parsed paid_amount from PDF: {fallback_paid_amount}")
+                            except Exception as ex:
+                                logger.error(f"[PDF Processing] Error parsing paid_amount from PDF: {ex}")
+                        
+                        # Fallback to raw_text extraction for payment amount
+                        if fallback_paid_amount is None:
+                            raw_text = pdf_fields.get('raw_text')
+                            if raw_text:
+                                amt = extract_payment_amount(raw_text)
+                                if amt is not None:
+                                    fallback_paid_amount = amt
+                        
+                        # Extract BLs from both structured field and raw text
+                        bl_val = pdf_fields.get('bl_number')
+                        logger.info(f"[PDF Processing] PDF bl_number field: '{bl_val}'")
+                        if bl_val and isinstance(bl_val, str):
+                            bls = [b.strip() for b in re.split(r'[\s,;/]+', bl_val) if b.strip()]
+                            bls_from_pdfs.update(bls)
+                            logger.info(f"[PDF Processing] BLs from structured field '{bl_val}': {bls}")
+                            # Also run expanded regex on bl_val
+                            regex_bls = expanded_bl_pattern.findall(bl_val)
+                            bls_from_pdfs.update(regex_bls)
+                            logger.info(f"[PDF Processing] BLs from structured field regex: {regex_bls}")
+                        
+                        # Always extract from raw text as fallback
+                        raw_text = pdf_fields.get('raw_text')
+                        logger.info(f"[PDF Processing] PDF raw_text: '{raw_text[:100]}...' if raw_text else 'None'")
+                        if raw_text:
+                            # Extract BLs from raw text using regex
+                            raw_bls = expanded_bl_pattern.findall(raw_text)
+                            bls_from_pdfs.update(raw_bls)
+                            logger.info(f"[PDF Processing] BLs from raw text regex: {raw_bls}")
+                            
+                            # Test the regex with the actual text
+                            logger.info(f"[PDF Processing] Testing regex on text: '{raw_text}'")
+                            test_matches = expanded_bl_pattern.findall(raw_text)
+                            logger.info(f"[PDF Processing] Regex test matches: {test_matches}")
+                            
+                            # Also try simple text search for common BL patterns
+                            text_lower = raw_text.lower()
+                            if 'b/l' in text_lower or 'bl' in text_lower:
+                                # Look for patterns like "B/L 001-123, NYC220"
+                                bl_matches = re.findall(r'(?:b/l\s*|bl\s*)([a-z0-9\-]+)', text_lower)
+                                for match in bl_matches:
+                                    if match and len(match) >= 3:  # Minimum BL length
+                                        bls_from_pdfs.add(match.upper())
+                                logger.info(f"[PDF Processing] BLs from text search: {bl_matches}")
+                        
+                            # Also try to extract BLs from the structured bl_number field if it contains multiple BLs
+                            if bl_val and ',' in bl_val:
+                                # Split by comma and extract individual BLs
+                                bl_parts = [part.strip() for part in bl_val.split(',')]
+                                for part in bl_parts:
+                                    # Extract BL numbers from each part
+                                    part_bls = expanded_bl_pattern.findall(part)
+                                    bls_from_pdfs.update(part_bls)
+                                    logger.info(f"[PDF Processing] BLs from structured field parts '{part}': {part_bls}")
+                            
+                except Exception as e:
+                    logger.error(f"[PDF Processing] Failed for {att_path}: {e}")
+    
+    logger.info(f"\033[92m[PDF Processing] Final BLs from PDFs: {bls_from_pdfs}\033[0m")
+    logger.info(f"\033[92m[PDF Processing] Number of BLs from PDFs: {len(bls_from_pdfs)}\033[0m")
+    
+    # Fallback to email body extraction
+    if fallback_paid_amount is None:
+        fallback_paid_amount = extract_all_payment_amounts(body)
+    paid_amount = fallback_paid_amount
+
+    # --- Translation for Chinese emails ---
+    def is_chinese(text):
+        chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+        return chinese_chars > 0 and chinese_chars / max(1, len(text)) > 0.2
+
+    def openai_translate(text, source_lang, target_lang):
+        try:
+            translation_prompt = f"Translate the following {source_lang} text to {target_lang}. Only return the translated text, no explanation.\n\n{text}"
+            messages = [
+                {"role": "system", "content": "You are a professional translator."},
+                {"role": "user", "content": translation_prompt},
+            ]
+            translated_text = openai_call_with_fallback(messages, temperature=0).strip()
+            logger.info(f"[Translation] Original: {text[:50]}... -> Translated: {translated_text[:50]}...")
+            return translated_text
+        except Exception as e:
+            logger.error(f"[OpenAI Translate] Failed: {e}")
+            return text
+
+    incoming_is_chinese = is_chinese(body)
+    translated_body = body
+    translation_used = False
+    if incoming_is_chinese:
+        translated_body = openai_translate(body, 'Chinese', 'English')
+        translation_used = True
+        logger.info(f"[OpenAI Email] Translated body: {translated_body[:100]}...")
+
+    # --- Pre-Parse Request Types with more flexible patterns ---
+    patterns = [
+        ('payment_receipt', r'\b(payment\s+receipt|paid\s+receipt|payment\s+confirmation|付款确认|收据|payment|paid|amount[:：]?\s*\$?[0-9]+)\b'),
+        ('payment_status', r'\b(payment\s+status|due|outstanding|balance|payment\s+for|amount[:：]?\s*\$?[0-9]+)\b'),
+        ('invoice_request', r'\b(invoice|bill|billing|发票|账单)\b'),
+        ('ctn_request', r'\b(ctn|container)\s+number(s)?\b|CTN号码|集装箱号|container'),
+        ('fee_inquiry', r'\b(fee|fees|cost|charge|charges|total\s+fee|total\s+cost|费用|收费)\b'),
+        ('business_hours', r'\b(business\s+hours|operating\s+hours|office\s+hours|working\s+hours|营业时间|工作时间)\b'),
+        ('payment_methods', r'\b(payment\s+method|payment\s+option|how\s+to\s+pay|settle|支付方式|付款方式)\b'),
+        ('ctn_process', r'\b(ctn\s+process|ctn\s+time|ctn\s+duration|集装箱处理时间)\b'),
+    ]
+    
+    request_types = []
+    text_to_parse = [translated_body] if translation_used else [body]
+    if incoming_is_chinese:
+        text_to_parse.append(body)  # Parse original Chinese body for Chinese terms
+    
+    for text in text_to_parse:
+        for req_type, pattern in patterns:
+            if re.search(pattern, text, re.IGNORECASE) and req_type not in request_types:
+                request_types.append(req_type)
+    
+    # Prioritize payment_receipt and payment_status over fee_inquiry
+    if 'payment_receipt' in request_types or 'payment_status' in request_types:
+        request_types = [rt for rt in request_types if rt not in ['fee_inquiry']] + [rt for rt in request_types if rt == 'fee_inquiry']
+    
+    if not request_types:
+        request_types.append('general_enquiry')
+    
+    logger.info(f"\033[92m[Pre-Parsing] Request types: {request_types} | Email body: {body}\033[0m")
+
+    # --- Extract and Merge BLs from all sources ---
+    # Refined BL pattern that excludes common bank reference formats
+    bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|[A-Z]{2,4}\d{2,})', re.IGNORECASE)
+    bls_from_body = set()
+    
+    for text in text_to_parse:
+        found_bls = bl_pattern.findall(text)
+        logger.debug(f"[DEBUG] BLs found in body text '{text[:50]}...': {found_bls}")
+        bls_from_body.update(found_bls)
+    
+    # Merge BLs from body, PDF, and OpenAI reply
+    merged_bls = bls_from_body | bls_from_pdfs
+    logger.info(f"\033[92m[BL Processing] BLs from body: {bls_from_body}, BLs from PDFs: {bls_from_pdfs}, Merged: {merged_bls}\033[0m")
+    logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{body[:200]}...' if body else 'Empty'\033[0m")
+    
+    # Filter out common bank reference patterns
+    bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN']
+    filtered_bls = set()
+    logger.info(f"\033[92m[BL Processing] Filtering BLs: {merged_bls}\033[0m")
+    logger.info(f"\033[92m[BL Processing] Bank reference patterns: {bank_ref_patterns}\033[0m")
+    for bl in merged_bls:
+        # Skip if BL starts with common bank reference prefixes
+        bl_upper = bl.upper()
+        excluded = False
+        for prefix in bank_ref_patterns:
+            if bl_upper.startswith(prefix):
+                logger.info(f"\033[93m[BL Processing] Excluding bank reference: {bl} (matches prefix: {prefix})\033[0m")
+                excluded = True
+                break
+        if excluded:
+            continue
+        filtered_bls.add(bl)
+        logger.info(f"\033[92m[BL Processing] Keeping BL: {bl}\033[0m")
+    
+    bl_numbers = list(filtered_bls)
+    logger.info(f"\033[92m[BL Processing] Final BL numbers: {bl_numbers}\033[0m")
+    logger.info(f"\033[92m[Pre-Parsing] Extracted BLs (filtered): {bl_numbers}\033[0m")
+
+    # --- Override classification if payment info found ---
+    if 'payment_receipt' not in request_types:
+        if paid_amount and bl_numbers:
+            logger.warning("[Heuristic Override] Found paid amount and BLs — forcing payment_receipt.")
+            request_types.insert(0, 'payment_receipt')
+        elif paid_amount and not bl_numbers:
+            # Stronger fallback: use BLs from PDF OCR if available
+            if bls_from_pdfs:
+                bl_numbers = list(bls_from_pdfs)
+                logger.warning("[Heuristic Override] Found payment amount but no BLs — using BLs from PDF OCR and forcing payment_receipt.")
+            else:
+                logger.warning("[Heuristic Override] Found payment amount but no BLs — still forcing payment_receipt.")
+            request_types.insert(0, 'payment_receipt')
+        elif not body.strip() and attachments:
+            logger.warning("[Heuristic Override] No body text but has attachment — treating as payment_receipt.")
+            request_types.insert(0, 'payment_receipt')
+        elif attachments and bls_from_pdfs:
+            # If we have attachments with BLs but no payment amount, still treat as payment_receipt
+            logger.warning("[Heuristic Override] Found attachments with BLs — treating as payment_receipt.")
+            request_types.insert(0, 'payment_receipt')
+
+    # --- Query database for BL information ---
+    valid_bls = {}
+    invalid_bls = []
+    if bl_numbers:
+        ctn_infos = find_ctn_info(bl_numbers) or []
+        invoice_infos = find_invoice_info(bl_numbers) or []
+        
+        for bl in bl_numbers:
+            ctn_info = next((info for info in ctn_infos if info.get('bl_number') == bl), {})
+            invoice_info = next((info for info in invoice_infos if info.get('bl_number') == bl), {})
+            
+            if ctn_info or invoice_info:
+                valid_bls[bl] = {
+                    'ctn': ctn_info.get('ctn_number'),
+                    'invoice_link': invoice_info.get('invoice_filename'),
+                    'ctn_fee': float(invoice_info.get('ctn_fee', 0)) if invoice_info.get('ctn_fee') else 0.0,
+                    'service_fee': float(invoice_info.get('service_fee', 0)) if invoice_info.get('service_fee') else 0.0,
+                    'paid_amount': float(invoice_info.get('paid_amount', 0)) if invoice_info.get('paid_amount') else 0.0,
+                    'status': invoice_info.get('status', 'Unknown')
+                }
+            else:
+                invalid_bls.append(bl)
+    
+    logger.info(f"\033[92m[DB Query] Valid BLs: {valid_bls}, Invalid BLs: {invalid_bls}\033[0m")
+
+    # --- Validate Paid Amount ---
+    if paid_amount is not None and 'payment_receipt' in request_types and not valid_bls:
+        logger.warning(f"[Validation] Paid amount {paid_amount} ignored: No valid BLs found for payment_receipt")
+        paid_amount = None
+
+    # --- Detect Missing Attachments ---
+    missing_attachment_flag = False
+    if not attachments:
+        attachment_phrases = [
+            r"see (the )?attached", r"find (the )?attached", r"attached( is| are|:)?",
+            r"attachment(s)?( is| are|:)?", r"enclosed (file|document|pdf|invoice|receipt)?",
+            r"as per (the )?attachment", r"please refer to (the )?attachment",
+            r"please see (the )?attachment", r"please find (the )?attachment",
+            r"I've attached", r"I have attached", r"see attached", r"see the attached",
+            r"see the attachment", r"see attachments", r"see the attachments",
+            r"find attached", r"find the attached", r"find the attachment",
+            r"find attachments", r"find the attachments", r"attachment is",
+            r"attachment are", r"attachment:",
+            r"已?附上|附件|请查收附件|请见附件|请参见附件|请参考附件|请见附档|请查收附档|请见附加文件|请查收附加文件|附件见下|请查附件|请见下方附件|请见随信附件"
+        ]
+        pattern = re.compile(r"|".join(attachment_phrases), re.IGNORECASE)
+        if pattern.search(body):
+            missing_attachment_flag = True
+
+    # --- Load Canned Responses ---
+    try:
+        with open('canned_responses.json', 'r') as f:
+            canned_responses = json.load(f)
+        canned_responses_text = "\n\n".join([f"Q: {r['title']}\nA: {r['body']}" for r in canned_responses])
+    except Exception as e:
+        logger.error(f"[OpenAI Email] Could not load canned_responses.json: {e}")
+        canned_responses_text = "No canned responses available."
+
+    # --- OpenAI Prompt ---
+    full_text = f"Subject: {subject}\n\n{translated_body}"
+    attachment_info = f"\n\nThe customer has attached {len(attachments)} file(s) to this email." if attachments else ""
+    
+    # Build prompt sections only for detected request types
+    prompt_sections = []
+    if 'invoice_request' in request_types and valid_bls:
+        prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
+    if 'ctn_request' in request_types and valid_bls:
+        prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
+    if 'fee_inquiry' in request_types and valid_bls:
+        prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
+    if 'payment_status' in request_types or 'payment_receipt' in request_types:
+        prompt_sections.append(f"Paid amount: {paid_amount if paid_amount is not None else 'None'}")
+        if valid_bls:
+            prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
+    if 'business_hours' in request_types:
+        prompt_sections.append(f"Business hours: {BUSINESS_HOURS}")
+    if 'payment_methods' in request_types:
+        prompt_sections.append(f"Payment methods: {', '.join(PAYMENT_METHODS)}")
+    if 'ctn_process' in request_types:
+        prompt_sections.append(f"CTN processing time: {CTN_PROCESSING_TIME}")
+    if invalid_bls:
+        prompt_sections.append(f"Invalid BLs: {json.dumps(invalid_bls)}")
+    
+    prompt = f"""
+You are a logistics assistant for IQS Trade. Draft a reply in English for the email below, addressing ONLY the specified request types using the provided data. Do NOT include information unrelated to the request types. Only include payment details for valid BLs. Do not mention payments for invalid BLs.
+
+Request types: {json.dumps(request_types)}
+{chr(10).join(prompt_sections)}
+
+Email: {full_text}{attachment_info}
+
+Canned responses: {canned_responses_text}
+
+Return a JSON object:
+{{
+  "classification": "{"combined_request" if len(request_types) > 1 else request_types[0] if request_types else "general_enquiry"}",
+  "reply": "Reply addressing ONLY the detected requests."
+}}
+"""
+    logger.debug(f"[OpenAI Email] Sending prompt to OpenAI:\n{prompt}")
+
+    # --- OpenAI Call ---
+    try:
+        messages = [
+            {"role": "system", "content": "You're a shipping email agent."},
+            {"role": "user", "content": prompt}
+        ]
+        content = openai_call_with_fallback(messages, temperature=0)
+        logger.debug(f"[OpenAI Email] Received response from OpenAI:\n{content}")
+        
+        try:
+            action = json.loads(content)
+        except json.JSONDecodeError:
+            match = re.search(r'\{.*\}', content, re.DOTALL)
+            if match:
+                try:
+                    action = json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    logger.error(f"[OpenAI Email] Failed to parse JSON from response.\nPrompt: {prompt}\nResponse: {content}")
+                    action = None
+            else:
+                logger.error(f"[OpenAI Email] No JSON found in response.\nPrompt: {prompt}\nResponse: {content}")
+                action = None
+        
+        if not action or not isinstance(action, dict):
+            logger.error(f"[OpenAI Email] Invalid response format.\nPrompt: {prompt}\nResponse: {content}")
+            action = {
+                'classification': 'general_enquiry',
+                'reply': 'Could not process email.'
+            }
+    except Exception as e:
+        logger.error(f"[OpenAI Email] Exception during OpenAI call: {e}\nPrompt: {prompt}")
+        action = {
+            'classification': 'general_enquiry',
+            'reply': 'Could not process email.'
+        }
+
+    # --- Validate and Process Reply ---
+    classification = action.get('classification', 'general_enquiry')
+    custom_reply = action.get('reply', 'We could not process your request. Please provide more details or contact us for assistance.')
+    logger.info(f"[OpenAI Email] Classification: {classification}, Reply: {custom_reply[:100]}...")
+
+    # Validate reply includes all request types and BLs
+    reply_lower = custom_reply.lower()
+    missing_requests = []
+    
+    # Check if all BLs are mentioned in the reply
+    missing_bls = []
+    for bl in bl_numbers:
+        if bl not in custom_reply:
+            missing_bls.append(bl)
+    
+    for req_type in request_types:
+        if req_type == 'invoice_request' and not ('invoice' in reply_lower or 'bill' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'ctn_request' and not ('ctn' in reply_lower or 'container number' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'fee_inquiry' and not ('fee' in reply_lower or 'cost' in reply_lower or 'charge' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'payment_status' and not ('status' in reply_lower or 'due' in reply_lower or 'balance' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'payment_receipt' and not ('payment' in reply_lower or 'receipt' in reply_lower or 'received' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'business_hours' and 'hours' not in reply_lower:
+            missing_requests.append(req_type)
+        elif req_type == 'payment_methods' and not ('payment method' in reply_lower or 'bank transfer' in reply_lower):
+            missing_requests.append(req_type)
+        elif req_type == 'ctn_process' and not ('process' in reply_lower or 'time' in reply_lower):
+            missing_requests.append(req_type)
+    
+    # Force fallback if BLs are missing
+    if missing_bls:
+        logger.warning(f"[OpenAI Email] Missing BLs in reply: {missing_bls}")
+        missing_requests.append('missing_bls')
+    
+    # Force fallback if payment receipt but reply mentions "Awaiting Bank In" status
+    if 'payment_receipt' in request_types and paid_amount is not None and 'awaiting bank in' in reply_lower:
+        logger.warning(f"[OpenAI Email] Payment receipt with 'Awaiting Bank In' status - forcing fallback for proper acknowledgment")
+        missing_requests.append('payment_receipt')
+    
+    if missing_requests:
+        logger.warning(f"[OpenAI Email] Missing request types in reply: {missing_requests}")
+        # Fallback reply generation
+        reply_lines = ["Hello,"]
+        for req_type in request_types:
+            if req_type == 'invoice_request' and valid_bls:
+                reply_lines.append("Invoice(s) found:")
+                for bl, info in valid_bls.items():
+                    if info['invoice_link']:
+                        reply_lines.append(f"  - For BL {bl}: You can download your invoice here: {info['invoice_link']}")
+                    else:
+                        reply_lines.append(f"  - For BL {bl}: An invoice has not been generated yet.")
+            elif req_type == 'ctn_request' and valid_bls:
+                reply_lines.append("CTN(s) found:")
+                for bl, info in valid_bls.items():
+                    if info['ctn']:
+                        reply_lines.append(f"  - For BL {bl}: The CTN number is {info['ctn']}.")
+            elif req_type == 'fee_inquiry' and valid_bls:
+                reply_lines.append("Fee details:")
+                for bl, info in valid_bls.items():
+                    ctn_fee = info.get('ctn_fee', 0.0)
+                    service_fee = info.get('service_fee', 0.0)
+                    total_fee = ctn_fee + service_fee
+                    reply_lines.append(f"  - BL {bl}: CTN Fee: ${ctn_fee:.2f}, Service Fee: ${service_fee:.2f}, Total: ${total_fee:.2f}")
+            elif req_type == 'payment_status' and valid_bls:
+                reply_lines.append("Payment status:")
+                for bl, info in valid_bls.items():
+                    ctn_fee = info.get('ctn_fee', 0.0)
+                    service_fee = info.get('service_fee', 0.0)
+                    total_fee = ctn_fee + service_fee
+                    paid = info.get('paid_amount', 0.0)
+                    due = total_fee - paid
+                    # Use actual status from database, fallback to calculated status
+                    db_status = info.get('status', 'Unknown')
+                    if db_status == 'Unknown' or db_status == 'Unknown':
+                        status = "Paid" if due <= 0 else f"Due: ${due:.2f}"
+                    else:
+                        status = db_status
+                    reply_lines.append(f"  - BL {bl}: Total Fee: ${total_fee:.2f}, Paid: ${paid:.2f}, Status: {status}")
+            elif req_type == 'payment_receipt' and valid_bls and paid_amount is not None:
+                reply_lines.append("Payment(s) found:")
+                for bl, info in valid_bls.items():
+                    reply_lines.append(f"  - For BL {bl}: Payment record found.")
+                
+                # Check for underpayment/overpayment
+                total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
+                logger.info(f"\033[92m[Payment Check] Total invoice: ${total_invoice:.2f}, Paid amount: ${paid_amount:.2f}\033[0m")
+                
+                if paid_amount < total_invoice - 0.01:
+                    diff = total_invoice - paid_amount
+                    reply_lines.append(f"\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}.")
+                    logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
+                elif paid_amount > total_invoice + 0.01:
+                    diff = paid_amount - total_invoice
+                    reply_lines.append(f"\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}.")
+                    logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
+                else:
+                    reply_lines.append(f"\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}.")
+                    logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
+            elif req_type == 'business_hours':
+                reply_lines.append(f"Our business hours are: {BUSINESS_HOURS}")
+            elif req_type == 'payment_methods':
+                reply_lines.append("We accept the following payment methods:")
+                for method in PAYMENT_METHODS:
+                    reply_lines.append(f"  - {method}")
+                reply_lines.append("Please choose the one that is most convenient for you. Instructions are provided when you generate a payment link.")
+            elif req_type == 'ctn_process':
+                reply_lines.append(f"The processing time for a Cargo Tracking Note (CTN) is {CTN_PROCESSING_TIME}.")
+        
+        if invalid_bls:
+            reply_lines.append("\nThe following BL numbers could not be found in our system: " + ", ".join(invalid_bls) + ". Please double-check or contact us for assistance.")
+        
+        if reply_lines != ["Hello,"]:
+            custom_reply = "\n".join(reply_lines)
+        else:
+            custom_reply = "Hello,\n\nWe could not process your request. Please provide more details or contact us for assistance."
+
+    # --- Translate Reply for Chinese Emails ---
+    reply_is_chinese = False
+    if translation_used:
+        custom_reply = openai_translate(custom_reply, 'English', 'Chinese')
+        reply_is_chinese = True
+    else:
+        reply_is_chinese = is_chinese(custom_reply)
+
+    # --- Add Payment Summary for Payment Receipts ---
+    if 'payment_receipt' in request_types and valid_bls and paid_amount is not None:
+        total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
+        
+        # Only add summary if it's not already in the reply
+        if 'underpayment' not in custom_reply.lower() and 'overpayment' not in custom_reply.lower() and 'payment match' not in custom_reply.lower():
+            if paid_amount < total_invoice - 0.01:
+                diff = total_invoice - paid_amount
+                custom_reply += f"\n\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}."
+                logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
+            elif paid_amount > total_invoice + 0.01:
+                diff = paid_amount - total_invoice
+                custom_reply += f"\n\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}."
+                logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
+            else:
+                custom_reply += f"\n\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}."
+                logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
+
+    # --- Finalize Reply ---
+    custom_reply = custom_reply.strip()
+    if reply_is_chinese:
+        custom_reply += '\n\n祝商祺！\nIQS Trade Team'
+    else:
+        custom_reply += '\n\nBest regards,\nIQS Trade Team'
+
+    # Remove attachment references if none exist
+    if not attachments:
+        custom_reply = re.sub(r'^.*\b(attach|attachment|attached|attachments)\b.*$', '', custom_reply, flags=re.MULTILINE | re.IGNORECASE)
+        custom_reply = re.sub(r'^.*(已?附上|附件|请查收附件|请见附件|请参见附件|请参考附件|请见附档|请查收附档|请见附加文件|请查收附加文件|附件见下|请查附件|请见下方附件|请见随信附件).*$', '', custom_reply, flags=re.MULTILINE)
+        custom_reply = '\n'.join([line for line in custom_reply.splitlines() if line.strip()])
+        if missing_attachment_flag:
+            custom_reply += ("\n\nNote: You mentioned an attachment in your email, but no files were attached. "
+                             "If you intended to send a file, please resend your email with the attachment included."
+                             "\n\n注意：您在邮件中提到有附件，但未检测到任何文件。如需补发，请重新发送带附件的邮件。")
+
+    # --- Confidence Scoring ---
+    confidence_result = confidence_scorer.get_auto_send_recommendation(
+        full_text, custom_reply, classification, bl_numbers
+    )
+    confidence_score = confidence_result['confidence_score']
+    auto_send = confidence_result['auto_send']
+    logger.info(f"[OpenAI Email] Confidence score: {confidence_score}, Auto-send: {auto_send}")
+
+    # --- Log BLs and Missing Attachments ---
+    logger.info(f"[OpenAI Email] BLs found: {list(valid_bls.keys())}, BLs missing: {invalid_bls}")
+    if missing_attachment_flag:
+        logger.info(f"[OpenAI Email] Missing attachment detected for email from {from_addr} (subject: {subject})")
+
+    # --- Save Draft ---
+    save_draft_reply(from_addr, subject, custom_reply, confidence_result)
+    logger.info(f"[OpenAI Email] Final customized reply saved for email from {from_addr}")
+
+    # --- Build BL-to-paid_amount mapping ---
+    bl_payment_map = {}
+    
+    # First try to extract BL-specific payments
+    bl_specific_payments = extract_bl_specific_payments(body, bl_numbers)
+    logger.info(f"\033[92m[Payment Mapping] BL-specific payments: {bl_specific_payments}\033[0m")
+    
+    # If no BL-specific payments found but we have multiple BLs and a total paid amount, distribute evenly
+    if not bl_specific_payments and len(bl_numbers) > 1 and paid_amount is not None:
+        amount_per_bl = paid_amount / len(bl_numbers)
+        for bl in bl_numbers:
+            bl_specific_payments[bl] = amount_per_bl
+        logger.info(f"\033[92m[Payment Mapping] Distributed total amount {paid_amount} among {bl_numbers} = {amount_per_bl} each\033[0m")
+    
+    # If valid_bls has paid_amount per BL, use that; else use BL-specific payments or fallback to total paid_amount
+    for bl in bl_numbers:
+        if bl in valid_bls and valid_bls[bl].get('paid_amount', 0) > 0:
+            bl_payment_map[bl] = valid_bls[bl]['paid_amount']
+            logger.info(f"\033[92m[Payment Mapping] Using DB paid_amount for {bl}: {valid_bls[bl]['paid_amount']}\033[0m")
+        elif bl in bl_specific_payments:
+            bl_payment_map[bl] = bl_specific_payments[bl]
+            logger.info(f"\033[92m[Payment Mapping] Using extracted payment for {bl}: {bl_specific_payments[bl]}\033[0m")
+        elif paid_amount is not None:
+            bl_payment_map[bl] = paid_amount
+            logger.info(f"\033[92m[Payment Mapping] Using total paid_amount for {bl}: {paid_amount}\033[0m")
+    
+    # If no BLs but paid_amount exists, create a dummy mapping
+    if not bl_payment_map and paid_amount is not None:
+        bl_payment_map['UNKNOWN'] = paid_amount
+        logger.info(f"\033[92m[Payment Mapping] Created dummy mapping for UNKNOWN: {paid_amount}\033[0m")
+    
+    logger.info(f"\033[92m[Payment Mapping] Final BL payment map: {bl_payment_map}\033[0m")
+
+    return {
+        'classification': classification,
+        'reply': custom_reply,
+        'bl_numbers': bl_numbers,
+        'paid_amount': paid_amount,
+        'bl_payment_map': bl_payment_map,
+        'confidence_score': confidence_score,
+        'auto_send': auto_send,
+        "request_types": request_types,
+    }
+
+def extract_contact_info(text):
+    """Extract phone and email from text."""
+    phone_pattern = r'(\+?\d{1,3}[-\s]?\d{3,}[-\s]?\d{3,})'
+    email_pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+    phone = re.search(phone_pattern, text)
+    email_addr = re.search(email_pattern, text)
+    return {
+        'phone': phone.group(1) if phone else None,
+        'email': email_addr.group(1) if email_addr else None
+    }
+
+def save_draft_reply(to_addr, subject, reply, confidence_result=None):
+    """
+    Save a draft reply to the customer_email_replies table.
+    Now includes confidence scoring information.
+    """
+    logger.info(f"[Draft Reply] To: {to_addr}, Subject: {subject}, Reply: {reply}")
+    
+    is_draft = True
+    if confidence_result and confidence_result['auto_send']:
+        is_draft = False
+        logger.info(f"[Auto-Send] High confidence ({confidence_result['confidence_score']:.2f}) - marking for auto-send")
+    
+    conn = get_db_conn()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT id FROM customer_emails WHERE sender = %s AND subject = %s ORDER BY created_at DESC LIMIT 1", (to_addr, subject))
+    row = cur.fetchone()
+    if row:
+        customer_email_id = row[0]
+    else:
+        cur.execute("INSERT INTO customer_emails (sender, subject, body, created_at) VALUES (%s, %s, %s, %s) RETURNING id", (to_addr, subject, '', datetime.datetime.now()))
+        customer_email_id = cur.fetchone()[0]
+        conn.commit()
+    
+    try:
+        confidence_score = confidence_result['confidence_score'] if confidence_result else None
+        confidence_reasoning = json.dumps(confidence_result['reasoning']) if confidence_result else None
+        
+        cur.execute("""
+            INSERT INTO customer_email_replies (
+                customer_email_id, sender, body, created_at, is_draft, 
+                confidence_score, confidence_reasoning, auto_send_recommended
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            customer_email_id, 
+            'openai_draft', 
+            reply, 
+            datetime.datetime.now(), 
+            is_draft,
+            confidence_score,
+            confidence_reasoning,
+            confidence_result['auto_send'] if confidence_result else False
+        ))
+        conn.commit()
+        logger.info(f"[Draft Reply] Saved to DB for customer_email_id={customer_email_id} ({'DRAFT' if is_draft else 'AUTO-SEND'})")
+    except Exception as e:
+        logger.error(f"[Draft Reply] Failed to save draft: {e}")
+        try:
+            cur.execute("""
+                INSERT INTO customer_email_replies (customer_email_id, sender, body, created_at, is_draft)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (customer_email_id, 'openai_draft', reply, datetime.datetime.now(), is_draft))
+            conn.commit()
+            logger.info(f"[Draft Reply] Saved with basic columns for customer_email_id={customer_email_id}")
+        except Exception as e2:
+            logger.error(f"[Draft Reply] Failed to save even with basic columns: {e2}")
+    
+    cur.close()
+    conn.close()
+
+def process_inbox():
+    """Process unread emails from inbox - compatible with original ingest_emails function"""
+    logger.info("Connecting to IMAP server...")
+    mail = connect_imap()
+    if not mail:
+        logger.error("IMAP connection failed, aborting ingestion")
+        return []
+    
+    try:
+        mail.login(EMAIL_USER, EMAIL_PASS)
+        mail.select('inbox')
+        
+        # Process both unread emails and recent emails (last 24 hours) to catch replies
+        import datetime
+        yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%d-%b-%Y')
+        
+        # Search for unread emails OR recent emails (to catch replies to existing conversations)
+        status, messages = mail.search(None, f'(OR UNSEEN SINCE "{yesterday}")')
+        if status != 'OK':
+            logger.error('Failed to search inbox')
+            return []
+    except Exception as e:
+        logger.error(f"IMAP login/selection failed: {e}")
+        return []
+    
+    email_ids = messages[0].split()
+    logger.info(f"Found {len(email_ids)} emails to process (unread + recent)")
+    
+    results = []
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    
+    for num in email_ids:
+        try:
+            status, msg_data = mail.fetch(num, '(RFC822)')
+            if status != 'OK':
+                continue
+                
+            msg = email.message_from_bytes(msg_data[0][1])
+            message_id = msg.get('Message-ID')
+            
+            subject, encoding = decode_header(msg['Subject'])[0]
+            if isinstance(subject, bytes):
+                subject = subject.decode(encoding or 'utf-8')
+            from_addr = msg.get('From')
+            
+            body = ""
+            attachments = []
+            attachment_urls = []  # Store Cloudinary URLs for frontend display
+            
+            # Ensure PDF_SAVE_DIR exists
+            os.makedirs(PDF_SAVE_DIR, exist_ok=True)
+            
+            logger.info(f"[Email Processing] Processing email: {subject}")
+            logger.info(f"[Email Processing] From: {from_addr}")
+            
+            for part in msg.walk():
+                if part.get_content_maintype() == 'multipart':
+                    continue
+                    
+                # Handle text content
+                if part.get('Content-Disposition') is None:
+                    if part.get_content_type() == 'text/plain':
+                        charset = part.get_content_charset() or 'utf-8'
+                        body += part.get_payload(decode=True).decode(charset, errors='ignore')
+                    continue
+                
+                # Handle attachments
+                filename = part.get_filename()
+                if filename:
+                    # Decode filename if needed
+                    if isinstance(filename, bytes):
+                        filename = filename.decode('utf-8', errors='ignore')
+                    
+                    logger.info(f"[Email Processing] Found attachment: {filename}")
+                    
+                    # Save file locally
+                    filepath = os.path.join(PDF_SAVE_DIR, filename)
+                    try:
+                        with open(filepath, 'wb') as f:
+                            f.write(part.get_payload(decode=True))
+                        logger.info(f"✅ Saved attachment: {filepath}")
+                        attachments.append(filepath)
+                        
+                        # Upload to Cloudinary for frontend display
+                        try:
+                            cloudinary_url = upload_filepath_to_cloudinary(filepath, folder="email_attachments")
+                            attachment_urls.append(cloudinary_url)
+                            logger.info(f"📎 Uploaded to Cloudinary: {cloudinary_url}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to upload to Cloudinary: {e}")
+                            # Fallback to local file path
+                            attachment_urls.append(filepath)
+                            
+                    except Exception as e:
+                        logger.error(f"❌ Failed to save attachment {filename}: {e}")
+            
+            logger.info(f"[Email Processing] Final attachments: {attachment_urls}")
+            logger.info(f"[Email Processing] Body length: {len(body)}")
+            
+            # --- Prevent Duplicate Emails using Message-ID ---
+            try:
+                # Store attachment_urls as JSONB array
+                attachment_json = json.dumps(attachment_urls) if attachment_urls else None
+                
+                # First, try to insert new email
+                cursor.execute(
+                    """
+                    INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (message_id) DO NOTHING
+                    RETURNING id;
+                    """,
+                    (from_addr, subject, body, datetime.datetime.now(), False, message_id, attachment_json)
+                )
+                result = cursor.fetchone()
+                
+                if result:
+                    # New email inserted successfully
+                    email_id = result[0]
+                    logger.info(f"✅ New email inserted with ID: {email_id}")
+                else:
+                    # Duplicate detected - update existing email with attachments if it has none
+                    logger.info(f"🔄 Duplicate email detected with Message-ID: {message_id}")
+                    
+                    # Get existing email
+                    cursor.execute(
+                        "SELECT id, attachments FROM customer_emails WHERE message_id = %s",
+                        (message_id,)
+                    )
+                    existing_email = cursor.fetchone()
+                    
+                    if existing_email:
+                        existing_id, existing_attachments = existing_email
+                        
+                        # If existing email has no attachments but we have new ones, update it
+                        if (not existing_attachments or existing_attachments == '[]' or existing_attachments == 'null') and attachment_urls:
+                            cursor.execute(
+                                "UPDATE customer_emails SET attachments = %s::jsonb WHERE id = %s",
+                                (attachment_json, existing_id)
+                            )
+                            logger.info(f"✅ Updated existing email {existing_id} with new attachments")
+                            email_id = existing_id
+                        else:
+                            logger.info(f"⏭️ Skipping duplicate email {existing_id} (already has attachments)")
+                            continue
+                    else:
+                        logger.error(f"❌ Duplicate detected but existing email not found for Message-ID: {message_id}")
+                        continue
+                
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Failed to insert email {message_id}: {e}")
+                continue
+            
+            # === OpenAI classification and routing ===
+            action = handle_email_via_openai(subject, body, attachments, from_addr)
+            
+            classification = action.get('classification')
+            bl_payment_map = action.get('bl_payment_map', {})
+            request_types = action.get("request_types", [])
+            reply_text = action.get('reply', '')
+            
+            request_types_lower = [r.lower() for r in request_types]
+            is_payment_related = any(r in request_types_lower for r in ["payment_receipt", "payment_status", "combined_request"])
+            
+            if is_payment_related and bl_payment_map:
+                logger.info("[ROUTING] Detected payment receipt intent — processing receipt upload + DB update.")
+                process_payment_receipt_email(
+                    email_id=email_id,
+                    from_addr=from_addr,
+                    subject=subject,
+                    body_text=body,
+                    attachments=attachments,
+                    bl_payment_map=bl_payment_map,
+                    conn=conn,
+                )
+            
+            # Mark email as read
+            mail.store(num, '+FLAGS', '\\Seen')
+            logger.info(f"Marked email as read: {subject}")
+            
+            results.append({"email_id": email_id, "classification": classification})
+            
+        except Exception as e:
+            logger.error(f"Failed to process email {num}: {e}")
+            continue
+    
+    cursor.close()
+    conn.close()
+    mail.logout()
+    return results
+
+def ingest_emails():
+    """Alias for process_inbox to maintain compatibility with original code"""
+    return process_inbox()
+
+if __name__ == "__main__":
+    process_inbox()

@@ -1,4 +1,4 @@
-print("[DEBUG] payment_link.py imported and blueprint registered!")
+# payment_link.py imported and blueprint registered
 
 
 from flask import Blueprint, request, jsonify
@@ -29,9 +29,8 @@ def generate_payment_link(bill_id):
     conn = get_db_conn()
     cur = conn.cursor()
     try:
-        # Get data from the request body and print for debugging
+        # Get data from the request body
         data = request.get_json()
-        logger.info(f"[DEBUG] Payment link request data: {data}")
         amount = float(data.get('amount', 0.0))  # Default to 0.0 if not provided
         currency = data.get('currency', 'USD')  # Default to USD
         customer_email = data.get('customer_email')  # Optional, can be overridden
@@ -74,8 +73,7 @@ def generate_payment_link(bill_id):
             'timestamp': hk_now.strftime('%Y%m%d%H%M%S')
         }
         dummy_link = f"https://pay.dummy.com/link/{bill_id}?{urlencode(query_params)}"
-        print(f"[DEBUG] Saving payment link to DB: {dummy_link}")
-        logger.info(f"[DEBUG] Saving payment link to DB: {dummy_link}")
+        logger.info(f"Saving payment link to DB: {dummy_link}")
 
         # Update the database with the dummy payment link
         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (dummy_link, bill_id))

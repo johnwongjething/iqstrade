@@ -15,12 +15,17 @@ from cloudinary_utils import upload_filepath_to_cloudinary
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import datetime
+from datetime import timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 import pytz
 from email_ingestor import handle_email_via_openai, save_draft_reply
 from reportlab.lib.utils import simpleSplit
 from invoice_utils import generate_pdf_from_text
+from email_validation_production import validate_email_with_openai
+import json
+
+logger = logging.getLogger(__name__)
 
 bp_ingest = Blueprint("bp_ingest", __name__)
 
@@ -28,7 +33,7 @@ bp_ingest = Blueprint("bp_ingest", __name__)
 
 
 def debug(msg):
-    print(f"[DEBUG] {msg}")
+    pass  # Debug logging disabled
 
 def warn(msg):
     print(f"[WARNING] {msg}")
@@ -70,6 +75,24 @@ def parse_email(mail, email_id):
     
     # Extract Message-ID
     message_id = msg.get('Message-ID')
+    
+    # Extract actual email date
+    date_header = msg.get('Date')
+    if date_header:
+        try:
+            from email.utils import parsedate_to_datetime
+            from datetime import timezone
+            email_date = parsedate_to_datetime(date_header)
+            # Ensure timezone awareness
+            if email_date.tzinfo is None:
+                email_date = email_date.replace(tzinfo=timezone.utc)
+            debug(f"Extracted email date: {email_date}")
+        except Exception as e:
+            debug(f"Warning: Could not parse date '{date_header}': {e}")
+            email_date = datetime.datetime.now()
+    else:
+        email_date = datetime.datetime.now()
+        debug("No date header found, using current time")
 
     body_text = ""
     attachments = []
@@ -90,7 +113,7 @@ def parse_email(mail, email_id):
             debug("Email body text detected")
     # Mark email as read
     mail.store(email_id, '+FLAGS', '\\Seen')
-    return body_text, attachments, message_id
+    return body_text, attachments, message_id, email_date
 
 # Detect type and extract text
 def extract_text_from_file(filepath):
@@ -196,14 +219,14 @@ def match_payment_to_bls(payment_data):
         warn(f"Payment amount mismatch for BLs: {bls}\nExpected: {total_invoice}, Received: {amount}")
         return matched, False
 
-def process_payment_receipt_email(email_id, from_addr, subject, body_text, attachments, bl_numbers, paid_amount, conn=None):
+def process_payment_receipt_email(email_id, from_addr, subject, body_text, attachments, bl_payment_map, conn=None):
     """
-    Centralized logic to process a payment receipt email.
-    - Uses a provided list of BL numbers.
+    Centralized logic to process a payment receipt email using BL-to-amount mapping.
+    - Uses a provided dict of BL numbers to paid amounts.
     - Uploads receipt (if any) to Cloudinary.
     - Updates the corresponding bill in bill_of_lading.
     - Mark the email as processed_for_payments = TRUE.
-    - Compares paid amount to total invoice amount before updating.
+    - Compares paid amount to invoice amount for each BL before updating.
     """
     import re
     from cloudinary_utils import upload_filepath_to_cloudinary
@@ -217,9 +240,9 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         conn = get_db_conn()
         close_conn = True
     cursor = conn.cursor()
-    
-    if not bl_numbers:
-        print(f"[WARN] No BL number was provided for email {email_id}. Marking as processed.")
+
+    if not bl_payment_map or not isinstance(bl_payment_map, dict):
+        print(f"[WARN] No BL payment map provided for email {email_id}. Marking as processed.")
         cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
         conn.commit()
         if close_conn:
@@ -227,74 +250,57 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
             conn.close()
         return False
 
-    print(f"[DEBUG] Processing payment for email {email_id} with BLs: {bl_numbers} and amount: {paid_amount}")
 
-    # --- Amount Verification ---
-    total_expected_amount = 0
-    bill_ids_to_update = []
-    for bl in bl_numbers:
-        cursor.execute("SELECT id, ctn_fee, service_fee FROM bill_of_lading WHERE bl_number = %s", (bl,))
-        bill_row = cursor.fetchone()
-        if bill_row:
-            bill_ids_to_update.append(bill_row[0])
-            ctn_fee = float(bill_row[1] or 0)
-            service_fee = float(bill_row[2] or 0)
-            total_expected_amount += ctn_fee + service_fee
-    
-    if paid_amount is None or not isinstance(paid_amount, (int, float)):
-        print(f"[WARN] No valid payment amount found in email {email_id}. Cannot verify payment. Flagging for manual review.")
-        # Mark as processed to avoid re-running, but don't update bills
-        cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
-        conn.commit()
-        if close_conn:
-            cursor.close()
-            conn.close()
-        return False
-        
+
     tolerance = 2.0 # Allow for small discrepancies
-    paid_amount_f = float(paid_amount)
-    # If underpaid, flag for manual review. If overpaid, process as normal.
-    if paid_amount_f < total_expected_amount - tolerance:
-        print(f"[WARN] Underpayment for email {email_id}. Expected: {total_expected_amount}, Paid: {paid_amount_f}. Flagging for manual review.")
-        cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
-        conn.commit()
-        if close_conn:
-            cursor.close()
-            conn.close()
-        return False
-    # If exact or overpaid, proceed to process and upload receipt
-    print(f"[INFO] Payment amount verified (or overpaid) for email {email_id}. Proceeding to update bills.")
+    hk_now = datetime.datetime.now(datetime.timezone.utc).astimezone(pytz.timezone('Asia/Hong_Kong')).isoformat()
 
-    # --- Proceed with updating bills since amount is verified ---
     # 1. Look for a PDF attachment first
     receipt_url = None
     for att in attachments:
         if att.lower().endswith('.pdf'):
             receipt_url = upload_filepath_to_cloudinary(att, folder="receipts")
-            print(f"[INFO] Uploaded attached PDF as receipt for bills {bill_ids_to_update}")
+            print(f"\033[92m✅ RECEIPT UPLOADED: {receipt_url} for BLs {list(bl_payment_map.keys())}\033[0m")
             break
-    
+
     # 2. If no PDF, generate one from the email body
     if not receipt_url and body_text:
         try:
-            # Generate a PDF from the email body text.
             temp_pdf_path = generate_pdf_from_text(body_text, f"temp_receipt_{email_id}.pdf")
-            receipt_url = upload_filepath_to_cloudinary(temp_pdf_path, folder="receipts") # Use upload_filepath_to_cloudinary
-            os.remove(temp_pdf_path) # Clean up the temporary file
+            receipt_url = upload_filepath_to_cloudinary(temp_pdf_path, folder="receipts")
+            print(f"\033[92m✅ RECEIPT UPLOADED (from email body): {receipt_url} for BLs {list(bl_payment_map.keys())}\033[0m")
+            os.remove(temp_pdf_path)
         except Exception as e:
             print(f"[ERROR] Failed to generate or upload PDF from email body: {e}")
 
-    hk_now = datetime.datetime.now(datetime.timezone.utc).astimezone(pytz.timezone('Asia/Hong_Kong')).isoformat()
-    if receipt_url:
-        for bill_id in bill_ids_to_update:
+    # 3. For each BL, verify and update
+    for bl, paid_amount in bl_payment_map.items():
+        cursor.execute("SELECT id, ctn_fee, service_fee FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        bill_row = cursor.fetchone()
+        if not bill_row:
+            print(f"[WARN] BL {bl} not found in DB for email {email_id}. Skipping.")
+            continue
+        bill_id = bill_row[0]
+        ctn_fee = float(bill_row[1] or 0)
+        service_fee = float(bill_row[2] or 0)
+        invoice_amount = ctn_fee + service_fee
+        if paid_amount is None or not isinstance(paid_amount, (int, float)):
+            print(f"[WARN] No valid payment amount for BL {bl} in email {email_id}. Skipping.")
+            continue
+        paid_amount_f = float(paid_amount)
+        if paid_amount_f < invoice_amount - tolerance:
+            print(f"[WARN] Underpayment for BL {bl} in email {email_id}. Expected: {invoice_amount}, Paid: {paid_amount_f}. Skipping.")
+            continue
+        # If exact or overpaid, proceed to process and upload receipt
+        if receipt_url:
             cursor.execute("""
                 UPDATE bill_of_lading
                 SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s
                 WHERE id = %s
             """, (receipt_url, hk_now, bill_id))
             print(f"[INFO] Updated bill {bill_id} with receipt from email {email_id}")
-    else:
-        print(f"[WARN] No receipt could be generated for email {email_id}. Bills not updated.")
+        else:
+            print(f"[WARN] No receipt could be generated for email {email_id}. Bill {bill_id} not updated.")
 
     # Mark email as processed
     cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
@@ -304,20 +310,22 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         conn.close()
     return True
 
-# Main
+
 def ingest_emails():
     debug("Ingesting emails from inbox")
     mail = connect_imap()
     if not mail:
         warn("IMAP connection failed, aborting ingestion")
         return []
+
     email_ids = fetch_unread_emails(mail)
     results = []
-    conn = get_db_conn()
-    cursor = conn.cursor()
+    db_conn = get_db_conn()   # FIX: ensure same name
+    cursor = db_conn.cursor()
+
     for eid in email_ids:
-        body_text, attachments, message_id = parse_email(mail, eid)
-        
+        body_text, attachments, message_id, email_date = parse_email(mail, eid)
+
         # Extract sender and subject from email headers
         msg = email.message_from_bytes(mail.fetch(eid, '(RFC822)')[1][0][1])
         subject, encoding = decode_header(msg['Subject'])[0]
@@ -325,46 +333,167 @@ def ingest_emails():
             subject = subject.decode(encoding or 'utf-8')
         from_addr = msg.get('From')
 
-        # --- Prevent Duplicate Emails using an Atomic Insert ---
+        # --- Prevent Duplicate Emails ---
         try:
-            cursor.execute(
-                """
-                INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id) 
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (message_id) DO NOTHING
-                RETURNING id;
-                """,
-                (from_addr, subject, body_text, datetime.datetime.now(), False, message_id)
-            )
-            result = cursor.fetchone()
-            if not result:
-                debug(f"Skipping duplicate email with Message-ID: {message_id}")
-                continue # Skip if the email already existed
-            email_id = result[0]
-            conn.commit()
+            # First, try to insert new email
+            # Handle duplicate detection with better logic
+            if message_id:
+                # Try to insert with message_id
+                cursor.execute(
+                    """
+                    INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (message_id) DO NOTHING
+                    RETURNING id;
+                    """,
+                    (from_addr, subject, body_text, email_date, False, message_id)
+                )
+                result = cursor.fetchone()
+                
+                if result:
+                    # New email inserted successfully
+                    email_id = result[0]
+                    debug(f"✅ New email inserted with ID: {email_id}")
+                else:
+                    # Duplicate detected - get existing email
+                    debug(f"🔄 Duplicate email detected with Message-ID: {message_id}")
+                    
+                    cursor.execute(
+                        "SELECT id FROM customer_emails WHERE message_id = %s",
+                        (message_id,)
+                    )
+                    existing_email = cursor.fetchone()
+                    
+                    if existing_email:
+                        email_id = existing_email[0]
+                        debug(f"✅ Using existing email ID: {email_id}")
+                    else:
+                        debug(f"❌ Duplicate detected but existing email not found for Message-ID: {message_id}")
+                        continue
+            else:
+                # No message_id - use subject + sender + timestamp for duplicate detection
+                debug(f"⚠️ No Message-ID found, using subject-based duplicate detection")
+                
+                # Check for recent duplicate by subject and sender
+                cursor.execute(
+                    """
+                    SELECT id FROM customer_emails 
+                    WHERE sender = %s AND subject = %s 
+                    AND created_at >= %s
+                    ORDER BY created_at DESC LIMIT 1
+                    """,
+                    (from_addr, subject, email_date - timedelta(minutes=5))
+                )
+                recent_duplicate = cursor.fetchone()
+                
+                if recent_duplicate:
+                    debug(f"🔄 Recent duplicate detected by subject: {subject}")
+                    email_id = recent_duplicate[0]
+                else:
+                    # Insert new email without message_id
+                    cursor.execute(
+                        """
+                        INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id) 
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id;
+                        """,
+                        (from_addr, subject, body_text, email_date, False, None)
+                    )
+                    result = cursor.fetchone()
+                    email_id = result[0]
+                    debug(f"✅ New email inserted without Message-ID, ID: {email_id}")
+
+            
+            db_conn.commit()
         except Exception as e:
-            conn.rollback()
-            print(f"[ERROR] Failed to insert new email, skipping. Message-ID: {message_id}, Error: {e}")
+            db_conn.rollback()
+            warn(f"[ERROR] Failed to insert email {message_id}: {e}")
             continue
 
-        # === OpenAI classification and draft ===
-        action = handle_email_via_openai(subject, body_text, attachments, from_addr)
+        # === Save Attachments to Database ===
+        if attachments:
+            debug(f"📎 Processing {len(attachments)} attachments for email {email_id}")
+            
+            # Upload attachments to Cloudinary and save URLs
+            attachment_urls = []
+            for attachment_path in attachments:
+                try:
+                    from cloudinary_utils import upload_filepath_to_cloudinary
+                    cloudinary_url = upload_filepath_to_cloudinary(attachment_path, folder="email_attachments")
+                    attachment_urls.append(cloudinary_url)
+                    debug(f"✅ Uploaded to Cloudinary: {cloudinary_url}")
+                except Exception as e:
+                    warn(f"❌ Failed to upload attachment {attachment_path}: {e}")
+                    # Fallback to local file path
+                    attachment_urls.append(attachment_path)
+            
+            # Update email with attachments
+            if attachment_urls:
+                import json
+                attachment_json = json.dumps(attachment_urls)
+                cursor.execute(
+                    "UPDATE customer_emails SET attachments = %s::jsonb WHERE id = %s",
+                    (attachment_json, email_id)
+                )
+                db_conn.commit()
+                debug(f"✅ Saved {len(attachment_urls)} attachments to database")
+        
+        # === OpenAI classification and routing ===
+        # Add rate limiting to prevent 429 errors
+        try:
+            from openai_rate_limiter import email_rate_limiter
+            
+            # Wait for processing slot if needed
+            if not email_rate_limiter.can_process_email():
+                debug(f"Rate limit: Waiting for email processing slot...")
+                email_rate_limiter.wait_for_slot()
+            
+            action = validate_email_with_openai(subject, body_text, attachments, from_addr, handle_email_via_openai)
+            
+            # Record that email was processed
+            email_rate_limiter.record_email_processed()
+            
+        except Exception as e:
+            warn(f"OpenAI processing error: {e}")
+            # Fallback to basic processing
+            action = {
+                'classification': 'error',
+                'reply': f"Error processing email: {str(e)}",
+                'confidence_score': 0.0,
+                'validation_result': {}
+            }
+
+        # Log validation results
+        if action.get('validation_result', {}).get('needs_reclassification'):
+            debug(f"🚨 Validation issues for email {email_id}: {action['validation_result']}")
+            debug(f"   Missed requests: {action['validation_result'].get('missed_request_types', [])}")
+            debug(f"   Amount issues: {len(action['validation_result'].get('amount_validation_issues', []))}")
+
         classification = action.get('classification')
-        bl_numbers_from_openai = action.get('bl_numbers', []) # Get list of BLs
-        paid_amount_from_openai = action.get('paid_amount') # Get paid amount
-        
-        # === Centralized payment receipt processing ===
-        if classification == "payment_receipt":
-            # Pass the BL numbers and paid amount from OpenAI to the processing function
+        bl_payment_map = action.get('bl_payment_map', {})
+        request_types = action.get("request_types", [])
+        reply_text = action.get('reply', '')
+
+        request_types_lower = [r.lower() for r in request_types]
+        is_payment_related = any(r in request_types_lower for r in ["payment_receipt", "payment_status", "combined_request"])
+
+        if is_payment_related and bl_payment_map:
+            debug("[ROUTING] Detected payment receipt intent — processing receipt upload + DB update.")
             process_payment_receipt_email(
-                email_id, from_addr, subject, body_text, attachments, 
-                bl_numbers_from_openai, paid_amount_from_openai, conn=conn
+                email_id=email_id,
+                from_addr=from_addr,
+                subject=subject,
+                body_text=body_text,
+                attachments=attachments,
+                bl_payment_map=bl_payment_map,
+                conn=db_conn,
             )
-        
-        # Note: Draft saving is now handled inside handle_email_via_openai
-    mail.logout()
+
+        results.append({"email_id": email_id, "classification": classification})
+
     return results
 
+        # Note: Draft saving is now handled inside handle_email_via_openai
 @bp_ingest.route("/admin/email-ingest-errors/<int:error_id>", methods=["DELETE"])
 @jwt_required()
 def delete_email_ingest_error(error_id):
@@ -390,27 +519,84 @@ def process_unprocessed_payment_emails_route():
     Processes emails already in the database that are marked as unprocessed.
     This does NOT fetch new emails from IMAP.
     """
-    conn = get_db_conn()
-    cursor = conn.cursor()
-    # Note: We are now fetching attachments from the stored email, not live from IMAP
-    cursor.execute("SELECT id, sender, subject, body, attachments FROM customer_emails WHERE processed_for_payments=FALSE")
-    emails = cursor.fetchall()
-    processed_count = 0
-    for email_row in emails:
-        email_id, sender, subject, body, attachments_json = email_row
+    try:
+        # Import the email processor to pause background processing
+        from email_processor import pause_email_processor, resume_email_processor
         
-        # We need to simulate the OpenAI classification again or use a stored classification
-        # For simplicity, we will re-classify. For optimization, store the classification.
-        action = handle_email_via_openai(subject, body, [], from_addr=sender) # attachments are not easily available here
+        # Pause background processing temporarily
+        pause_email_processor()
         
-        if action.get('classification') == 'payment_receipt':
-            bl_list = action.get('bl_numbers', [])
-            process_payment_receipt_email(email_id, sender, subject, body, [], bl_list, 0.0, conn=conn) # Pass 0.0 for paid_amount
-            processed_count += 1
-
-    cursor.close()
-    conn.close()
-    return jsonify({'processed_count': processed_count})
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        
+        # Get unprocessed emails
+        cursor.execute("SELECT id, sender, subject, body, attachments FROM customer_emails WHERE processed_for_payments=FALSE")
+        emails = cursor.fetchall()
+        processed_count = 0
+        
+        logger.info(f"🔄 Processing {len(emails)} unprocessed emails manually")
+        
+        for email_row in emails:
+            try:
+                email_id, sender, subject, body, attachments_json = email_row
+                
+                # Parse attachments if they exist
+                attachments = []
+                if attachments_json:
+                    try:
+                        attachments = json.loads(attachments_json)
+                    except:
+                        attachments = []
+                
+                # Classify the email using OpenAI
+                action = validate_email_with_openai(subject, body, attachments, sender, handle_email_via_openai)
+                
+                # Check if it's a payment receipt
+                if action and "payment_receipt" in action.get('request_types', []):
+                    logger.info(f"💰 Processing payment receipt email {email_id}: {subject}")
+                    
+                    # Extract BL numbers and payment amount from OpenAI response
+                    bl_numbers_from_openai = action.get('bl_numbers', [])
+                    paid_amount_from_openai = action.get('paid_amount', 0)
+                    
+                    # Process the payment receipt
+                    process_payment_receipt_email(
+                        email_id, sender, subject, body, attachments,
+                        bl_numbers_from_openai, paid_amount_from_openai, conn=conn
+                    )
+                    processed_count += 1
+                    logger.info(f"✅ Successfully processed email {email_id}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing email {email_row[0]}: {e}")
+                continue
+        
+        cursor.close()
+        conn.close()
+        
+        # Resume background processing
+        resume_email_processor()
+        
+        return jsonify({
+            'status': 'success',
+            'processed_count': processed_count,
+            'total_emails': len(emails),
+            'message': f'Successfully processed {processed_count} out of {len(emails)} unprocessed emails'
+        })
+        
+    except Exception as e:
+        # Resume background processing on error
+        try:
+            from email_processor import resume_email_processor
+            resume_email_processor()
+        except:
+            pass
+        
+        logger.error(f"❌ Error in manual email processing: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error processing emails: {str(e)}'
+        }), 500
 
 if __name__ == "__main__":
     ingest_emails()

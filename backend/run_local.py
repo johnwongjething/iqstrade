@@ -8,12 +8,19 @@ import os
 import sys
 from dotenv import load_dotenv
 
+# Configure logging to reduce noise
+from logging_config import configure_logging
+configure_logging()
+
 # Load local environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env.local'))
 
 # Set environment for local development
 os.environ['FLASK_ENV'] = 'local'
 os.environ['FLASK_DEBUG'] = 'true'
+
+# Enable email scheduler for local development
+os.environ['ENABLE_EMAIL_SCHEDULER'] = 'true'
 
 from flask import Flask
 from config_local import LocalConfig, get_config
@@ -35,15 +42,16 @@ def setup_local_app():
     import config as main_config
     main_config.get_db_conn = get_local_db_conn
     
-    print("=" * 60)
-    print("🚀 LOCAL DEVELOPMENT SERVER STARTING")
-    print("=" * 60)
-    print(f"📁 Environment: {os.getenv('FLASK_ENV', 'local')}")
-    print(f"🔧 Debug Mode: {app.config.get('DEBUG', False)}")
-    print(f"🌐 CORS Origins: {config.CORS_ORIGINS}")
-    print(f"🗄️  Database: {config.DATABASE_URL}")
-    print(f"🤖 OpenAI API: {'✅ Set' if config.OPENAI_API_KEY != 'sk-your_openai_api_key_here' else '❌ NOT SET'}")
-    print("=" * 60)
+    pass  # = * 60
+    pass  # 🚀 LOCAL DEVELOPMENT SERVER STARTING
+    pass  # = * 60
+    pass  # 📁 Environment: {os.getenv('FLASK_ENV', 'local')}
+    pass  # 🔧 Debug Mode: {app.config.get('DEBUG', False)}
+    pass  # 🌐 CORS Origins: {config.CORS_ORIGINS}
+    pass  # 🗄️  Database: {config.DATABASE_URL}
+    pass  # 🤖 OpenAI API: {'✅ Set' if config.OPENAI_API_KEY != 'sk-your_openai_api_key_here' else '❌ NOT SET'}
+    pass  # 📧 Email Scheduler: {'❌ Disabled' if os.getenv('ENABLE_EMAIL_SCHEDULER', 'false').lower() == 'false' else '✅ Enabled'}
+    pass  # = * 60
     
     return app
 
@@ -53,11 +61,11 @@ if __name__ == '__main__':
     
     # Run development server
     try:
-        print("🌐 Starting Flask development server...")
-        print("📱 Frontend should be running on: http://localhost:3000")
-        print("🔧 Backend API will be on: http://localhost:5000")
-        print("⏹️  Press Ctrl+C to stop")
-        print("-" * 60)
+        pass  # 🌐 Starting Flask development server...
+        pass  # 📱 Frontend should be running on: http://localhost:3000
+        pass  # 🔧 Backend API will be on: http://localhost:5000
+        pass  # ⏹️  Press Ctrl+C to stop
+        pass  # - * 60
         
         local_app.run(
             host='0.0.0.0',
@@ -66,7 +74,7 @@ if __name__ == '__main__':
             use_reloader=True
         )
     except KeyboardInterrupt:
-        print("\n🛑 Server stopped by user")
+        pass  # 🛑 Server stopped by user
     except Exception as e:
         print(f"❌ Error starting server: {e}")
         sys.exit(1) 

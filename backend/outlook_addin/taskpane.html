@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IQS Trade AI Assistant</title>
+
+    <!-- Office JavaScript API -->
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+
+    <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui -->
+    <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css" />
+
+    <!-- Template styles -->
+    <link href="taskpane.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="ms-font-m ms-welcome">
+    <div id="container">
+        <!-- Header -->
+        <header class="ms-welcome__header">
+            <h1 class="ms-font-xl">🤖 IQS Trade AI Assistant</h1>
+            <p class="ms-font-m">View and send AI-generated responses</p>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading AI drafts...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="error-container" style="display: none;">
+            <p id="error-message">An error occurred</p>
+            <button onclick="loadDrafts()" class="ms-Button">Retry</button>
+        </div>
+
+        <!-- Main Content -->
+        <div id="content" class="content-container" style="display: none;">
+            <!-- Current Email Info -->
+            <div class="email-info">
+                <h3>📧 Current Email</h3>
+                <div id="current-email">
+                    <p><strong>From:</strong> <span id="email-from">Loading...</span></p>
+                    <p><strong>Subject:</strong> <span id="email-subject">Loading...</span></p>
+                </div>
+            </div>
+
+            <!-- AI Drafts Section -->
+            <div class="drafts-section">
+                <h3>🤖 AI Generated Responses</h3>
+                <div id="drafts-list">
+                    <!-- Drafts will be loaded here -->
+                </div>
+            </div>
+
+            <!-- No Drafts Message -->
+            <div id="no-drafts" class="no-drafts" style="display: none;">
+                <p>No AI drafts found for this email.</p>
+                <button onclick="processCurrentEmail()" class="ms-Button ms-Button--primary">
+                    Process Email with AI
+                </button>
+            </div>
+        </div>
+
+        <!-- Draft Detail Modal -->
+        <div id="draft-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>AI Response Preview</h3>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="draft-content"></div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="sendDraft()" class="ms-Button ms-Button--primary">Send Response</button>
+                    <button onclick="closeModal()" class="ms-Button">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="taskpane.js"></script>
+</body>
+</html> 

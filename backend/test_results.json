@@ -1,0 +1,67 @@
+[
+  {
+    "filename": "2201003.NYC.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "2206002.NYC.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "account_page (4).pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "b0994f47-71dc-48ef-a6b1-c3add4a356ab.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL1.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL2.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL3.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL4.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL5.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "BILL6.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "ootb_04_sw_03_SD-1 - Copy.PDF",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "Screenshot_20250702_151730_Chrome.PDF",
+    "status": "failed",
+    "error": "No text extracted"
+  },
+  {
+    "filename": "__ MAERSK LINE - New Page 1.pdf",
+    "status": "failed",
+    "error": "No text extracted"
+  }
+]

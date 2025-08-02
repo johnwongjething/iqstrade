@@ -1,0 +1,782 @@
+[
+  {
+    "file": "b0994f47-71dc-48ef-a6b1-c3add4a356ab.pdf",
+    "status": "success",
+    "processing_time": 11.556972026824951,
+    "extraction_method": "vision_api",
+    "document_format": "Air Waybill",
+    "field_accuracy": 85.71428571428571,
+    "populated_fields": 6,
+    "total_fields": 7,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.5700000000000001,
+    "key_fields": {
+      "consignee": "CABLE BIG STORE",
+      "port_of_loading": "NEW YORK",
+      "port_of_discharge": "HEATHROW",
+      "bl_number": "001-12345678",
+      "container_numbers": "",
+      "flight_or_vessel": "AA1234/12",
+      "shipper": "CABLE AND STEEL COMPANY"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.3,
+      "weight_detection": 0.2,
+      "shipment_classification": 0.7,
+      "field_validation": 1.0,
+      "overall": 0.5700000000000001
+    },
+    "raw_text_length": 29,
+    "pricing_method": "default",
+    "calculation_details": {
+      "method": "default",
+      "reason": "No specific pricing data available"
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL6.pdf",
+    "status": "success",
+    "processing_time": 2.9097650051116943,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS LTD",
+      "port_of_loading": "JAPAN",
+      "port_of_discharge": "HONG KONG",
+      "bl_number": "NYC2212345",
+      "container_numbers": "OOCU7645765, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "shipper": "RAY WONG LTD"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3110,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "Screenshot_20250702_151730_Chrome.PDF",
+    "status": "success",
+    "processing_time": 43.280519008636475,
+    "extraction_method": "vision_api",
+    "document_format": "",
+    "field_accuracy": 71.42857142857143,
+    "populated_fields": 5,
+    "total_fields": 7,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.5700000000000001,
+    "key_fields": {
+      "consignee": "DECIMER DESPACHOS ADUANEIROS S.A.\nAV. MERCEDES BENZ, NO. 679, PREDIO\nA 02, DISTRITO INDUSTRIAL 13054-750\nCAMPINAS SP BRAZIL\nATTN: RENATA MARTINS",
+      "port_of_loading": "MIAMI, FL",
+      "port_of_discharge": "SALVADOR BAHIA",
+      "bl_number": "fallback",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "shipper": "MELECO GROUP INTL., INC.\n4421 CONLIN ST., SUITE 202\nMETAIRIE, LA 70006"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.3,
+      "weight_detection": 0.2,
+      "shipment_classification": 0.7,
+      "field_validation": 1.0,
+      "overall": 0.5700000000000001
+    },
+    "raw_text_length": 29,
+    "pricing_method": "default",
+    "calculation_details": {
+      "method": "default",
+      "reason": "No specific pricing data available"
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "__ MAERSK LINE - New Page 1.pdf",
+    "status": "success",
+    "processing_time": 9.37279462814331,
+    "extraction_method": "vision_api",
+    "document_format": "BILL OF LADING FOR OCEAN TRANSPORT OR MULTIMODAL TRANSPORT",
+    "field_accuracy": 85.71428571428571,
+    "populated_fields": 6,
+    "total_fields": 7,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.5700000000000001,
+    "key_fields": {
+      "consignee": "WESSEX PICTURES",
+      "port_of_loading": "Laem Chabang, Thailand",
+      "port_of_discharge": "Felixstowe",
+      "bl_number": "602436760",
+      "container_numbers": "",
+      "flight_or_vessel": "SCT VIETNAM v.1292",
+      "shipper": "GUARDIAN INDUSTRIES CORP LTD."
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.3,
+      "weight_detection": 0.2,
+      "shipment_classification": 0.7,
+      "field_validation": 1.0,
+      "overall": 0.5700000000000001
+    },
+    "raw_text_length": 29,
+    "pricing_method": "default",
+    "calculation_details": {
+      "method": "default",
+      "reason": "No specific pricing data available"
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "account_page (4).pdf",
+    "status": "success",
+    "processing_time": 2.5281107425689697,
+    "extraction_method": "ai",
+    "document_format": "",
+    "field_accuracy": 71.42857142857143,
+    "populated_fields": 5,
+    "total_fields": 7,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.6100000000000001,
+    "key_fields": {
+      "consignee": "tal Entries: 2",
+      "port_of_loading": "Account Page Report",
+      "port_of_discharge": "Account Page Report",
+      "bl_number": "ctnFee",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "shipper": "Acco"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.3,
+      "weight_detection": 0.2,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.6100000000000001
+    },
+    "raw_text_length": 308,
+    "pricing_method": "default",
+    "calculation_details": {
+      "method": "default",
+      "reason": "No specific pricing data available"
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL1.pdf",
+    "status": "success",
+    "processing_time": 23.10955810546875,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "LARGOS",
+      "bl_number": "NYC2206288",
+      "container_numbers": "OOCU7645789, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD."
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3159,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL2.pdf",
+    "status": "success",
+    "processing_time": 23.338719367980957,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "HONG KONG",
+      "bl_number": "NYC2206288",
+      "container_numbers": "LLCU7645999, AAAA6789999",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD."
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3165,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL3.pdf",
+    "status": "success",
+    "processing_time": 27.127949237823486,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS LTD",
+      "port_of_loading": "SHENZHEN",
+      "port_of_discharge": "NEW YORK, NY",
+      "bl_number": "NYC2201666",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "shipper": "SOLEX LTD"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3454,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL4.pdf",
+    "status": "success",
+    "processing_time": 25.242944955825806,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 85.71428571428571,
+    "populated_fields": 6,
+    "total_fields": 7,
+    "container_count": 3,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [
+      "port_of_discharge"
+    ],
+    "has_critical_missing": false,
+    "confidence": 0.8500000000000001,
+    "key_fields": {
+      "consignee": "SO FUN NIGERIA",
+      "port_of_loading": "SHANGHAI",
+      "port_of_discharge": "",
+      "bl_number": "NYC2201777",
+      "container_numbers": "SLVU4877415, VOLU4543799, BBBB4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "shipper": "JETHING INT LTD"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 0.8,
+      "overall": 0.8500000000000001
+    },
+    "raw_text_length": 3535,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 3,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [
+        "port_of_discharge"
+      ],
+      "has_critical_missing": false,
+      "confidence_score": 0.8,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "BILL5.pdf",
+    "status": "failed",
+    "processing_time": 3.199601411819458,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 85.71428571428571,
+    "populated_fields": 6,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [
+      "shipper"
+    ],
+    "has_critical_missing": true,
+    "confidence": 0.8500000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS",
+      "port_of_loading": "HONG KONG",
+      "port_of_discharge": "NIGERIA",
+      "bl_number": "NYC2207777",
+      "container_numbers": "OOCU7645898, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "shipper": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 0.8,
+      "overall": 0.8500000000000001
+    },
+    "raw_text_length": 3103,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [
+        "shipper"
+      ],
+      "has_critical_missing": true,
+      "confidence_score": 0.8,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "2201003.NYC.pdf",
+    "status": "success",
+    "processing_time": 23.724074840545654,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "HAYWARD INDUSTRIES, INC.",
+      "port_of_loading": "NANSHA, CHINA",
+      "port_of_discharge": "NEW YORK, NY",
+      "bl_number": "NYC2201003",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "shipper": "STAR RAPID LIMITED"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3437,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  },
+  {
+    "file": "2206002.NYC.pdf",
+    "status": "success",
+    "processing_time": 22.593865394592285,
+    "extraction_method": "ai",
+    "document_format": "BOL",
+    "field_accuracy": 100.0,
+    "populated_fields": 7,
+    "total_fields": 7,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "revalidation_performed": false,
+    "missing_fields": [],
+    "has_critical_missing": false,
+    "confidence": 0.9100000000000001,
+    "key_fields": {
+      "consignee": "HAYWARD INDUSTRIES",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "NEW YORK",
+      "bl_number": "NYC2206002",
+      "container_numbers": "OOCU7645070, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD."
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "confidence_breakdown": {
+      "container_detection": 0.9,
+      "weight_detection": 0.8,
+      "shipment_classification": 0.9,
+      "field_validation": 1.0,
+      "overall": 0.9100000000000001
+    },
+    "raw_text_length": 3113,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    },
+    "validation_result": {
+      "missing_fields": [],
+      "has_critical_missing": false,
+      "confidence_score": 1.0,
+      "needs_revalidation": false,
+      "revalidation_performed": false
+    }
+  }
+]

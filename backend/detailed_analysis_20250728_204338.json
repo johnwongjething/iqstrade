@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "total_files": 13,
+    "successful": 8,
+    "failed": 5,
+    "success_rate": 61.53846153846154
+  },
+  "missing_fields_analysis": {
+    "consignee": 0,
+    "port_of_loading": 0,
+    "port_of_discharge": 4,
+    "bl_number": 0,
+    "container_numbers": 0,
+    "flight_or_vessel": 0
+  },
+  "extraction_methods": {
+    "ai": 8
+  },
+  "common_issues": [],
+  "recommendations": []
+}

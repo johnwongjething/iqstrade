@@ -1,7 +1,7 @@
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from utils.security import encrypt_sensitive_data, decrypt_sensitive_data, validate_password
-from config import get_db_conn
+from config import get_db_conn, return_db_conn
 from utils.helpers import get_hk_date_range
 import os
 import cloudinary
@@ -15,16 +15,33 @@ from invoice_utils import generate_invoice_pdf
 import tempfile
 from ocr_processor import extract_fields_openai
 from extract_fields import extract_fields as extract_fields_legacy
+from ocr_processor_enhanced_v5 import extract_fields_openai_enhanced_v5
 
 bill_routes = Blueprint('bill_routes', __name__)
-print('[DEBUG] Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage')
+# Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage
+
+def convert_decimals_to_float(obj):
+    """Convert Decimal objects to float for JSON serialization"""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if hasattr(value, '__class__') and value.__class__.__name__ == 'Decimal':
+                obj[key] = float(value)
+            elif isinstance(value, (dict, list)):
+                convert_decimals_to_float(value)
+    elif isinstance(obj, list):
+        for i, value in enumerate(obj):
+            if hasattr(value, '__class__') and value.__class__.__name__ == 'Decimal':
+                obj[i] = float(value)
+            elif isinstance(value, (dict, list)):
+                convert_decimals_to_float(value)
+    return obj
 
 # Bill and file-related endpoints
 # /bills, /bill/<id>, /uploads/<filename>, /upload, /bill/<id>/upload_receipt, /bill/<id>/unique_number, /send_unique_number_email, /send_invoice_email, /bill/<id>/delete, /generate_payment_link/<id>, /bills/status/<status>, /bills/awaiting_bank_in
 
 # --- AUTO-INVOICE GENERATION FUNCTION ---
 def auto_generate_invoice_for_bill(bill):
-    print(f"Checking OCR completeness for BL id {bill['id']}")
+            # Checking OCR completeness for BL id {bill['id']}
     try:
         ocr_fields = json.loads(bill.get('ocr_text') or '{}')
     except Exception as e:
@@ -37,46 +54,50 @@ def auto_generate_invoice_for_bill(bill):
     ]
     missing = [field for field in required if not ocr_fields.get(field)]
     if missing:
-        print(f"OCR incomplete for BL id {bill['id']}, missing: {missing}. Skipping automation.")
+        # OCR incomplete for BL id {bill['id']}, missing: {missing}. Skipping automation.
         return False
 
-    print(f"OCR complete, proceeding with auto-invoice for BL id {bill['id']}")
+            # OCR complete, proceeding with auto-invoice for BL id {bill['id']}
     conn = get_db_conn()
     cur = conn.cursor()
 
-    # Set ctn_fee and service_fee based on number of containers
-    import re
-    container_numbers = bill.get('container_numbers', '')
-    container_list = [c for c in re.split(r'[,\s]+', container_numbers.strip()) if c]
-    num_containers = len(container_list) if container_list else 1
-    ctn_fee = 100 * num_containers
-    service_fee = 100 * num_containers
+    # Use calculated fees from enhanced OCR, fallback to container-based calculation
+    ctn_fee = bill.get('calculated_ctn_fee')
+    service_fee = bill.get('calculated_service_fee')
+    
+    # Fallback to container-based calculation if calculated fees are not available
+    if ctn_fee is None or service_fee is None:
+        import re
+        container_numbers = bill.get('container_numbers', '')
+        container_list = [c for c in re.split(r'[,\s]+', container_numbers.strip()) if c]
+        num_containers = len(container_list) if container_list else 1
+        ctn_fee = 100 * num_containers
+        service_fee = 100 * num_containers
+        # Using fallback fees
+    else:
+        pass  # Using calculated fees
 
     # --- Unique number generation and DB update ---
     import random
     import string
     unique_number = bill.get('unique_number')
     if not unique_number:
-        print(f"[DEBUG] Generating new Unique Number for BL id {bill['id']}")
         letters = ''.join(random.choices(string.ascii_uppercase, k=3))
         numbers = ''.join(random.choices(string.digits, k=6))
         unique_number = letters + numbers
-        print(f"[DEBUG] Generated new Unique Number for BL id {bill['id']}: {unique_number}")
         # Update DB
         cur.execute("""
             UPDATE bill_of_lading SET unique_number = %s WHERE id = %s
         """, (unique_number, bill['id']))
         conn.commit()
-        print(f"[DEBUG] DB updated with new Unique Number for BL id {bill['id']}")
 
     # Generate payment link (after fees and unique_number are set)
     payment_link = bill.get('payment_link')
     if not payment_link:
-        print("[DEBUG] Generating payment link for BL id {}".format(bill['id']))
         payment_link = f"https://pay.example.com/{bill['id']}?ctn={ctn_fee}&svc={service_fee}&uniquenum={unique_number}"
 
     # Generate invoice PDF
-    print("Generating invoice PDF for BL id {}".format(bill['id']))
+            # Generating invoice PDF for BL id {bill['id']}
     customer = {
         'name': bill.get('customer_name', ''),
         'email': bill.get('customer_email', ''),
@@ -87,11 +108,11 @@ def auto_generate_invoice_for_bill(bill):
         invoice_local_path = tmp.name
 
     generate_invoice_pdf(customer, bill, service_fee, ctn_fee, payment_link, output_path=invoice_local_path)
-    print(f"Invoice generated at: {invoice_local_path}")
+            # Invoice generated at: {invoice_local_path}
 
-    print("Uploading to Cloudinary for BL id {}".format(bill['id']))
+            # Uploading to Cloudinary for BL id {bill['id']}
     cloud_url = upload_filepath_to_cloudinary(invoice_local_path, folder="invoices")
-    print(f"Invoice uploaded to Cloudinary: {cloud_url}")
+            # Invoice uploaded to Cloudinary: {cloud_url}
 
     # Update DB
     cur.execute("""
@@ -100,7 +121,7 @@ def auto_generate_invoice_for_bill(bill):
         WHERE id=%s
     """, (ctn_fee, service_fee, payment_link, cloud_url, bill['id']))
     conn.commit()
-    print("DB updated with invoice_filename and payment_link for BL id {}".format(bill['id']))
+            # DB updated with invoice_filename and payment_link for BL id {bill['id']}
 
     cur.close()
     conn.close()
@@ -147,8 +168,9 @@ def get_all_bills():
     cur.execute(count_query, tuple(params))
     total_count = cur.fetchone()[0]
     query = f'''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
-               flight_or_vessel, product_description, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, notify_party, port_of_loading, port_of_discharge, bl_number, container_numbers,
+               flight_or_vessel, product_description, service_fee, ctn_fee, calculated_ctn_fee, calculated_service_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+               shipment_type, container_type, container_count, container_count_20ft, container_count_40ft, container_count_40ft_hc, total_weight_kg, weight_unit, pricing_method, ocr_confidence_score, pricing_calculation_log
         FROM bill_of_lading
         {where_sql}
         ORDER BY id DESC
@@ -164,6 +186,11 @@ def get_all_bills():
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone') is not None:
             bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        # Convert Decimal objects to float
+        convert_decimals_to_float(bill_dict)
+        
+        # Container and vessel info processed
+        
         bills.append(bill_dict)
     cur.close()
     conn.close()
@@ -192,6 +219,8 @@ def get_bill(id):
         bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
     if bill.get('customer_phone') is not None:
         bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+    # Convert Decimal objects to float
+    convert_decimals_to_float(bill)
     cur.close()
     conn.close()
       # --- AUTO-INVOICE GENERATION ---
@@ -229,7 +258,7 @@ def upload_file():
     # [DEBUG] Migration: No local upload dir, using Cloudinary
     user = json.loads(get_jwt_identity())
     username = user['username']
-    print(f"[DEBUG] Upload triggered by username: {username}")
+    # Upload triggered by username
     try:
         name = request.form.get('name')
         email = request.form.get('email')
@@ -237,11 +266,27 @@ def upload_file():
         bill_pdfs = request.files.getlist('bill_pdf')
         invoice_pdf = request.files.get('invoice_pdf')
         packing_pdf = request.files.get('packing_pdf')
-        if not name:
-            return jsonify({'error': 'Name is required'}), 400
+        
+        # Debug: Print what we received
+        print(f"🔍 DEBUG - Form data received:")
+        print(f"  name: '{name}'")
+        print(f"  email: '{email}'")
+        print(f"  phone: '{phone}'")
+        print(f"  bill_pdfs count: {len(bill_pdfs)}")
+        print(f"  invoice_pdf: {invoice_pdf is not None}")
+        print(f"  packing_pdf: {packing_pdf is not None}")
+        print(f"  All form keys: {list(request.form.keys())}")
+        print(f"  All files keys: {list(request.files.keys())}")
+        
+        # Use username as fallback if name is empty
+        if not name or not name.strip():
+            name = username
+        
         if not email:
+            print(f"❌ Email validation failed - email is empty or None")
             return jsonify({'error': 'Email is required'}), 400
         if not phone:
+            print(f"❌ Phone validation failed - phone is empty or None")
             return jsonify({'error': 'Phone is required'}), 400
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
@@ -277,32 +322,79 @@ def upload_file():
             for bill_pdf in bill_pdfs:
                 pdf_url, local_path, orig_filename = save_file_with_timestamp_and_cloudinary(bill_pdf, 'bill')
                 fields = {}
+                ocr_status = "failed"
                 if bill_pdf:
                     try:
                         if username == 'ray40':
-                            print('[DEBUG] Using OpenAI extraction for user ray40')
-                            fields = extract_fields_openai(local_path)
+                            # User ray40 uses OpenAI OCR
+                            fields = extract_fields_openai_enhanced_v5(local_path)
+                            ocr_status = "success" if fields else "failed"
                         else:
-                            print(f'[DEBUG] Using legacy extraction for user {username}')
+                            # Other users use Google Vision OCR
                             fields = extract_fields_legacy(local_path)
+                            ocr_status = "success" if fields else "failed"
                     except Exception as e:
-                        print(f'[DEBUG] Extraction error: {e}')
-                        fields = {}
+                        # Fallback to legacy extraction
+                        try:
+                            if username == 'ray40':
+                                # Fallback for ray40: try OpenAI again
+                                fields = extract_fields_openai_enhanced_v5(local_path)
+                            else:
+                                # Fallback for others: try legacy again
+                                fields = extract_fields_legacy(local_path)
+                            ocr_status = "success" if fields else "failed"
+                        except Exception as e2:
+                            fields = {}
+                            ocr_status = "failed"
+                
+                # Ensure we always have basic fields even if OCR fails
+                if not fields:
+                    fields = {
+                        'shipper': '',
+                        'consignee': '',
+                        'notify_party': '',
+                        'port_of_loading': '',
+                        'port_of_discharge': '',
+                        'bl_number': '',
+                        'container_numbers': '',
+                        'flight_or_vessel': '',
+                        'product_description': '',
+                        'shipment_type': 'ocean',
+                        'container_count': 1,
+                        'container_count_20ft': 0,
+                        'container_count_40ft': 0,
+                        'container_count_40ft_hc': 0,
+                        'total_weight_kg': None,
+                        'weight_unit': 'kg',
+                        'pricing_method': 'container',
+                        'calculated_ctn_fee': None,
+                        'calculated_service_fee': None,
+                        'ocr_confidence_score': 0.0,
+                        'pricing_calculation_log': {},
+                        'ocr_status': ocr_status
+                    }
+                
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
                 conn = get_db_conn()
                 cur = conn.cursor()
+                
+                # Use enhanced fields for database insertion
                 cur.execute("""
                     INSERT INTO bill_of_lading (
                         customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
-                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                        shipper, consignee, notify_party, port_of_loading, port_of_discharge, bl_number, container_numbers,
                         flight_or_vessel, product_description, status,
-                        customer_username, created_at, customer_invoice, customer_packing_list
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        customer_username, created_at, customer_invoice, customer_packing_list,
+                        shipment_type, container_type, container_count, container_count_20ft, container_count_40ft, container_count_40ft_hc,
+                        total_weight_kg, weight_unit, pricing_method, calculated_ctn_fee, calculated_service_fee, 
+                        ocr_confidence_score, pricing_calculation_log
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     name, str(email), str(phone), pdf_url, fields_json,
                     str(fields.get('shipper', '')),
                     str(fields.get('consignee', '')),
+                    str(fields.get('notify_party', '')),
                     str(fields.get('port_of_loading', '')),
                     str(fields.get('port_of_discharge', '')),
                     str(fields.get('bl_number', '')),
@@ -313,14 +405,33 @@ def upload_file():
                     username,
                     hk_now,
                     customer_invoice,
-                    customer_packing_list
+                    customer_packing_list,
+                    fields.get('shipment_type', 'ocean'),
+                    fields.get('container_type'),
+                    fields.get('container_count', 1),
+                    fields.get('container_count_20ft', 0),
+                    fields.get('container_count_40ft', 0),
+                    fields.get('container_count_40ft_hc', 0),
+                    fields.get('total_weight_kg'),
+                    fields.get('weight_unit', 'kg'),
+                    fields.get('pricing_method', 'container'),
+                    fields.get('calculated_ctn_fee'),
+                    fields.get('calculated_service_fee'),
+                    fields.get('ocr_confidence_score'),
+                    json.dumps(fields.get('pricing_calculation_log', {}))
                 ))
                 conn.commit()
+                
                 # Fetch newly inserted BOL row
                 cur.execute("SELECT * FROM bill_of_lading WHERE id = (SELECT MAX(id) FROM bill_of_lading)")
                 bill_row = cur.fetchone()
                 columns = [desc[0] for desc in cur.description]
                 bill = dict(zip(columns, bill_row)) if bill_row else None
+                
+                # Convert Decimal objects to float for JSON serialization
+                if bill:
+                    convert_decimals_to_float(bill)
+                
                 if bill:
                     if username == 'ray40':
                         auto_generate_invoice_for_bill(bill)
@@ -363,6 +474,53 @@ def upload_file():
                 send_simple_email(email, subject, body)
         except Exception as e:
             print(f"Failed to send confirmation email: {str(e)}")
+        
+        # Send FCM push notification for new file upload
+        try:
+            from fcm_service_modern import fcm_service
+            # Get all FCM tokens for notifications
+            conn = get_db_conn()
+            cur = conn.cursor()
+            
+            # Try different possible column names for the token
+            try:
+                cur.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+            except:
+                try:
+                    cur.execute('SELECT fcm_token FROM fcm_tokens WHERE is_active = TRUE')
+                except:
+                    try:
+                        cur.execute('SELECT * FROM fcm_tokens LIMIT 1')
+                        columns = [desc[0] for desc in cur.description]
+                        token_column = next((col for col in columns if 'token' in col.lower()), 'token')
+                        cur.execute(f'SELECT {token_column} FROM fcm_tokens')
+                    except Exception as e:
+                        print(f"Could not query fcm_tokens table: {e}")
+                        tokens = []
+                        return
+            
+            tokens = [row[0] for row in cur.fetchall()]
+            cur.close()
+            return_db_conn(conn)
+            
+            if tokens:
+                fcm_service.send_notification(
+                    tokens=tokens,
+                    title='📁 New File Upload',
+                    body=f'{uploaded_count} new bill(s) uploaded by {name}',
+                    data={
+                        'type': 'new_upload',
+                        'uploader': name,
+                        'count': str(uploaded_count),  # Convert to string
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+                print(f"✅ FCM notification sent for new upload: {uploaded_count} files by {name}")
+            else:
+                print("ℹ️ No FCM tokens found for notifications")
+        except Exception as e:
+            print(f"Failed to send FCM notification: {str(e)}")
+        
         return jsonify({'message': f'Upload successful! {uploaded_count} bill(s) uploaded.'})
     except Exception as e:
         return jsonify({'error': f'Error processing upload: {str(e)}'}), 400
@@ -376,9 +534,7 @@ def upload_receipt(id):
         receipt = request.files.get('receipt')
         if not receipt:
             return jsonify({'error': 'Receipt PDF file is required'}), 400
-        print(f"[DEBUG] Uploading receipt to Cloudinary: {receipt.filename}")
         cloud_url = upload_filelike_to_cloudinary(receipt, folder="receipts")
-        print(f"[DEBUG] Cloudinary result for receipt: {cloud_url}")
         hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
         conn = get_db_conn()
         cur = conn.cursor()
@@ -387,7 +543,6 @@ def upload_receipt(id):
             SET receipt_filename = %s, status = %s, receipt_uploaded_at = %s
             WHERE id = %s
         """, (cloud_url, 'Awaiting Bank In', hk_now, id))
-        print(f"[DEBUG] Saving secure Cloudinary URL to DB: {cloud_url}")
         conn.commit()
         cur.close()
         conn.close()
@@ -483,7 +638,6 @@ def send_invoice_email():
         body = data.get('body', 'Please find your invoice attached.')
         pdf_url = data.get('pdf_url')
         # Use Cloudinary URL directly
-        print(f"[DEBUG] Sending invoice email with Cloudinary URL: {pdf_url}")
         from email_utils import send_invoice_email as send_invoice_email_util
         success = send_invoice_email_util(to_email, subject, body, pdf_url)
         if success:
@@ -669,14 +823,11 @@ def update_bill(id):
                 'email': bill['customer_email'],
                 'phone': bill['customer_phone']
             }
-            print(f"[DEBUG] Generating invoice PDF for bill {id}")
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
                 invoice_local_path = tmp.name
             # Pass the temp file path to generate_invoice_pdf so it writes to the correct location
             generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'), output_path=invoice_local_path)
-            print(f"[DEBUG] Invoice generated at: {invoice_local_path}")
             cloud_url = upload_filepath_to_cloudinary(invoice_local_path, folder="invoices")
-            print(f"[DEBUG] Invoice uploaded to Cloudinary: {cloud_url}")
             bill['invoice_filename'] = cloud_url
             # Save Cloudinary URL to DB
             cur.execute("UPDATE bill_of_lading SET invoice_filename=%s WHERE id=%s", (cloud_url, id))
@@ -684,9 +835,7 @@ def update_bill(id):
             # Delete local file
             if os.path.exists(invoice_local_path):
                 os.remove(invoice_local_path)
-                print(f"[DEBUG] Deleted local file after Cloudinary upload: {invoice_local_path}")
         except Exception as e:
-            print(f"[DEBUG] Error generating/uploading invoice PDF: {str(e)}")
             import traceback
             traceback.print_exc()
         cur.close()
@@ -828,7 +977,6 @@ def account_bills():
 
     if completed_at:
         start_date, end_date = get_hk_date_range(completed_at)
-        print("DEBUG: start_date", start_date, "end_date", end_date)
         where_clauses.append(
             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
@@ -960,8 +1108,10 @@ def extract_fields_endpoint():
         pdf_file.save(pdf_path)
     try:
         if username == 'ray40':
-            fields = extract_fields_openai(pdf_path)
+            # User ray40 uses OpenAI OCR
+            fields = extract_fields_openai_enhanced_v5(pdf_path)
         else:
+            # Other users use Google Vision OCR
             fields = extract_fields_legacy(pdf_path)
         return jsonify({'fields': fields})
     finally:
@@ -1153,3 +1303,187 @@ def account_bills_monthly():
     cur.close()
     conn.close()
     return jsonify({'bills': bills, 'summary': summary})
+
+@bill_routes.route('/override_pricing', methods=['POST'])
+@jwt_required()
+def override_pricing_endpoint():
+    """Manual override of pricing when OCR makes errors"""
+    user = json.loads(get_jwt_identity())
+    username = user['username']
+    
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['bill_id', 'ctn_fee', 'service_fee', 'override_reason']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Get current bill data
+        cur.execute("""
+            SELECT ctn_fee, service_fee, calculated_ctn_fee, calculated_service_fee
+            FROM bill_of_lading WHERE id = %s
+        """, (data['bill_id'],))
+        bill = cur.fetchone()
+        
+        if not bill:
+            return jsonify({'error': 'Bill not found'}), 404
+        
+        original_ctn_fee, original_service_fee, calculated_ctn_fee, calculated_service_fee = bill
+        
+        # Update bill with override
+        hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+        cur.execute("""
+            UPDATE bill_of_lading
+            SET ctn_fee = %s, service_fee = %s, manual_override = TRUE,
+                override_reason = %s, override_by = %s, override_at = %s,
+                last_pricing_update = %s
+            WHERE id = %s
+        """, (
+            data['ctn_fee'], data['service_fee'], data['override_reason'],
+            username, hk_now, hk_now, data['bill_id']
+        ))
+        
+        # Log the override for audit
+        cur.execute("""
+            INSERT INTO pricing_overrides (
+                bill_of_lading_id, original_ctn_fee, original_service_fee,
+                new_ctn_fee, new_service_fee, reason, overridden_by, notes
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data['bill_id'], original_ctn_fee, original_service_fee,
+            data['ctn_fee'], data['service_fee'], data['override_reason'],
+            username, data.get('notes', '')
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'message': 'Pricing override saved successfully',
+            'original_ctn_fee': original_ctn_fee,
+            'original_service_fee': original_service_fee,
+            'new_ctn_fee': data['ctn_fee'],
+            'new_service_fee': data['service_fee']
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error saving override: {str(e)}'}), 400
+
+@bill_routes.route('/recalculate_fees', methods=['POST'])
+@jwt_required()
+def recalculate_fees():
+    """Recalculate fees based on updated container/weight information"""
+    try:
+        data = request.get_json()
+        bill_id = data.get('bill_id')
+        container_count = data.get('container_count')
+        total_weight_kg = data.get('total_weight_kg')
+        shipment_type = data.get('shipment_type', 'ocean')
+        
+        if not bill_id:
+            return jsonify({'error': 'Bill ID is required'}), 400
+        
+        # Get pricing configuration
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        
+        # Get pricing based on shipment type
+        cursor.execute("""
+            SELECT ctn_fee_per_unit, service_fee_per_unit, unit_type, minimum_charge
+            FROM pricing_config 
+            WHERE shipment_type = %s AND is_active = TRUE
+            ORDER BY container_type NULLS LAST
+            LIMIT 1
+        """, (shipment_type,))
+        
+        pricing = cursor.fetchone()
+        
+        if not pricing:
+            # Fallback to default pricing
+            ctn_fee_per_unit = 100.0
+            service_fee_per_unit = 100.0
+            unit_type = 'container'
+            minimum_charge = 200.0
+        else:
+            ctn_fee_per_unit = float(pricing[0]) if pricing[0] else 100.0
+            service_fee_per_unit = float(pricing[1]) if pricing[1] else 100.0
+            unit_type = pricing[2] if pricing[2] else 'container'
+            minimum_charge = float(pricing[3]) if pricing[3] else 200.0
+        
+        # Calculate fees based on unit type
+        if unit_type == 'container' and container_count:
+            ctn_fee = ctn_fee_per_unit * container_count
+            service_fee = service_fee_per_unit * container_count
+        elif unit_type == 'kg' and total_weight_kg:
+            ctn_fee = ctn_fee_per_unit * total_weight_kg
+            service_fee = service_fee_per_unit * total_weight_kg
+        else:
+            ctn_fee = ctn_fee_per_unit
+            service_fee = service_fee_per_unit
+        
+        # Apply minimum charge
+        total_fee = ctn_fee + service_fee
+        if total_fee < minimum_charge:
+            ratio = minimum_charge / total_fee if total_fee > 0 else 1
+            ctn_fee *= ratio
+            service_fee *= ratio
+        
+        # Update the bill with recalculated fees
+        cursor.execute("""
+            UPDATE bill_of_lading 
+            SET calculated_ctn_fee = %s, calculated_service_fee = %s,
+                container_count = %s, total_weight_kg = %s, shipment_type = %s
+            WHERE id = %s
+        """, (ctn_fee, service_fee, container_count, total_weight_kg, shipment_type, bill_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'calculated_ctn_fee': round(ctn_fee, 2),
+            'calculated_service_fee': round(service_fee, 2),
+            'total_fee': round(ctn_fee + service_fee, 2),
+            'pricing_method': unit_type
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to recalculate fees: {str(e)}'}), 500
+
+@bill_routes.route('/pricing_config', methods=['GET'])
+@jwt_required()
+def get_pricing_config():
+    """Get current pricing configuration"""
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT shipment_type, container_type, pricing_method, 
+                   ctn_fee_per_unit, service_fee_per_unit, unit_type, 
+                   minimum_charge, maximum_charge, is_active, notes
+            FROM pricing_config 
+            WHERE is_active = TRUE
+            ORDER BY shipment_type, container_type NULLS LAST
+        """)
+        
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+        
+        configs = []
+        for row in rows:
+            configs.append(dict(zip(columns, row)))
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({'pricing_configs': configs})
+        
+    except Exception as e:
+        return jsonify({'error': f'Error fetching pricing config: {str(e)}'}), 400

@@ -1,0 +1,168 @@
+[
+  {
+    "email_id": 1,
+    "subject": "Fwd: 1",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nCTN numbers:\n- BL 001-123: CTN number is CTN001123\n- BL 654321: This BL number was not found in our system, please verify and query again\nBusiness hours: Monday to Friday, 9:00 AM to 5:00 PM (Hong Kong time)\nBest regards,\nIQS Trade Team\n祝商祺！\nIQS Trade Team",
+      "bl_numbers": [
+        "001-123",
+        "CTN001123",
+        "654321"
+      ],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "ctn_request",
+        "business_hours"
+      ]
+    }
+  },
+  {
+    "email_id": 2,
+    "subject": "Fwd: 2",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nThe following BL numbers could not be found in our system: 445566. Please double-check or contact us for assistance.\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [
+        "445566"
+      ],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "payment_status",
+        "fee_inquiry"
+      ]
+    }
+  },
+  {
+    "email_id": 3,
+    "subject": "Fwd: 3",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nThe following BL numbers could not be found in our system: 777888. Please double-check or contact us for assistance.\nBest regards,\nIQS Trade Team\n\nNote: You mentioned an attachment in your email, but no files were attached. If you intended to send a file, please resend your email with the attachment included.\n\n注意：您在邮件中提到有附件，但未检测到任何文件。如需补发，请重新发送带附件的邮件。",
+      "bl_numbers": [
+        "777888"
+      ],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "invoice_request"
+      ]
+    }
+  },
+  {
+    "email_id": 4,
+    "subject": "Fwd: 4",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nPayment status:\n  - BL 001-123: Total Fee: $250.00, Paid: $0.00, Status: Due: $250.00\n  - BL NYC220: Total Fee: $310.00, Paid: $0.00, Status: Due: $310.00\nFee details:\n  - BL 001-123: CTN Fee: $200.00, Service Fee: $50.00, Total: $250.00\n  - BL NYC220: CTN Fee: $250.00, Service Fee: $60.00, Total: $310.00\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [
+        "001-123",
+        "NYC220"
+      ],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "payment_status",
+        "fee_inquiry"
+      ]
+    }
+  },
+  {
+    "email_id": 5,
+    "subject": "Fwd: 5",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nPayment(s) found:\n  - For BL 001-123: Payment record found.\n  - For BL NYC220: Payment record found.\nNote: We have received your payment of $420.00, but the invoice amount is $560.00. There is an outstanding balance of $140.00.\nPayment status:\n  - BL 001-123: Total Fee: $250.00, Paid: $0.00, Status: Due: $250.00\n  - BL NYC220: Total Fee: $310.00, Paid: $0.00, Status: Due: $310.00\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [
+        "001-123",
+        "NYC220"
+      ],
+      "paid_amount": 420.0,
+      "bl_payment_map": {
+        "001-123": 420.0,
+        "NYC220": 420.0
+      },
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "payment_status"
+      ]
+    }
+  },
+  {
+    "email_id": 6,
+    "subject": "Fwd: 6",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\n\nWe could not process your request. Please provide more details or contact us for assistance.\n\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 0.9000000000000001,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "general_enquiry"
+      ]
+    }
+  },
+  {
+    "email_id": 7,
+    "subject": "Fwd: 7",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nPayment(s) found:\n  - For BL NYC220: Payment record found.\n  - For BL 001-123: Payment record found.\n\nNote: We have received your payment of $520.00, but the invoice amount is $560.00. There is an outstanding balance of $40.00.\nPayment status:\n  - BL NYC220: Total Fee: $310.00, Paid: $0.00, Status: Due: $310.00\n  - BL 001-123: Total Fee: $250.00, Paid: $0.00, Status: Due: $250.00\nFee details:\n  - BL NYC220: CTN Fee: $250.00, Service Fee: $60.00, Total: $310.00\n  - BL 001-123: CTN Fee: $200.00, Service Fee: $50.00, Total: $250.00\n\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [
+        "NYC220",
+        "001-123"
+      ],
+      "paid_amount": 520.0,
+      "bl_payment_map": {
+        "NYC220": 520.0,
+        "001-123": 520.0
+      },
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "payment_receipt",
+        "payment_status",
+        "fee_inquiry"
+      ]
+    }
+  },
+  {
+    "email_id": 8,
+    "subject": "Fwd: 8",
+    "result": {
+      "classification": "general_enquiry",
+      "reply": "Hello,\nInvoice(s) found:\n  - For BL 001-123: An invoice has not been generated yet.\n  - For BL NYC220: An invoice has not been generated yet.\nCTN(s) found:\n  - For BL 001-123: The CTN number is CTN001123.\n  - For BL NYC220: The CTN number is CTNNYC220.\nThe following BL numbers could not be found in our system: 445566. Please double-check or contact us for assistance.\nBest regards,\nIQS Trade Team",
+      "bl_numbers": [
+        "001-123",
+        "445566",
+        "NYC220"
+      ],
+      "paid_amount": null,
+      "bl_payment_map": {},
+      "confidence_score": 1.0,
+      "auto_send": true,
+      "request_types": [
+        "invoice_request",
+        "ctn_request"
+      ]
+    }
+  }
+]

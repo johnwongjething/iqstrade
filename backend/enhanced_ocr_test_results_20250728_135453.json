@@ -1,0 +1,476 @@
+{
+  "total_files": 13,
+  "successful_extractions": 13,
+  "failed_extractions": 0,
+  "total_processing_time": 258.2755517959595,
+  "detailed_results": [
+    {
+      "file_name": "2201003.NYC.pdf",
+      "file_size_mb": 0.23,
+      "processing_time": 2.91,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.0,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "",
+        "consignee": "",
+        "bl_number": "",
+        "port_of_loading": "",
+        "port_of_discharge": ""
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    },
+    {
+      "file_name": "2206002.NYC.pdf",
+      "file_size_mb": 0.2,
+      "processing_time": 8.15,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 2,
+        "total_weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.5685714285714286,
+        "calculated_ctn_fee": "400.00",
+        "calculated_service_fee": "600.00",
+        "container_numbers": [
+          "OOCU7645070",
+          "TGBU8072614"
+        ],
+        "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+        "consignee": "HAYWARD INDUSTRIES",
+        "bl_number": "NYC2206002",
+        "port_of_loading": "NEW YORK",
+        "port_of_discharge": "NEW YORK"
+      },
+      "pricing_calculation_log": {
+        "container_count": 2,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "account_page (4).pdf",
+      "file_size_mb": 0.01,
+      "processing_time": 5.37,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.014285714285714284,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "",
+        "consignee": "",
+        "bl_number": "",
+        "port_of_loading": "",
+        "port_of_discharge": ""
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    },
+    {
+      "file_name": "b0994f47-71dc-48ef-a6b1-c3add4a356ab.pdf",
+      "file_size_mb": 0.11,
+      "processing_time": 10.06,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.0,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "CABLE AND STEEL COMPANY",
+        "consignee": "CABLE BIG STORE",
+        "bl_number": "001-12345678",
+        "port_of_loading": "NEW YORK",
+        "port_of_discharge": "HEATHROW"
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    },
+    {
+      "file_name": "BILL1.pdf",
+      "file_size_mb": 0.12,
+      "processing_time": 9.7,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 2,
+        "total_weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.5685714285714286,
+        "calculated_ctn_fee": "400.00",
+        "calculated_service_fee": "600.00",
+        "container_numbers": [
+          "OOCU7645789",
+          "TGBU8072614"
+        ],
+        "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+        "consignee": "JETHING INTERNATIONAL FREIGHT BROKERS GLOBAL SERVICES, INC.",
+        "bl_number": "NYC2206288",
+        "port_of_loading": "YANTIAN",
+        "port_of_discharge": "LARGOS"
+      },
+      "pricing_calculation_log": {
+        "container_count": 2,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "BILL2.pdf",
+      "file_size_mb": 0.12,
+      "processing_time": 26.8,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 2,
+        "total_weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.5685714285714286,
+        "calculated_ctn_fee": "400.00",
+        "calculated_service_fee": "600.00",
+        "container_numbers": [
+          "LLCU7645999",
+          "AAAA6789999"
+        ],
+        "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+        "consignee": "JETHING INTERNATIONAL FREIGHT BROKERS GLOBAL SERVICES, INC.",
+        "bl_number": "NYC2206288",
+        "port_of_loading": "YANTIAN",
+        "port_of_discharge": "HONG KONG"
+      },
+      "pricing_calculation_log": {
+        "container_count": 2,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "BILL3.pdf",
+      "file_size_mb": 0.14,
+      "processing_time": 27.68,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 2,
+        "total_weight_kg": 4430.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.6742857142857144,
+        "calculated_ctn_fee": "400.00",
+        "calculated_service_fee": "600.00",
+        "container_numbers": [
+          "SLVU4877415",
+          "VOLU4543799"
+        ],
+        "shipper": "SOLEX LTD",
+        "consignee": "SMART FAMOUS LTD",
+        "bl_number": "NYC2201666",
+        "port_of_loading": "SHENZHEN",
+        "port_of_discharge": "NEW YORK, NY"
+      },
+      "pricing_calculation_log": {
+        "container_count": 2,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 4430.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "BILL4.pdf",
+      "file_size_mb": 0.14,
+      "processing_time": 28.36,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 3,
+        "total_weight_kg": 4430.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.6742857142857144,
+        "calculated_ctn_fee": "600.00",
+        "calculated_service_fee": "900.00",
+        "container_numbers": [
+          "SLVU4877415",
+          "VOLU4543799",
+          "BBBB4543799"
+        ],
+        "shipper": "JETHING INT LTD",
+        "consignee": "HAYWARD INDUSTRIES, INC.",
+        "bl_number": "NYC2201777",
+        "port_of_loading": "SHANGHAI",
+        "port_of_discharge": "HUNGARY"
+      },
+      "pricing_calculation_log": {
+        "container_count": 3,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 4430.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "BILL5.pdf",
+      "file_size_mb": 0.11,
+      "processing_time": 29.63,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 1,
+        "total_weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.5685714285714286,
+        "calculated_ctn_fee": "200.00",
+        "calculated_service_fee": "300.00",
+        "container_numbers": "2X40'HQ",
+        "shipper": "RAY TOP",
+        "consignee": "",
+        "bl_number": "NYC2207777",
+        "port_of_loading": "HONG KONG",
+        "port_of_discharge": "NIGERIA"
+      },
+      "pricing_calculation_log": {
+        "container_count": 1,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "BILL6.pdf",
+      "file_size_mb": 0.11,
+      "processing_time": 26.94,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": "40ft",
+        "container_count": 2,
+        "total_weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.5685714285714286,
+        "calculated_ctn_fee": "400.00",
+        "calculated_service_fee": "600.00",
+        "container_numbers": "OOCU7645765, TGBU8072666",
+        "shipper": "RAY WONG LTD",
+        "consignee": "",
+        "bl_number": "NYC2212345",
+        "port_of_loading": "HONG KONG",
+        "port_of_discharge": "NIGERIA"
+      },
+      "pricing_calculation_log": {
+        "container_count": 2,
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "weight_kg": 10255.6,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": "200.00",
+        "service_fee_per_unit": "300.00",
+        "minimum_charge": "500.00"
+      }
+    },
+    {
+      "file_name": "ootb_04_sw_03_SD-1 - Copy.PDF",
+      "file_size_mb": 1.13,
+      "processing_time": 27.91,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.0,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "",
+        "consignee": "",
+        "bl_number": "",
+        "port_of_loading": "",
+        "port_of_discharge": ""
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    },
+    {
+      "file_name": "Screenshot_20250702_151730_Chrome.PDF",
+      "file_size_mb": 0.66,
+      "processing_time": 26.63,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.0,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "",
+        "consignee": "",
+        "bl_number": "",
+        "port_of_loading": "",
+        "port_of_discharge": ""
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    },
+    {
+      "file_name": "__ MAERSK LINE - New Page 1.pdf",
+      "file_size_mb": 0.16,
+      "processing_time": 28.14,
+      "ocr_method": "OpenAI",
+      "extracted_data": {
+        "shipment_type": "ocean",
+        "container_type": null,
+        "container_count": 0,
+        "total_weight_kg": 0.0,
+        "weight_unit": "kg",
+        "pricing_method": "container",
+        "ocr_confidence_score": 0.0,
+        "calculated_ctn_fee": 0.0,
+        "calculated_service_fee": 0.0,
+        "container_numbers": "",
+        "shipper": "",
+        "consignee": "",
+        "bl_number": "",
+        "port_of_loading": "",
+        "port_of_discharge": ""
+      },
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": 0.0,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      }
+    }
+  ],
+  "errors": [],
+  "summary": {}
+}

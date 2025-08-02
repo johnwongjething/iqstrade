@@ -1,0 +1,1224 @@
+[
+  {
+    "file": "2201003.NYC.pdf",
+    "status": "success",
+    "processing_time": 9.082102060317993,
+    "extraction_method": "ai",
+    "field_accuracy": 100.0,
+    "populated_fields": 6,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "HAYWARD INDUSTRIES, INC.",
+      "port_of_loading": "NANSHA, CHINA",
+      "port_of_discharge": "NEW YORK, NY",
+      "bl_number": "NYC2201003",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2201003",
+      "shipper": "STAR RAPID LIMITED",
+      "consignee": "HAYWARD INDUSTRIES, INC.",
+      "port_of_loading": "NANSHA, CHINA",
+      "port_of_discharge": "NEW YORK, NY",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "product_description": "G1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL, G1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL, G1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL",
+      "paid_amount": "",
+      "raw_text": "BILL OF LADING\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nSTAR RAPID LIMITED\n15 HUANMAO 1 ROAD\n6. EXPORT REFERENCES\nZHONGSHAN TORCH DEVELOPMENT ZONE\n528437 ZHONGSHAN CITY,\n ZIP CODE\nGUANGDONG PROVINCE CHINA\nMISS HELEN HUANG\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nHAYWARD INDUSTRIES, INC. \nFREIGHT BROKERS GLOBAL SERVICES,INC.\nC/O DEAN WAREHOUSE SVC. 292\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\nKILVERT STREET WARWICK, RI 02886 USA\nTEL:347-926-7002 FAX:718-327-5318\nATTN: DIANNE BARBOSA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTel #401 583 1161\n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nHAYWARD INDUSTRIES, INC. \nC/O DEAN WAREHOUSE SVC. 292\nKILVERT STREET WARWICK, RI 02886 USA\nATTN: DIANNE BARBOSA\nTel #401 583 1161\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAINERIZED(Vessel Only)\nNEW YORK, NY\nNEW YORK, NY\nCY/CY\nYES\n NO\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B deta      Gross Weight\n          Measurement\nOF PACKAGES\n \n   (Kilos)\n                  (18)\n(19)\n(20)\n(21)\n(22)\n2x40'HQ SHIPPER'S LOAD & COUNT\n8170.00\n76.633\n852 CTNS (IN 36 x PLTS)\nG1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL\nSTAR RAPID\nG1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nH.S CODE:8421990040\n\" FREIGHT COLLECT \"\nCONTR #     / SEAL #                                               S/O #\nSLVU4877415 / D225859/40'HQ  480 CTNS / 3740.000 KGS / 43.181 CBM /SLSNSAS00064 \nVOLU4543799 / D225867/40'HQ  372 CTNS / 4430.000 KGS / 33.452 CBM /SLSNSAS00063\nTOTAL: TWO(40'HQ) CONTAINERS ONLY.\nSHIPPED ON BOARD :\nTHIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS.\n25,JAN.,2022\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and port of \n                 SUBJECT TO CORRECTION\nPREPAID COLLECT\ndischage, and for arragement or  procurement of per-carriage from place of receipt and \non-carriage to place of delivery, where stated above, the goods as specified above \nin apparent good order and condition unless otherwise stated. The goods to be delivered at the abov\nport of discharge or place of delivery, whichever is applicable, subject always to the exceptions, limit\nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Consignee \nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise stated \nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                      \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\nFreight Brokers Global Services, Inc.\nTIMON v.2201E\nNANSHA, CHINA\nNYC2201003\nZHONGSHAN\n\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 4430.0,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3437,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "2206002.NYC.pdf",
+    "status": "success",
+    "processing_time": 2.8378093242645264,
+    "extraction_method": "ai",
+    "field_accuracy": 100.0,
+    "populated_fields": 6,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "HAYWARD INDUSTRIES",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "NEW YORK",
+      "bl_number": "NYC2206002",
+      "container_numbers": "OOCU7645070, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2206002",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+      "consignee": "HAYWARD INDUSTRIES",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "NEW YORK",
+      "container_numbers": "OOCU7645070, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "product_description": "ENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY); ENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)",
+      "paid_amount": "",
+      "raw_text": "BILL OF LADING\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nPERFECT TOP TECHNOLOGIES LTD.\nFLAT L, 4/F., VALIANT INDUSTRIAL. \n6. EXPORT REFERENCES\nCENTRE, 2-12 AU PUI WAN STREET.,\nFO TAN, SHATIN, HONG KONG.\n ZIP CODE\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nHAYWARD INDUSTRIES\nFREIGHT BROKERS GLOBAL SERVICES, INC.\nC/O DEAN WAREHOUSE SVC.\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\n292 KILVERT STREET\nTEL:347-926-7002 FAX:718-327-5318\nWARWICK, RI 02886 USA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTEL: (401)583-1100 \n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nSAME AS CONSIGNEE\n\u8acb\u5c0d\u55ae\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAINERIZED(Vessel Only)\nNEW YORK \nNEW YORK\nCY/CY\nYES\n NO\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B deta      Gross Weight\n          Measurement\nOF PACKAGES\n \n   (Kilos)\n                  (18)\n(19)\n(20)\n(21)\n(22)\nNO SHIPPING MARKS\n2X40'HQ\nSHIPPER'S LOAD & COUNT\n20486.80 `\n129.14\nCOUNTRY OF ORIGIN: CHINA\n4872 CTNS in 84 x PLTS\nCONTR # OOCU7645070\nPO#38920A\nSEAL  # 17531510\nENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013025A-3T Rev K\n10255.60 KGS/64.57 CBM\nqty:2436each\nCONTR # TGBU8072614\nPO#38894\nSEAL  # 21863263\nENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013032A-3T Rev D\n10231.20 KGS/64.57 CBM\nqty:2436each\n\"FREIGHT COLLECT\"\nTOTAL: TWO (40'HQ) CONTAINERS ONLY.\n\" THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS \"\n  \nSHIPPED ON BOARD:\n/JUN/2022\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and port of \n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\ndischage, and for arragement or  procurement of per-carriage from place of receipt and \non-carriage to place of delivery, where stated above, the goods as specified above \nin apparent good order and condition unless otherwise stated. The goods to be delivered at the above\nport of discharge or place of delivery, whichever is applicable, subject always to the exceptions, limitat\nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Consignee \nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise stated \nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                      \n                                          AGENT OF THE MASTER\nProforma Bill of Lading - Draft\nOOCL BERLIN v.041E\nYANTIAN\nNYC2206002\n\nMO.\nDAY\nYEAR\n\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 10255.6,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3113,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "account_page (4).pdf",
+    "status": "failed",
+    "processing_time": 1.6400468349456787,
+    "extraction_method": "heavy_regex",
+    "field_accuracy": 16.666666666666664,
+    "populated_fields": 1,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.6,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "ctnFee",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "ctnFee",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "total_weight_kg": null,
+      "shipment_type": "ocean",
+      "container_count": 0,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "pricing_method": "ocean_default",
+      "ocr_confidence_score": 0.6,
+      "pricing_calculation_log": {
+        "method": "ocean_default",
+        "container_breakdown": {
+          "20ft": 0,
+          "40ft": 0,
+          "40ft_hc": 0,
+          "total": 0
+        },
+        "weight_kg": null,
+        "shipment_type": "ocean"
+      },
+      "raw_text": "Account Page Report - 2025-07-10\nTotal Entries: 2\nTotal CTN Fees: $200\nTotal Service Fee: $200\nBank Transfer: $0\nAllinpay 85%: $400\nAllinpay Reserve: $0\nBL Number\nctnFee\nService Fee\ntotal\nCustomer Name\nPayment Type\ndate\nNYC2206002\n$100\n$100\n$200.00\nray40\nAllinpay\nNYC2201003\n$100\n$100\n$200.00\nray40\nAllinpay\n",
+      "extraction_method": "heavy_regex"
+    },
+    "raw_text_length": 308,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "b0994f47-71dc-48ef-a6b1-c3add4a356ab.pdf",
+    "status": "failed",
+    "processing_time": 25.757456302642822,
+    "extraction_method": "heavy_regex",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.6,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "total_weight_kg": null,
+      "shipment_type": "ocean",
+      "container_count": 0,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "pricing_method": "ocean_default",
+      "ocr_confidence_score": 0.6,
+      "pricing_calculation_log": {
+        "method": "ocean_default",
+        "container_breakdown": {
+          "20ft": 0,
+          "40ft": 0,
+          "40ft_hc": 0,
+          "total": 0
+        },
+        "weight_kg": null,
+        "shipment_type": "ocean"
+      },
+      "raw_text": "",
+      "extraction_method": "heavy_regex"
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "BILL1.pdf",
+    "status": "success",
+    "processing_time": 25.36786437034607,
+    "extraction_method": "ai",
+    "field_accuracy": 83.33333333333334,
+    "populated_fields": 5,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "",
+      "bl_number": "NYC2206288",
+      "container_numbers": "OOCU7645789, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2206288",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "",
+      "container_numbers": "OOCU7645789, TGBU8072614",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "product_description": "",
+      "paid_amount": "",
+      "raw_text": "Proforma Bill of Lading - Draft\nBILL OF\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nPERFECT TOP TECHNOLOGIES LTD.\nNYC2206288\nFLAT L, 4/F., VALIANT INDUSTRIAL. \n6. EXPORT REFERENCES\nCENTRE, 2-12 AU PUI WAN STREET.,\nFO TAN, SHATIN, HONG KONG.\n ZIP CODE\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nJETHING INTERNATIONAL\nFREIGHT BROKERS GLOBAL SERVICES, INC.\nC/O DEAN WAREHOUSE SVC.\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 1169\n292 KILVERT STREET\nTEL:347-926-7002 FAX:718-327-5318\nWARWICK, RI 02886 USA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTEL: (401)583-1100 \n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nSAME AS CONSIGNEE\n\u8acb\u5c0d\u55ae\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nOOCL BERLIN v.041E\nYANTIAN\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAIN\nLARGOS\nLARGOS\nCY/CY\nYES\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Meas\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\nNO SHIPPING MARKS\n2X40'HQ\nSHIPPER'S LOAD & COUNT\n20486.80\n`\n129.14\nCOUNTRY OF ORIGIN: CHINA\n4872 CTNS in 84 x PLTS\nCONTR # OOCU7645789\nPO#38920A\nSEAL  # 17531510\nENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013025A-3T Rev K\n10255.60 KGS/64.57 CBM\nqty:2436each\nCONTR # TGBU8072614\nPO#38894\nSEAL  # 21863263\nENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013032A-3T Rev D\n10231.20 KGS/64.57 CBM\nqty:2436each\n\"FREIGHT COLLECT\"\nTOTAL: TWO (40'HQ) CONTAINERS ONLY.\n\" THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS \"\n  \nSHIPPED \n/JUN/20\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and\n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified ab\nin apparent good order and condition unless otherwise stated. The goods to be delivered at\nport of discharge or place of delivery, whichever is applicable, subject always to the excepti\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise s\nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                   \n                                          AGENT OF THE MASTER\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of re\nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Cons\n\u0018\n\nMO.\nDAY\nYEAR\n\nF LADING\n8\n91\nERIZED(Vessel Only)\n NO\nsurement\n(22)\nON BOARD:\n022\n port of \nbove \nt the above mentioned\nions, limitations,\nstated \n   \neceipt and \nsignee \n\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 10255.6,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3159,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "BILL2.pdf",
+    "status": "success",
+    "processing_time": 23.469217538833618,
+    "extraction_method": "ai",
+    "field_accuracy": 83.33333333333334,
+    "populated_fields": 5,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "",
+      "bl_number": "NYC2206288",
+      "container_numbers": "LLCU7645999, AAAA6789999",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2206288",
+      "shipper": "PERFECT TOP TECHNOLOGIES LTD.",
+      "consignee": "JETHING INTERNATIONAL",
+      "port_of_loading": "YANTIAN",
+      "port_of_discharge": "",
+      "container_numbers": "LLCU7645999, AAAA6789999",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "product_description": "TWO (40'HQ) CONTAINERS ONLY. THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS",
+      "paid_amount": "",
+      "raw_text": "Proforma Bill of Lading - Draft\nBILL OF\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nPERFECT TOP TECHNOLOGIES LTD.\nNYC2206288\nFLAT L, 4/F., VALIANT INDUSTRIAL. \n6. EXPORT REFERENCES\nCENTRE, 2-12 AU PUI WAN STREET.,\nFO TAN, SHATIN, HONG KONG.\n ZIP CODE\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nJETHING INTERNATIONAL\nFREIGHT BROKERS GLOBAL SERVICES, INC.\nC/O DEAN WAREHOUSE SVC.\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 1169\n292 KILVERT STREET\nTEL:347-926-7002 FAX:718-327-5318\nWARWICK, RI 02886 USA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTEL: (401)583-1100 \n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nSAME AS CONSIGNEE\n\u8acb\u5c0d\u55ae\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nOOCL BERLIN v.041E\nYANTIAN\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAIN\nHONG KONG\nHONG KONG\nCY/CY\nYES\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Meas\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\nNO SHIPPING MARKS\n2X40'HQ\nSHIPPER'S LOAD & COUNT\n20486.80\n`\n129.14\nCOUNTRY OF ORIGIN: CHINA\n4872 CTNS in 84 x PLTS\nCONTR # LLCU7645999\nPO#38920A\nSEAL  # 17531510\nENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013025A-3T Rev K\n10255.60 KGS/64.57 CBM\nqty:2436each\nCONTR # AAAA6789999\nPO#38894\nSEAL  # 21863263\nENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013032A-3T Rev D\n10231.20 KGS/64.57 CBM\nqty:2436each\n\"FREIGHT COLLECT\"\nTOTAL: TWO (40'HQ) CONTAINERS ONLY.\n\" THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS \"\n  \nSHIPPED \n/JUN/20\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and\n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified ab\nin apparent good order and condition unless otherwise stated. The goods to be delivered at\nport of discharge or place of delivery, whichever is applicable, subject always to the excepti\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise s\nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                   \n                                          AGENT OF THE MASTER\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of re\nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Cons\n\u0018\n\nMO.\nDAY\nYEAR\n\nF LADING\n8\n91\nERIZED(Vessel Only)\n NO\nsurement\n(22)\nON BOARD:\n022\n port of \nbove \nt the above mentioned\nions, limitations,\nstated \n   \neceipt and \nsignee \n\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 10255.6,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3165,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "BILL3.pdf",
+    "status": "success",
+    "processing_time": 24.42763328552246,
+    "extraction_method": "ai",
+    "field_accuracy": 100.0,
+    "populated_fields": 6,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "HAYWARD INDUSTRIES, INC.",
+      "port_of_loading": "SHENZHEN",
+      "port_of_discharge": "NEW YORK, NY",
+      "bl_number": "NYC2201666",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2201666",
+      "shipper": "SOLEX LTD",
+      "consignee": "HAYWARD INDUSTRIES, INC.",
+      "port_of_loading": "SHENZHEN",
+      "port_of_discharge": "NEW YORK, NY",
+      "container_numbers": "SLVU4877415, VOLU4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "product_description": "G1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL, G1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL, G1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL",
+      "paid_amount": "",
+      "raw_text": "Freight Brokers Global Services, Inc.\nBILL OF\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nSOLEX LTD\nNYC2201666\n15 HUANMAO 1 ROAD\n6. EXPORT REFERENCES\nZHONGSHAN TORCH DEVELOPMENT ZONE\n528437 ZHONGSHAN CITY,\n ZIP CODE\nGUANGDONG PROVINCE CHINA\nMISS HELEN HUANG\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nSMART FAMOUS LTD\nFREIGHT BROKERS GLOBAL SERVICES,INC.\nC/O DEAN WAREHOUSE SVC. 292\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\nKILVERT STREET WARWICK, RI 02886 USA\nTEL:347-926-7002 FAX:718-327-5318\nATTN: DIANNE BARBOSA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTel #401 583 1161\n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nHAYWARD INDUSTRIES, INC. \nC/O DEAN WAREHOUSE SVC. 292\nKILVERT STREET WARWICK, RI 02886 USA\nATTN: DIANNE BARBOSA\nTel #401 583 1161\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\nZHONGSHAN\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nTIMON v.2201E\nSHENZHEN\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAIN\nFRANCE\nNEW YORK, NY\nCY/CY\nYES\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Meas\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\n2x40'HQ \nSHIPPER'S LOAD & COUNT\n8170.00\n76.633\n852 CTNS (IN 36 x PLTS)\nG1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL\nSTAR RAPID\nG1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nH.S CODE:8421990040\n\" FREIGHT COLLECT \"\nCONTR #     / SEAL #                                               S/O #\nSLVU4877415 / D225859/40'HQ  480 CTNS / 3740.000 KGS / 43.181 CBM /SLSNSAS00064 \nVOLU4543799 / D225867/40'HQ  372 CTNS / 4430.000 KGS / 33.452 CBM /SLSNSAS00063\nTOTAL: TWO(40'HQ) CONTAINERS ONLY.\nSHIPPED \nTHIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS.\n25,JAN\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading a\n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified \nin apparent good order and condition unless otherwise stated. The goods to be delivered\nport of discharge or place of delivery, whichever is applicable, subject always to the exce\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwis\nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                  \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of \nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Co\n\nF LADING\nNERIZED(Vessel Only)\n NO\nsurement\n(22)\n3\nON BOARD :\nN.,2022\nand port of \nabove \n at the above mentioned\neptions, limitations,\nse stated \n    \nreceipt and \nonsignee \n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 4430.0,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3454,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "BILL4.pdf",
+    "status": "success",
+    "processing_time": 22.527000904083252,
+    "extraction_method": "ai",
+    "field_accuracy": 83.33333333333334,
+    "populated_fields": 5,
+    "total_fields": 6,
+    "container_count": 3,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "SO FUN NIGERIA",
+      "port_of_loading": "SHANGHAI",
+      "port_of_discharge": "",
+      "bl_number": "NYC2201777",
+      "container_numbers": "SLVU4877415, VOLU4543799, BBBB4543799",
+      "flight_or_vessel": "TIMON v.2201E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2201777",
+      "shipper": "JETHING INT LTD",
+      "consignee": "SO FUN NIGERIA",
+      "port_of_loading": "SHANGHAI",
+      "port_of_discharge": "",
+      "container_numbers": "SLVU4877415, VOLU4543799, BBBB4543799",
+      "flight_or_vessel": "TIMON v.2201E",
+      "product_description": "G1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL, G1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL, G1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL, G1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL",
+      "paid_amount": "",
+      "raw_text": "Freight Brokers Global Services, Inc.\nBILL OF\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nJETHING INT LTD\nNYC2201777\n15 HUANMAO 1 ROAD\n6. EXPORT REFERENCES\nZHONGSHAN TORCH DEVELOPMENT ZONE\n528437 ZHONGSHAN CITY,\n ZIP CODE\nGUANGDONG PROVINCE CHINA\nMISS HELEN HUANG\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nSO FUN NIGERIA\nFREIGHT BROKERS GLOBAL SERVICES,INC.\nC/O DEAN WAREHOUSE SVC. 292\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\nKILVERT STREET WARWICK, RI 02886 USA\nTEL:347-926-7002 FAX:718-327-5318\nATTN: DIANNE BARBOSA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTel #401 583 1161\n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nHAYWARD INDUSTRIES, INC. \nC/O DEAN WAREHOUSE SVC. 292\nKILVERT STREET WARWICK, RI 02886 USA\nATTN: DIANNE BARBOSA\nTel #401 583 1161\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\nSHANGHAI\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nTIMON v.2201E\nSHANGHAI\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAIN\nHUNGARY\nHUNGARY\nCY/CY\nYES\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Meas\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\n2x40'HQ \nSHIPPER'S LOAD & COUNT\n8170.00\n76.633\n852 CTNS (IN 36 x PLTS)\nG1-046480-ST Rev A  DEADFRONT,ENCLOSURE,AQR S3-SOFT TOOL\nSTAR RAPID\nG1-046481-ST Rev A  DOOR,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046482-ST Rev A BASE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046483-ST Rev A HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nG1-046484-ST Rev A COUPLER,HANDLE,ENCLOSURE,AQR S3-SOFT TOOL\nH.S CODE:8421990040\n\" FREIGHT COLLECT \"\nCONTR #     / SEAL #                                               S/O #\nSLVU4877415 / D225859/40'HQ  480 CTNS / 3740.000 KGS / 43.181 CBM /SLSNSAS00064 \nVOLU4543799 / D225867/40'HQ  372 CTNS / 4430.000 KGS / 33.452 CBM /SLSNSAS00063\nBBBB4543799 / D225867/40'HQ  372 CTNS / 4430.000 KGS / 33.452 CBM /SLSNSAS00063\nTOTAL: THREE(40'HQ) CONTAINERS ONLY.\nSHIPPED \nTHIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS.\n25,JAN\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading a\n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified \nin apparent good order and condition unless otherwise stated. The goods to be delivered\nport of discharge or place of delivery, whichever is applicable, subject always to the exce\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwis\nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                  \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of \nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Co\n\nF LADING\nNERIZED(Vessel Only)\n NO\nsurement\n(22)\n3\nON BOARD :\nN.,2022\nand port of \nabove \n at the above mentioned\neptions, limitations,\nse stated \n    \nreceipt and \nonsignee \n",
+      "container_count": 3,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 4430.0,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 3,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3535,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 3,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "BILL5.pdf",
+    "status": "success",
+    "processing_time": 25.426095485687256,
+    "extraction_method": "ai",
+    "field_accuracy": 83.33333333333334,
+    "populated_fields": 5,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS",
+      "port_of_loading": "HONG KONG",
+      "port_of_discharge": "",
+      "bl_number": "NYC2207777",
+      "container_numbers": "OOCU7645898, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2207777",
+      "shipper": "RAY TOP",
+      "consignee": "SMART FAMOUS",
+      "port_of_loading": "HONG KONG",
+      "port_of_discharge": "",
+      "container_numbers": "OOCU7645898, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "product_description": "20486.80 KGS/129.14 CBM, 2436 CTNS in 42 x PLTS, CONTR # OOCU7645898, PO#38920A, SEAL # 17531510, ENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY), 2436 CTNS IN 42 x PLTS, G1-013025A-3T Rev K, 10255.60 KGS/64.57 CBM, qty:2436each, CONTR # TGBU8072666, PO#38894, SEAL # 21863263, ENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY), 2436 CTNS IN 42 x PLTS, G1-013032A-3T Rev D, 10231.20 KGS/64.57 CBM, qty:2436each",
+      "paid_amount": "",
+      "raw_text": "Proforma Bill of Lading - Draft\nBILL OF LADING\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nRAY TOP\nNYC2207777\nFLAT L, 4/F., VALIANT INDUSTRIAL. \n6. EXPORT REFERENCES\nCENTRE, 2-12 AU PUI WAN STREET.,\nFO TAN, SHATIN, HONG KONG.\n ZIP CODE\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nSMART FAMOUS\nFREIGHT BROKERS GLOBAL SERVICES, INC.\nC/O DEAN WAREHOUSE SVC.\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\n292 KILVERT STREET\nTEL:347-926-7002 FAX:718-327-5318\nWARWICK, RI 02886 USA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTEL: (401)583-1100 \n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nSAME AS CONSIGNEE\n\u8acb\u5c0d\u55ae\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nOOCL BERLIN v.041E\nHONG KONG\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAINERIZED(Vessel Only)\nNIGERIA\nNIGERIA\nCY/CY\nYES\n NO\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Measurement\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\n(22)\nNO SHIPPING MARKS\n2X40'HQ\nSHIPPER'S LOAD & COUNT\n20486.80\n`\n129.14\nCOUNTRY OF ORIGIN: CHINA\n4872 CTNS in 84 x PLTS\nCONTR # OOCU7645898\nPO#38920A\nSEAL  # 17531510\nENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013025A-3T Rev K\n10255.60 KGS/64.57 CBM\nqty:2436each\nCONTR # TGBU8072666\nPO#38894\nSEAL  # 21863263\nENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013032A-3T Rev D\n10231.20 KGS/64.57 CBM\nqty:2436each\n\"FREIGHT COLLECT\"\nTOTAL: TWO (40'HQ) CONTAINERS ONLY.\n\" THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS \"\n  \nSHIPPED ON BOARD:\n/JUN/2022\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and port of \n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified above \nin apparent good order and condition unless otherwise stated. The goods to be delivered at the above mentioned\nport of discharge or place of delivery, whichever is applicable, subject always to the exceptions, limitations,\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise stated \nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                      \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of receipt and \nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Consignee \n\u0018\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 10255.6,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3103,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "BILL6.pdf",
+    "status": "success",
+    "processing_time": 25.209895849227905,
+    "extraction_method": "ai",
+    "field_accuracy": 100.0,
+    "populated_fields": 6,
+    "total_fields": 6,
+    "container_count": 2,
+    "fees_working": 225.0,
+    "confidence": 0.8700000000000001,
+    "key_fields": {
+      "consignee": "SMART FAMOUS LTD",
+      "port_of_loading": "HONG KONG",
+      "port_of_discharge": "NIGERIA",
+      "bl_number": "NYC2212345",
+      "container_numbers": "OOCU7645765, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E"
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 1,
+      "40ft_hc": 1
+    },
+    "fees": {
+      "ctn_fee": 450.0,
+      "service_fee": 225.0,
+      "total_fee": 675.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "bl_number": "NYC2212345",
+      "shipper": "RAY WONG LTD",
+      "consignee": "SMART FAMOUS LTD",
+      "port_of_loading": "HONG KONG",
+      "port_of_discharge": "NIGERIA",
+      "container_numbers": "OOCU7645765, TGBU8072666",
+      "flight_or_vessel": "OOCL BERLIN v.041E",
+      "product_description": "20486.80 KGS/129.14 CBM, 10255.60 KGS/64.57 CBM, 10231.20 KGS/64.57 CBM",
+      "paid_amount": "",
+      "raw_text": "Proforma Bill of Lading - Draft\nBILL OF LADING\n5. DOCUMENT NUMBER\n5a. B/L NUMBER\nRAY WONG LTD\nNYC2212345\nFLAT L, 4/F., VALIANT INDUSTRIAL. \n6. EXPORT REFERENCES\nCENTRE, 2-12 AU PUI WAN STREET.,\nFO TAN, SHATIN, HONG KONG.\n ZIP CODE\n3. CONSIGNED TO\n7. FORWARDING AGENT (Name and address - references)\nSMART FAMOUS LTD\nFREIGHT BROKERS GLOBAL SERVICES, INC.\nC/O DEAN WAREHOUSE SVC.\n1200 BRUNSWICK AVENUE FAR ROCKAWAY, NY 11691\n292 KILVERT STREET\nTEL:347-926-7002 FAX:718-327-5318\nWARWICK, RI 02886 USA\n8. POINT (STATE) OF ORIGIN OR FTZ NUMBER\nTEL: (401)583-1100 \n4. NOTIFY PARTY/INTERMEDIATE CONSIGNEE (Name and addre4ss)\n9. DOMESTIC ROUTING/EXPORT INSTRUCTIONS\nSAME AS CONSIGNEE\n\u8acb\u5c0d\u55ae\n12. PRE-CARRIAGE BY\n13. PLACE OR RECEIPT BY PRE-CARRIER\n14. EXPORTING CARRIER\n15. PORT OF LOADING / EXPORT\n10. LOADING PIER / TERMINAL                 \nOOCL BERLIN v.041E\nJAPAN\n16. FOREIGN PORT OF UNLOADING (VESSEL AND AIR ONLY)\n17. PLACE OF DELIVERY BY ON-CARRIER\n11. TYPE OF MOVE\n11a. CONTAINERIZED(Vessel Only)\nHONG KONG\nNIGERIA\nCY/CY\nYES\n NO\n      MARKS AND NUMBERS\n   NUMBER \nDESCRIPTION OF COMMODITIES in Schedule B detail\n      Gross Weight\n          Measurement\nOF PACKAGES\n \n   (Kilos)\n                   (18)\n(19)\n(20)\n(21)\n(22)\nNO SHIPPING MARKS\n2X40'HQ\nSHIPPER'S LOAD & COUNT\n20486.80\n`\n129.14\nCOUNTRY OF ORIGIN: CHINA\n4872 CTNS in 84 x PLTS\nCONTR # OOCU7645765\nPO#38920A\nSEAL  # 17531510\nENCL, AQR, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013025A-3T Rev K\n10255.60 KGS/64.57 CBM\nqty:2436each\nCONTR # TGBU8072666\nPO#38894\nSEAL  # 21863263\nENCL, TROL, NO XFRMR, WHT (PUR TURN-KEY)\n2436 CTNS IN 42 x PLTS\nG1-013032A-3T Rev D\n10231.20 KGS/64.57 CBM\nqty:2436each\n\"FREIGHT COLLECT\"\nTOTAL: TWO (40'HQ) CONTAINERS ONLY.\n\" THIS SHIPMENT CONTAINS NO WOOD PACKING MATERIALS \"\n  \nSHIPPED ON BOARD:\n/JUN/2022\nTHESE COMMODITIES, TECHNOLOGY, OF SOFTWARE WERE EXPORTED FORM THE US IN ACCORDANCE WITH THE EXPORT ADMINSTRATION ON REGULATIONS.\nDIVERSION CONTRARY TO U.S. LAW IS PROHIBITED.\n              FREIGHT RATES, CHARGES, WEIGHTS AND/OR MEASUREMENTS\nReceived by Carrier for shipment by ocean vessel between port of loading and port of \n                 SUBJECT TO CORRECTION\nPREPAID\nCOLLECT\non-carriage to place of delivery, where stated above, the goods as specified above \nin apparent good order and condition unless otherwise stated. The goods to be delivered at the above mentioned\nport of discharge or place of delivery, whichever is applicable, subject always to the exceptions, limitations,\nagree to accepting this Bill of Loading.\nIN WITNESS WHEREOF three(3) original Bills of Lading have been signed, not otherwise stated \nabove, one of which being accomplished the others shall be void.\nDATED AT                            \nBY                                      \n                                          AGENT OF THE MASTER\nMO.\nDAY\nYEAR\n2. EXPORTER (Principal or seller - licensee and address including ZIP Xode)\ndischage, and for arragement or  procurement of per-carriage from place of receipt and \nconditions and liberties set out on the revese side hereof, to which the Shipper and/or Consignee \n\u0018\n",
+      "container_count": 2,
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_type": "40ft",
+      "container_count_20ft": 0,
+      "container_count_40ft": 1,
+      "container_count_40ft_hc": 1,
+      "total_weight_kg": 10255.6,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "ocean_container",
+      "calculated_ctn_fee": 450.0,
+      "calculated_service_fee": 225.0,
+      "calculated_total_fee": 675.0,
+      "ocr_confidence_score": 0.8700000000000001,
+      "pricing_calculation_log": {
+        "method": "ocean_container",
+        "container_types": [
+          "40ft",
+          "40ft_hc"
+        ],
+        "container_count": 2,
+        "rates_used": {
+          "40ft": {
+            "ctn_fee": 200.0,
+            "service_fee": 100.0
+          },
+          "40ft_hc": {
+            "ctn_fee": 250.0,
+            "service_fee": 125.0
+          }
+        }
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.9,
+        "weight_detection": 0.8,
+        "shipment_classification": 0.9,
+        "overall": 0.8700000000000001
+      }
+    },
+    "raw_text_length": 3110,
+    "pricing_method": "ocean_container",
+    "calculation_details": {
+      "method": "ocean_container",
+      "container_types": [
+        "40ft",
+        "40ft_hc"
+      ],
+      "container_count": 2,
+      "rates_used": {
+        "40ft": {
+          "ctn_fee": 200.0,
+          "service_fee": 100.0
+        },
+        "40ft_hc": {
+          "ctn_fee": 250.0,
+          "service_fee": 125.0
+        }
+      }
+    }
+  },
+  {
+    "file": "ootb_04_sw_03_SD-1 - Copy.PDF",
+    "status": "failed",
+    "processing_time": 24.54247522354126,
+    "extraction_method": "heavy_regex",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.6,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "total_weight_kg": null,
+      "shipment_type": "ocean",
+      "container_count": 0,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "pricing_method": "ocean_default",
+      "ocr_confidence_score": 0.6,
+      "pricing_calculation_log": {
+        "method": "ocean_default",
+        "container_breakdown": {
+          "20ft": 0,
+          "40ft": 0,
+          "40ft_hc": 0,
+          "total": 0
+        },
+        "weight_kg": null,
+        "shipment_type": "ocean"
+      },
+      "raw_text": "",
+      "extraction_method": "heavy_regex"
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "Screenshot_20250702_151730_Chrome.PDF",
+    "status": "failed",
+    "processing_time": 25.54302191734314,
+    "extraction_method": "heavy_regex",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.6,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "total_weight_kg": null,
+      "shipment_type": "ocean",
+      "container_count": 0,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "pricing_method": "ocean_default",
+      "ocr_confidence_score": 0.6,
+      "pricing_calculation_log": {
+        "method": "ocean_default",
+        "container_breakdown": {
+          "20ft": 0,
+          "40ft": 0,
+          "40ft_hc": 0,
+          "total": 0
+        },
+        "weight_kg": null,
+        "shipment_type": "ocean"
+      },
+      "raw_text": "",
+      "extraction_method": "heavy_regex"
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  },
+  {
+    "file": "__ MAERSK LINE - New Page 1.pdf",
+    "status": "failed",
+    "processing_time": 24.203988075256348,
+    "extraction_method": "heavy_regex",
+    "field_accuracy": 0.0,
+    "populated_fields": 0,
+    "total_fields": 6,
+    "container_count": 0,
+    "fees_working": 100.0,
+    "confidence": 0.6,
+    "key_fields": {
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": ""
+    },
+    "container_breakdown": {
+      "20ft": 0,
+      "40ft": 0,
+      "40ft_hc": 0
+    },
+    "fees": {
+      "ctn_fee": 100.0,
+      "service_fee": 100.0,
+      "total_fee": 200.0
+    },
+    "all_fields": {
+      "document_type": "BOL",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "bl_number": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "total_weight_kg": null,
+      "shipment_type": "ocean",
+      "container_count": 0,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "pricing_method": "ocean_default",
+      "ocr_confidence_score": 0.6,
+      "pricing_calculation_log": {
+        "method": "ocean_default",
+        "container_breakdown": {
+          "20ft": 0,
+          "40ft": 0,
+          "40ft_hc": 0,
+          "total": 0
+        },
+        "weight_kg": null,
+        "shipment_type": "ocean"
+      },
+      "raw_text": "",
+      "extraction_method": "heavy_regex"
+    },
+    "raw_text_length": 0,
+    "pricing_method": "ocean_default",
+    "calculation_details": {
+      "method": "ocean_default",
+      "container_breakdown": {
+        "20ft": 0,
+        "40ft": 0,
+        "40ft_hc": 0,
+        "total": 0
+      },
+      "weight_kg": null,
+      "shipment_type": "ocean"
+    }
+  }
+]

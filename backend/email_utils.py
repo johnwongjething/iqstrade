@@ -7,7 +7,7 @@ import os
 from config import EmailConfig
 from invoice_utils import send_invoice_email
 
-print("Loaded email_utils.py")
+# Loaded email_utils.py
 
 # Send invoice email with PDF attachment using SMTP
 # def send_invoice_email(to_email, subject, body, pdf_path):
@@ -68,7 +68,6 @@ def send_email(to, subject, body):
         server.starttls()
         server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
         server.send_message(msg)
-        print(f"[DEBUG] ✅ Email sent to {to}")
 
 def send_email_with_attachment(to, subject, body, attachments):
     if not all([
@@ -79,25 +78,32 @@ def send_email_with_attachment(to, subject, body, attachments):
         EmailConfig.FROM_EMAIL
     ]):
         raise ValueError("SMTP server, port, username, password, and FROM_EMAIL must all be set in EmailConfig.")
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))
-    msg['To'] = to
-    msg.set_content(body)
-    for file_path in attachments:
-        with open(file_path, 'rb') as f:
-            file_data = f.read()
-            file_name = os.path.basename(file_path)
-        maintype = 'application'
-        subtype = 'octet-stream'
-        if file_name.lower().endswith('.pdf'):
-            subtype = 'pdf'
-        msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
-    with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
-        server.starttls()
-        server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
-        server.send_message(msg)
-        print(f"[DEBUG] ✅ Email with attachment sent to {to}")
+    
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))
+        msg['To'] = to
+        msg.set_content(body)
+        
+        for file_path in attachments:
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+                file_name = os.path.basename(file_path)
+            maintype = 'application'
+            subtype = 'octet-stream'
+            if file_name.lower().endswith('.pdf'):
+                subtype = 'pdf'
+            msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
+        
+        with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
+            server.starttls()
+            server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Failed to send email with attachment: {str(e)}")
+        return False
 
 # Send unique number email using SMTP (plain text)
 def send_unique_number_email(to_email, subject, body):
@@ -181,7 +187,7 @@ def send_simple_email(to_email, subject, body):
             server.starttls()
             server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
             server.send_message(msg)
-        print("Simple email sent successfully.")
+        # Simple email sent successfully
         return True
     except Exception as e:
         print("Failed to send simple email:", e)

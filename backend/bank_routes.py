@@ -211,7 +211,7 @@ def get_unmatched_records():
         LIMIT 100
     """)
     rows = cursor.fetchall()
-    print(f"[DEBUG] Unmatched receipts fetched: {rows}")
+    pass  # Unmatched receipts fetched: {rows}
     results = [
         {
             "id": row[0],
@@ -223,7 +223,7 @@ def get_unmatched_records():
         }
         for row in rows
     ]
-    print(f"[DEBUG] Unmatched receipts results: {results}")
+    pass  # Unmatched receipts results: {results}
     cursor.close()
     conn.close()
     return jsonify(results)

@@ -1,0 +1,110 @@
+DATABASE SCHEMA - IQSTrade System
+================================
+
+TABLES FOUND IN YOUR SYSTEM:
+
+1. users
+   - id (SERIAL PRIMARY KEY)
+   - username (VARCHAR)
+   - email (VARCHAR)
+   - password_hash (VARCHAR)
+   - role (VARCHAR)
+   - created_at (TIMESTAMP)
+   - updated_at (TIMESTAMP)
+   - is_active (BOOLEAN)
+
+2. bill_of_lading
+   - id (SERIAL PRIMARY KEY)
+   - bl_number (VARCHAR)
+   - ctn_number (VARCHAR)
+   - ctn_fee (DECIMAL)
+   - service_fee (DECIMAL)
+   - total_fee (DECIMAL)
+   - paid_amount (DECIMAL)
+   - status (VARCHAR)
+   - invoice_link (TEXT)
+   - created_at (TIMESTAMP)
+   - updated_at (TIMESTAMP)
+
+3. customer_emails
+   - id (SERIAL PRIMARY KEY)
+   - sender (VARCHAR)
+   - subject (VARCHAR)
+   - body (TEXT)
+   - created_at (TIMESTAMP)
+   - processed_for_payments (BOOLEAN)
+   - message_id (VARCHAR UNIQUE)
+   - attachments (JSONB)
+
+4. customer_email_replies
+   - id (SERIAL PRIMARY KEY)
+   - customer_email_id (INTEGER REFERENCES customer_emails(id))
+   - sender (VARCHAR)
+   - body (TEXT)
+   - created_at (TIMESTAMP)
+   - is_draft (BOOLEAN)
+   - confidence_score (DECIMAL)
+   - confidence_reasoning (JSONB)
+   - auto_send_recommended (BOOLEAN)
+
+5. password_reset_tokens
+   - id (SERIAL PRIMARY KEY)
+   - user_id (INTEGER REFERENCES users(id))
+   - token (VARCHAR)
+   - expires_at (TIMESTAMP)
+   - created_at (TIMESTAMP)
+
+6. audit_logs
+   - id (SERIAL PRIMARY KEY)
+   - user_id (INTEGER REFERENCES users(id))
+   - operation (VARCHAR)
+   - details (TEXT)
+   - timestamp (TIMESTAMP)
+
+7. bank_unmatched_records
+   - id (SERIAL PRIMARY KEY)
+   - bl_number (VARCHAR)
+   - amount (DECIMAL)
+   - bank_reference (VARCHAR)
+   - transaction_date (DATE)
+   - created_at (TIMESTAMP)
+
+8. unmatched_receipts
+   - id (SERIAL PRIMARY KEY)
+   - bl_number (VARCHAR)
+   - amount (DECIMAL)
+   - receipt_reference (VARCHAR)
+   - created_at (TIMESTAMP)
+
+KEY RELATIONSHIPS:
+- customer_email_replies.customer_email_id → customer_emails.id
+- password_reset_tokens.user_id → users.id
+- audit_logs.user_id → users.id
+
+IMPORTANT COLUMNS:
+- customer_emails.attachments: JSONB array of attachment URLs
+- customer_emails.message_id: UNIQUE constraint for duplicate detection
+- customer_email_replies.confidence_score: AI confidence (0.0-1.0)
+- bill_of_lading.status: Payment status tracking
+
+INDEXES:
+- message_id (customer_emails) - for duplicate detection
+- bl_number (bill_of_lading) - for quick lookups
+- created_at (most tables) - for chronological queries
+
+DATA TYPES USED:
+- SERIAL: Auto-incrementing primary keys
+- VARCHAR: Short text fields
+- TEXT: Long text content
+- DECIMAL: Monetary amounts
+- BOOLEAN: True/false flags
+- TIMESTAMP: Date/time values
+- JSONB: JSON data (attachments, reasoning)
+- INTEGER: Foreign keys and counts
+
+FOR FUTURE ADDITIONS:
+- Use SERIAL for primary keys
+- Add created_at/updated_at timestamps
+- Use JSONB for flexible data structures
+- Add appropriate indexes for performance
+- Include foreign key constraints for data integrity 

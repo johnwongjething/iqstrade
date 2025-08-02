@@ -1,0 +1,173 @@
+{
+  "test_pdf": "2201003.NYC.pdf",
+  "timestamp": "2025-07-28T19:37:06.819064",
+  "enhanced_ai": {
+    "success": true,
+    "processing_time": 0.17687463760375977,
+    "fields": {
+      "document_type": "",
+      "bl_number": "",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "paid_amount": "",
+      "raw_text": "",
+      "container_count": 0,
+      "container_types": [],
+      "container_type": null,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "total_weight_kg": null,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "container",
+      "calculated_ctn_fee": 100.0,
+      "calculated_service_fee": 100.0,
+      "calculated_total_fee": 200.0,
+      "ocr_confidence_score": 0.39,
+      "pricing_calculation_log": {
+        "method": "default",
+        "reason": "No specific pricing data available"
+      },
+      "confidence_breakdown": {
+        "container_detection": 0.3,
+        "weight_detection": 0.2,
+        "shipment_classification": 0.7,
+        "overall": 0.39
+      }
+    }
+  },
+  "enhanced_regex": {
+    "success": true,
+    "processing_time": 5.582134008407593,
+    "fields": {
+      "document_type": "",
+      "bl_number": "",
+      "shipper": "",
+      "consignee": "",
+      "port_of_loading": "",
+      "port_of_discharge": "",
+      "container_numbers": "",
+      "flight_or_vessel": "",
+      "product_description": "",
+      "paid_amount": "",
+      "raw_text": "",
+      "debug_container_numbers": {
+        "raw_container_numbers": [],
+        "type": "list",
+        "shipment_type": "ocean",
+        "final_result": ""
+      },
+      "notify_party": "",
+      "debug_consignee": {
+        "original_consignee": "",
+        "final_consignee": "",
+        "notify_party": "",
+        "was_processed": false
+      },
+      "container_count": 0,
+      "container_types": [],
+      "container_type": null,
+      "container_count_20ft": 0,
+      "container_count_40ft": 0,
+      "container_count_40ft_hc": 0,
+      "total_weight_kg": null,
+      "weight_unit": "kg",
+      "shipment_type": "ocean",
+      "pricing_method": "container",
+      "calculated_ctn_fee": null,
+      "calculated_service_fee": null,
+      "calculated_total_fee": null,
+      "ocr_confidence_score": null,
+      "pricing_calculation_log": {
+        "container_count": 0,
+        "container_types": [],
+        "weight_kg": null,
+        "weight_unit": "kg",
+        "shipment_type": "ocean",
+        "ctn_fee_per_unit": 100.0,
+        "service_fee_per_unit": 100.0,
+        "minimum_charge": 200.0
+      },
+      "confidence_breakdown": {
+        "container_detection": null,
+        "weight_detection": null,
+        "shipment_classification": null,
+        "overall": null
+      }
+    }
+  },
+  "comparison": {
+    "consignee": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "port_of_loading": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "port_of_discharge": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "container_numbers": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "flight_or_vessel": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "bl_number": {
+      "match": true,
+      "ai_value": "",
+      "regex_value": "",
+      "status": "\u2705 Match"
+    },
+    "container_count": {
+      "match": true,
+      "ai_value": 0,
+      "regex_value": 0,
+      "status": "\u2705 Match"
+    },
+    "total_weight_kg": {
+      "match": true,
+      "ai_value": null,
+      "regex_value": null,
+      "status": "\u2705 Match"
+    },
+    "shipment_type": {
+      "match": true,
+      "ai_value": "ocean",
+      "regex_value": "ocean",
+      "status": "\u2705 Match"
+    },
+    "calculated_ctn_fee": {
+      "match": false,
+      "ai_value": 100.0,
+      "regex_value": null,
+      "status": "\u274c Mismatch"
+    },
+    "calculated_service_fee": {
+      "match": false,
+      "ai_value": 100.0,
+      "regex_value": null,
+      "status": "\u274c Mismatch"
+    }
+  }
+}
