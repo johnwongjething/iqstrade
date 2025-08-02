@@ -66,26 +66,33 @@ class FCMService:
     
     def send_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification to specific FCM tokens using HTTP v1 API
+        Send notification to specific FCM tokens using Legacy HTTP API (server key)
         """
-        access_token = self._get_valid_access_token()
-        if not access_token:
-            return {'success': False, 'error': 'No valid access token available'}
+        server_key = os.getenv('FIREBASE_SERVER_KEY')
+        if not server_key:
+            return {'success': False, 'error': 'FIREBASE_SERVER_KEY not found in environment variables'}
         
         if not tokens:
             return {'success': False, 'error': 'No tokens provided'}
         
-        # HTTP v1 API format
-        messages = []
-        for token in tokens:
-            message = {
-                'message': {
-                    'token': token,
+        # Legacy HTTP API format
+        headers = {
+            'Authorization': f'key={server_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        results = []
+        for i, token in enumerate(tokens):
+            try:
+                # Legacy API format
+                message = {
+                    'to': token,
                     'notification': {
                         'title': title,
                         'body': body
                     },
                     'data': {k: str(v) for k, v in (data or {}).items()},
+                    'priority': 'high',
                     'android': {
                         'priority': 'high',
                         'notification': {
@@ -104,23 +111,13 @@ class FCMService:
                         }
                     }
                 }
-            }
-            messages.append(message)
-        
-        headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Content-Type': 'application/json'
-        }
-        
-        results = []
-        for i, message in enumerate(messages):
-            try:
-                print(f'📱 Sending message {i+1}/{len(messages)} to FCM...')
-                print(f'📱 FCM URL: {self.fcm_url}')
+                
+                print(f'📱 Sending message {i+1}/{len(tokens)} to FCM...')
+                print(f'📱 FCM URL: https://fcm.googleapis.com/fcm/send')
                 print(f'📱 Headers: {headers}')
                 print(f'📱 Message: {json.dumps(message, indent=2)}')
                 
-                response = requests.post(self.fcm_url, json=message, headers=headers)
+                response = requests.post('https://fcm.googleapis.com/fcm/send', json=message, headers=headers)
                 print(f'📱 FCM Response Status: {response.status_code}')
                 print(f'📱 FCM Response Headers: {dict(response.headers)}')
                 print(f'📱 FCM Response Text: {response.text}')
@@ -154,48 +151,47 @@ class FCMService:
     
     def send_to_topic(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification to a topic using HTTP v1 API
+        Send notification to a topic using Legacy HTTP API (server key)
         """
-        access_token = self._get_valid_access_token()
-        if not access_token:
-            return {'success': False, 'error': 'No valid access token available'}
+        server_key = os.getenv('FIREBASE_SERVER_KEY')
+        if not server_key:
+            return {'success': False, 'error': 'FIREBASE_SERVER_KEY not found in environment variables'}
         
-        # HTTP v1 API format for topics
+        # Legacy HTTP API format for topics
         message = {
-            'message': {
-                'topic': topic,
+            'to': f'/topics/{topic}',
+            'notification': {
+                'title': title,
+                'body': body
+            },
+            'data': {k: str(v) for k, v in (data or {}).items()},
+            'priority': 'high',
+            'android': {
+                'priority': 'high',
                 'notification': {
-                    'title': title,
-                    'body': body
+                    'icon': '/favicon.ico',
+                    'color': '#4285f4'
+                }
+            },
+            'webpush': {
+                'headers': {
+                    'Urgency': 'high'
                 },
-                'data': {k: str(v) for k, v in (data or {}).items()},
-                'android': {
-                    'priority': 'high',
-                    'notification': {
-                        'icon': '/favicon.ico',
-                        'color': '#4285f4'
-                    }
-                },
-                'webpush': {
-                    'headers': {
-                        'Urgency': 'high'
-                    },
-                    'notification': {
-                        'icon': '/favicon.ico',
-                        'badge': '/favicon.ico',
-                        'requireInteraction': True
-                    }
+                'notification': {
+                    'icon': '/favicon.ico',
+                    'badge': '/favicon.ico',
+                    'requireInteraction': True
                 }
             }
         }
         
         headers = {
-            'Authorization': f'Bearer {access_token}',
+            'Authorization': f'key={server_key}',
             'Content-Type': 'application/json'
         }
         
         try:
-            response = requests.post(self.fcm_url, json=message, headers=headers)
+            response = requests.post('https://fcm.googleapis.com/fcm/send', json=message, headers=headers)
             response.raise_for_status()
             
             result = response.json()
