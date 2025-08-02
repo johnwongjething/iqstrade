@@ -36,6 +36,7 @@ from outlook_addin_api import outlook_api  # Register Outlook add-in API
 
 from datetime import datetime, timedelta
 import pytz
+import logging
 from utils.timezone_utils import get_hk_now_iso
 
 # Import email scheduler

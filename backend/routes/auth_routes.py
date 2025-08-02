@@ -262,6 +262,18 @@ def login():
     identity = json.dumps({'id': user_id, 'role': role, 'username': username})
     access_token = create_access_token(identity=identity)
     refresh_token = create_refresh_token(identity=identity)
+    
+    # Debug: Decode and log token info
+    import jwt as pyjwt
+    try:
+        decoded = pyjwt.decode(access_token, os.environ.get('JWT_SECRET_KEY', 'your-secret-key'), algorithms=['HS256'])
+        logging.info(f"[JWT DEBUG] Token created at: {decoded.get('iat')}")
+        logging.info(f"[JWT DEBUG] Token expires at: {decoded.get('exp')}")
+        logging.info(f"[JWT DEBUG] Current time: {int(datetime.now().timestamp())}")
+        logging.info(f"[JWT DEBUG] Token valid for: {decoded.get('exp') - decoded.get('iat')} seconds")
+    except Exception as e:
+        logging.error(f"[JWT DEBUG] Error decoding token: {e}")
+    
     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
     response = make_response(jsonify({
         "customer_name": customer_name,
