@@ -260,10 +260,15 @@ def login():
         "customer_email": customer_email,
         "customer_phone": customer_phone,
         'role': role,
-        'username': username
+        'username': username,
+        'redirect': '/dashboard'  # Add redirect hint for frontend
     }), 200)
     
-    # Clear any existing cookies first
+    # Clear any existing cookies first with multiple attempts
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='Lax')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='Lax')
+    
+    # Also try clearing with different SameSite values
     response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='None')
     response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='None')
     
@@ -295,6 +300,21 @@ def refresh():
 def logout():
     response = jsonify({'message': 'Logged out successfully'})
     unset_jwt_cookies(response)
+    return response, 200
+
+# Clear cookies endpoint
+@auth_routes.route('/clear-cookies', methods=['POST'])
+def clear_cookies():
+    response = jsonify({'message': 'Cookies cleared'})
+    
+    # Clear all possible cookie variations
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='Lax')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='Lax')
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='None')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='None')
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=False, samesite='Lax')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=False, samesite='Lax')
+    
     return response, 200
 
 # Test endpoint to check JWT without database

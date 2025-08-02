@@ -66,7 +66,7 @@ app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/refresh'
 
 # JWT Cookie configuration - simplified for production
 app.config['JWT_COOKIE_SECURE'] = True
-app.config['JWT_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies for Render deployment
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax'  # Use Lax for better browser compatibility
 app.config['JWT_COOKIE_DOMAIN'] = None  # No domain restriction
 app.config['JWT_COOKIE_HTTPONLY'] = True
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Disable CSRF for simplicity
