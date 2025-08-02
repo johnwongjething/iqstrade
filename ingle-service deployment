@@ -1,0 +1,5 @@
+[33m6c6ee91[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Fix FCM routing, add Firebase setup pages, and secure credentials
+[33ma3d6b3d[m Remove Firebase credentials file for security
+[33mce02ffd[m Fix FCM setup and prepare for Render deployment
+[33m6d57d6f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix 20
+[33md379fb7[m Al 214141

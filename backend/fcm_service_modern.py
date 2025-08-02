@@ -11,7 +11,7 @@ from google.oauth2 import service_account
 class FCMService:
     def __init__(self):
         self.fcm_url = 'https://fcm.googleapis.com/v1/projects/iqstrade-notifications/messages:send'
-        self.service_account_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'iqstrade-notifications-firebase-adminsdk-fbsvc-f52d11527b.json')
+        self.service_account_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH', 'iqstrade-notifications-firebase-adminsdk-fbsvc-f52d11527b.json')
         self.project_id = 'iqstrade-notifications'
         self.credentials = None
         self.access_token = None
