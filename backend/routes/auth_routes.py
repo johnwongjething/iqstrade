@@ -287,10 +287,6 @@ def login():
     response.delete_cookie('access_token_cookie', path='/', domain=None)
     response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None)
     
-    # Add a small delay to ensure cookies are cleared
-    import time
-    time.sleep(0.1)
-    
     # Set new cookies
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)

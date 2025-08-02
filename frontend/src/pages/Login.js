@@ -114,6 +114,8 @@ function Login({ t = x => x }) {
       }
       // Login response received
       if (res.ok) {
+        // Add a small delay to allow browser to process new cookies
+        await new Promise(resolve => setTimeout(resolve, 100));
         const success = await fetchUserIfNeeded(true);
         if (success) {
           await fetchCsrfToken();
