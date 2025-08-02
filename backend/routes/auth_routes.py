@@ -278,6 +278,12 @@ def login():
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     
+    # Force browser to clear ALL cookies for this domain
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=False, samesite='Lax')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=False, samesite='Lax')
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=False, samesite='None')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=False, samesite='None')
+    
     # Set new cookies with cache-busting
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
@@ -321,6 +327,43 @@ def clear_cookies():
     response.delete_cookie('access_token_cookie', path='/', domain=None, secure=False, samesite='Lax')
     response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=False, samesite='Lax')
     
+    # Add cache-busting headers
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response, 200
+
+@auth_routes.route('/nuclear-clear', methods=['POST'])
+def nuclear_clear():
+    """Nuclear option - clear ALL cookies and force browser reset"""
+    response = jsonify({'message': 'Nuclear clear completed'})
+    
+    # Clear every possible cookie variation
+    variations = [
+        ('access_token_cookie', '/', None, True, 'Lax'),
+        ('refresh_token_cookie', '/api/refresh', None, True, 'Lax'),
+        ('access_token_cookie', '/', None, True, 'None'),
+        ('refresh_token_cookie', '/api/refresh', None, True, 'None'),
+        ('access_token_cookie', '/', None, False, 'Lax'),
+        ('refresh_token_cookie', '/api/refresh', None, False, 'Lax'),
+        ('access_token_cookie', '/', None, False, 'None'),
+        ('refresh_token_cookie', '/api/refresh', None, False, 'None'),
+        ('access_token_cookie', '/', '.onrender.com', True, 'Lax'),
+        ('refresh_token_cookie', '/api/refresh', '.onrender.com', True, 'Lax'),
+        ('access_token_cookie', '/', '.onrender.com', True, 'None'),
+        ('refresh_token_cookie', '/api/refresh', '.onrender.com', True, 'None'),
+    ]
+    
+    for name, path, domain, secure, samesite in variations:
+        response.delete_cookie(name, path=path, domain=domain, secure=secure, samesite=samesite)
+    
+    # Add aggressive cache-busting
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['Clear-Site-Data'] = '"cookies", "storage"'
+    
     return response, 200
 
 # Test endpoint to check JWT without database
@@ -337,10 +380,27 @@ def debug_cookies():
     logging.info(f"[DEBUG] Request cookies: {dict(request.cookies)}")
     logging.info(f"[DEBUG] Request headers: {dict(request.headers)}")
     
+    # Try to decode any JWT tokens found
+    import jwt as pyjwt
+    jwt_info = {}
+    for cookie_name, cookie_value in request.cookies.items():
+        if 'token' in cookie_name.lower() and cookie_value:
+            try:
+                decoded = pyjwt.decode(cookie_value, os.environ.get('JWT_SECRET_KEY', 'your-secret-key'), algorithms=['HS256'])
+                jwt_info[cookie_name] = {
+                    'created_at': decoded.get('iat'),
+                    'expires_at': decoded.get('exp'),
+                    'current_time': int(datetime.now().timestamp()),
+                    'is_expired': decoded.get('exp', 0) < int(datetime.now().timestamp())
+                }
+            except Exception as e:
+                jwt_info[cookie_name] = f"Error decoding: {str(e)}"
+    
     return jsonify({
         'cookies': dict(request.cookies),
         'headers': dict(request.headers),
-        'user_agent': request.headers.get('User-Agent', 'Unknown')
+        'user_agent': request.headers.get('User-Agent', 'Unknown'),
+        'jwt_analysis': jwt_info
     }), 200
 
 # Get current user
