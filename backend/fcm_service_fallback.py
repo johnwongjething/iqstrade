@@ -4,6 +4,9 @@ import json
 from typing import Dict, List, Optional
 from datetime import datetime
 import pytz
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
+from google.auth import default
 
 class FCMServiceFallback:
     """
@@ -19,43 +22,45 @@ class FCMServiceFallback:
         self.credentials = None
         self.access_token = None
         
-        # Legacy API credentials (fallback)
-        self.server_key = os.getenv('FIREBASE_SERVER_KEY')
-        self.legacy_url = 'https://fcm.googleapis.com/fcm/send'
-        
         # Initialize modern API
         self._initialize_modern_api()
         
         print(f"🔔 FCM Service initialized:")
         print(f"   Modern API: {'✅' if self.credentials else '❌'}")
-        print(f"   Legacy API: {'✅' if self.server_key else '❌'}")
         if not self.credentials:
-            print(f"   ⚠️ Service account not found: {self.service_account_path}")
-        if not self.server_key:
-            print(f"   ⚠️ Server key not found")
+            print(f"   ⚠️ Service account not configured: {self.service_account_path}")
     
     def _initialize_modern_api(self):
         """Initialize modern HTTP v1 API credentials"""
         try:
             # Try to use service account file first
             if self.service_account_path and os.path.exists(self.service_account_path):
-                from google.oauth2 import service_account
-                self.credentials = service_account.Credentials.from_service_account_file(
-                    self.service_account_path,
-                    scopes=['https://www.googleapis.com/auth/firebase.messaging']
-                )
-                print(f"✅ Modern API credentials loaded from: {self.service_account_path}")
-            else:
-                print(f"⚠️ Service account file not found: {self.service_account_path}")
-                # Try to use default credentials (for Google Cloud environments)
                 try:
-                    from google.auth import default
-                    self.credentials, _ = default(scopes=['https://www.googleapis.com/auth/firebase.messaging'])
-                    print("✅ Using default Google Cloud credentials")
-                except Exception as default_error:
-                    print(f"❌ Default credentials failed: {default_error}")
+                    self.credentials = service_account.Credentials.from_service_account_file(
+                        self.service_account_path,
+                        scopes=['https://www.googleapis.com/auth/firebase.messaging']
+                    )
+                    print(f"✅ Modern API credentials loaded from: {self.service_account_path}")
+                except Exception as sa_error:
+                    print(f"❌ Service account file error: {sa_error}")
+                    # Try to read and validate the file content
+                    try:
+                        import json
+                        with open(self.service_account_path, 'r') as f:
+                            content = json.load(f)
+                        print(f"📄 Service account file contains: {list(content.keys())}")
+                        if 'private_key' in content:
+                            print(f"🔑 Private key length: {len(content['private_key'])} characters")
+                        else:
+                            print("❌ No private_key found in service account file")
+                    except Exception as read_error:
+                        print(f"❌ Cannot read service account file: {read_error}")
                     self.credentials = None
                     return
+            else:
+                print(f"⚠️ Service account file not found: {self.service_account_path}")
+                self.credentials = None
+                return
             
             # Get initial access token
             if self.credentials:
@@ -69,7 +74,6 @@ class FCMServiceFallback:
         """Refresh the OAuth 2.0 access token"""
         try:
             if self.credentials:
-                from google.auth.transport.requests import Request
                 self.credentials.refresh(Request())
                 self.access_token = self.credentials.token
                 print(f"✅ Access token refreshed: {self.access_token[:20]}...")
@@ -89,24 +93,16 @@ class FCMServiceFallback:
     
     def send_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification with fallback to legacy API if modern API fails
+        Send notification using modern API only (legacy API is deprecated)
         """
         if not tokens:
             return {'success': False, 'error': 'No tokens provided'}
         
-        # Try modern API first
+        # Use modern API only
         if self.credentials:
-            result = self._send_modern_notification(tokens, title, body, data)
-            if result['success']:
-                return result
-            else:
-                print(f"⚠️ Modern API failed, trying legacy API: {result.get('error', 'Unknown error')}")
-        
-        # Fallback to legacy API
-        if self.server_key:
-            return self._send_legacy_notification(tokens, title, body, data)
+            return self._send_modern_notification(tokens, title, body, data)
         else:
-            return {'success': False, 'error': 'No FCM credentials available (neither modern nor legacy)'}
+            return {'success': False, 'error': 'No FCM credentials available - service account not configured'}
     
     def _send_modern_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """Send notification using modern HTTP v1 API"""
@@ -174,69 +170,6 @@ class FCMServiceFallback:
             'api_used': 'modern'
         }
     
-    def _send_legacy_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
-        """Send notification using legacy FCM API"""
-        payload = {
-            'registration_ids': tokens,
-            'notification': {
-                'title': title,
-                'body': body,
-                'icon': '/favicon.ico',
-                'badge': '1',
-                'requireInteraction': True
-            },
-            'data': data or {},
-            'priority': 'high',
-            'content_available': True
-        }
-        
-        headers = {
-            'Authorization': f'key={self.server_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        try:
-            print(f'📱 [Legacy API] Sending notification to {len(tokens)} tokens...')
-            response = requests.post(self.legacy_url, json=payload, headers=headers)
-            response.raise_for_status()
-            
-            result = response.json()
-            success_count = result.get('success', 0)
-            failure_count = result.get('failure', 0)
-            
-            print(f'📱 [Legacy API] Success: {success_count}, Failures: {failure_count}')
-            
-            return {
-                'success': success_count > 0,
-                'response': result,
-                'success_count': success_count,
-                'failure_count': failure_count,
-                'total_sent': len(tokens),
-                'api_used': 'legacy'
-            }
-            
-        except requests.exceptions.RequestException as e:
-            print(f'📱 [Legacy API] Failed: {e}')
-            return {'success': False, 'error': str(e), 'api_used': 'legacy'}
-    
-    def send_to_topic(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
-        """
-        Send notification to a topic with fallback to legacy API
-        """
-        # Try modern API first
-        if self.credentials:
-            result = self._send_modern_topic_notification(topic, title, body, data)
-            if result['success']:
-                return result
-            else:
-                print(f"⚠️ Modern API topic notification failed, trying legacy API")
-        
-        # Fallback to legacy API
-        if self.server_key:
-            return self._send_legacy_topic_notification(topic, title, body, data)
-        else:
-            return {'success': False, 'error': 'No FCM credentials available for topic notifications'}
-    
     def _send_modern_topic_notification(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
         """Send topic notification using modern API"""
         access_token = self._get_valid_access_token()
@@ -291,41 +224,14 @@ class FCMServiceFallback:
             print(f'📱 [Modern API] Topic notification failed: {e}')
             return {'success': False, 'error': str(e), 'api_used': 'modern'}
     
-    def _send_legacy_topic_notification(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
-        """Send topic notification using legacy API"""
-        payload = {
-            'to': f'/topics/{topic}',
-            'notification': {
-                'title': title,
-                'body': body,
-                'icon': '/favicon.ico',
-                'badge': '1',
-                'requireInteraction': True
-            },
-            'data': data or {},
-            'priority': 'high',
-            'content_available': True
-        }
-        
-        headers = {
-            'Authorization': f'key={self.server_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        try:
-            print(f'📱 [Legacy API] Sending topic notification to "{topic}"...')
-            response = requests.post(self.legacy_url, json=payload, headers=headers)
-            response.raise_for_status()
-            
-            return {
-                'success': True,
-                'response': response.json(),
-                'api_used': 'legacy'
-            }
-            
-        except requests.exceptions.RequestException as e:
-            print(f'📱 [Legacy API] Topic notification failed: {e}')
-            return {'success': False, 'error': str(e), 'api_used': 'legacy'}
+    def send_to_topic(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
+        """
+        Send notification to a topic using modern API only
+        """
+        if self.credentials:
+            return self._send_modern_topic_notification(topic, title, body, data)
+        else:
+            return {'success': False, 'error': 'No FCM credentials available for topic notifications'}
 
 # Create global instance
 fcm_service_fallback = FCMServiceFallback() 

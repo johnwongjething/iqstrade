@@ -294,7 +294,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
     
     # Send FCM push notification for payment receipt processing
     try:
-        from fcm_service_modern import fcm_service
+        from fcm_service_fallback import fcm_service_fallback
         # Get all FCM tokens for notifications
         cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
         tokens = [row[0] for row in cursor.fetchall()]
@@ -302,7 +302,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         if tokens and bl_payment_map:
             bl_list = list(bl_payment_map.keys())
             total_paid = sum(bl_payment_map.values())
-            result = fcm_service.send_notification(
+            result = fcm_service_fallback.send_notification(
                 tokens=tokens,
                 title='💰 Payment Receipt Processed',
                 body=f'Payment processed for BL(s): {", ".join(bl_list)} - Total: ${total_paid}',
@@ -1576,7 +1576,7 @@ def send_fcm_notification_for_new_email(email_id, subject, from_addr):
             return True
         
         # Send the notification
-        from fcm_service_modern import fcm_service
+        from fcm_service_fallback import fcm_service_fallback
         
         # Get all FCM tokens for notifications
         cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
@@ -1589,7 +1589,7 @@ def send_fcm_notification_for_new_email(email_id, subject, from_addr):
                 'timestamp': datetime.datetime.now().isoformat()
             }
             
-            result = fcm_service.send_notification(
+            result = fcm_service_fallback.send_notification(
                 tokens=tokens,
                 title="📧 You have new email",
                 body="New customer email received",

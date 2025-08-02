@@ -770,7 +770,7 @@ def save_draft_reply(to_addr, subject, reply, confidence_result=None, email_id=N
 def send_fcm_notification(title, body, data=None):
     """Send FCM notification using real FCM service"""
     try:
-        from fcm_service_modern import fcm_service
+        from fcm_service_fallback import fcm_service_fallback
         
         # Get all FCM tokens for notifications
         conn = get_db_conn()
@@ -782,7 +782,7 @@ def send_fcm_notification(title, body, data=None):
         
         if tokens:
             # Send notification to all active tokens
-            fcm_service.send_notification(
+            fcm_service_fallback.send_notification(
                 tokens=tokens,
                 title=title,
                 body=body,
@@ -880,7 +880,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
     
     # Send FCM push notification for payment receipt processing
     try:
-        from fcm_service_modern import fcm_service
+        from fcm_service_fallback import fcm_service_fallback
         # Get all FCM tokens for notifications
         cursor.execute('SELECT token FROM fcm_tokens')
         tokens = [row[0] for row in cursor.fetchall()]
@@ -888,7 +888,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         if tokens and bl_payment_map:
             bl_list = list(bl_payment_map.keys())
             total_paid = sum(bl_payment_map.values())
-            fcm_service.send_notification(
+            fcm_service_fallback.send_notification(
                 tokens=tokens,
                 title='💰 Payment Receipt Processed',
                 body=f'Payment processed for BL(s): {", ".join(bl_list)} - Total: ${total_paid}',
@@ -1150,7 +1150,7 @@ def process_inbox(user_id=None):
                     
                     # Send FCM push notification for new email
                     try:
-                        from fcm_service_modern import fcm_service
+                        from fcm_service_fallback import fcm_service_fallback
                         import datetime as dt
                         
                         # Get all FCM tokens for notifications
@@ -1162,7 +1162,7 @@ def process_inbox(user_id=None):
                             title = "📧 You have new email"
                             body = "New customer email received"
                             
-                            fcm_service.send_notification(
+                            fcm_service_fallback.send_notification(
                                 tokens=tokens,
                                 title=title,
                                 body=body,
