@@ -45,7 +45,7 @@ def openai_call_with_fallback_old_api(messages, temperature=0, max_tokens=None):
             if max_tokens:
                 kwargs["max_tokens"] = max_tokens
                 
-            response = openai.ChatCompletion.create(**kwargs)
+            response = openai.chat.completions.create(**kwargs)
             content = response.choices[0].message.content
             return content
         except Exception as e:
