@@ -12,23 +12,20 @@ class FCMServiceFallback:
     
     def __init__(self):
         self.project_id = 'iqstrade-notifications'
-        self.legacy_url = 'https://fcm.googleapis.com/fcm/send'
-        self.modern_url = f'https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send'
-        
-        # Legacy API credentials
-        self.server_key = os.getenv('FIREBASE_SERVER_KEY')
+        self.fcm_url = f'https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send'
         
         # Modern API credentials
         self.service_account_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
         self.credentials = None
         self.access_token = None
         
-        # Try to initialize modern API first
+        # Initialize modern API
         self._initialize_modern_api()
         
         print(f"🔔 FCM Service initialized:")
-        print(f"   Legacy API: {'✅' if self.server_key else '❌'}")
         print(f"   Modern API: {'✅' if self.credentials else '❌'}")
+        if not self.credentials:
+            print(f"   ⚠️ Service account not found: {self.service_account_path}")
     
     def _initialize_modern_api(self):
         """Initialize modern HTTP v1 API credentials"""
@@ -71,24 +68,16 @@ class FCMServiceFallback:
     
     def send_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification with automatic fallback between modern and legacy APIs
+        Send notification using modern API (legacy API is deprecated)
         """
         if not tokens:
             return {'success': False, 'error': 'No tokens provided'}
         
-        # Try modern API first
+        # Use modern API only (legacy API is deprecated)
         if self.credentials:
-            result = self._send_modern_notification(tokens, title, body, data)
-            if result['success']:
-                return result
-            else:
-                print(f"⚠️ Modern API failed, trying legacy API: {result.get('error', 'Unknown error')}")
-        
-        # Fallback to legacy API
-        if self.server_key:
-            return self._send_legacy_notification(tokens, title, body, data)
+            return self._send_modern_notification(tokens, title, body, data)
         else:
-            return {'success': False, 'error': 'No FCM credentials available (neither modern nor legacy)'}
+            return {'success': False, 'error': 'No FCM credentials available - service account not configured'}
     
     def _send_modern_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """Send notification using modern HTTP v1 API"""
@@ -133,7 +122,7 @@ class FCMServiceFallback:
                 }
                 
                 print(f'📱 [Modern API] Sending message {i+1}/{len(tokens)}...')
-                response = requests.post(self.modern_url, json=message, headers=headers)
+                response = requests.post(self.fcm_url, json=message, headers=headers)
                 
                 if response.status_code == 200:
                     results.append({'success': True, 'response': response.json()})
@@ -203,19 +192,11 @@ class FCMServiceFallback:
     
     def send_to_topic(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification to a topic with automatic fallback
+        Send notification to a topic using modern API
         """
-        # Try modern API first
+        # Use modern API only (legacy API is deprecated)
         if self.credentials:
-            result = self._send_modern_topic_notification(topic, title, body, data)
-            if result['success']:
-                return result
-            else:
-                print(f"⚠️ Modern API topic notification failed, trying legacy API")
-        
-        # Fallback to legacy API
-        if self.server_key:
-            return self._send_legacy_topic_notification(topic, title, body, data)
+            return self._send_modern_topic_notification(topic, title, body, data)
         else:
             return {'success': False, 'error': 'No FCM credentials available for topic notifications'}
     
@@ -260,7 +241,7 @@ class FCMServiceFallback:
         
         try:
             print(f'📱 [Modern API] Sending topic notification to "{topic}"...')
-            response = requests.post(self.modern_url, json=message, headers=headers)
+            response = requests.post(self.fcm_url, json=message, headers=headers)
             response.raise_for_status()
             
             return {
