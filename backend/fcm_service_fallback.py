@@ -30,6 +30,7 @@ class FCMServiceFallback:
     def _initialize_modern_api(self):
         """Initialize modern HTTP v1 API credentials"""
         try:
+            # Try to use service account file first
             if self.service_account_path and os.path.exists(self.service_account_path):
                 from google.oauth2 import service_account
                 self.credentials = service_account.Credentials.from_service_account_file(
@@ -37,9 +38,15 @@ class FCMServiceFallback:
                     scopes=['https://www.googleapis.com/auth/firebase.messaging']
                 )
                 print(f"✅ Modern API credentials loaded from: {self.service_account_path}")
-                self._refresh_access_token()
             else:
-                print(f"⚠️ Service account file not found: {self.service_account_path}")
+                # Try to use default credentials (for Google Cloud environments)
+                from google.auth import default
+                self.credentials, _ = default(scopes=['https://www.googleapis.com/auth/firebase.messaging'])
+                print("✅ Using default Google Cloud credentials")
+            
+            # Get initial access token
+            self._refresh_access_token()
+            
         except Exception as e:
             print(f"❌ Failed to initialize modern API: {e}")
             self.credentials = None
