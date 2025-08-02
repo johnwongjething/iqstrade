@@ -94,6 +94,12 @@ function Login({ t = x => x }) {
       return;
     }
     try {
+      // Clear any existing cookies first
+      await fetch(`${API_BASE_URL}/api/nuclear-clear`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
       // Send Geetest v4 fields as top-level keys for backend compatibility
       const body = {
         ...formData,
@@ -114,6 +120,18 @@ function Login({ t = x => x }) {
       }
       // Login response received
       if (res.ok) {
+        // Check if server wants us to force refresh
+        if (data.force_refresh) {
+          // Clear all cookies manually before refresh
+          document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+          });
+          
+          // Force page refresh to ensure new cookies are used
+          window.location.href = '/dashboard';
+          return;
+        }
+        
         const success = await fetchUserIfNeeded(true);
         if (success) {
           await fetchCsrfToken();
