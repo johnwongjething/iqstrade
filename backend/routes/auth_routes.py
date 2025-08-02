@@ -261,7 +261,8 @@ def login():
         "customer_phone": customer_phone,
         'role': role,
         'username': username,
-        'redirect': '/dashboard'  # Add redirect hint for frontend
+        'redirect': '/dashboard',  # Add redirect hint for frontend
+        'force_refresh': True  # Signal frontend to force refresh
     }), 200)
     
     # Clear any existing cookies first with multiple attempts
@@ -272,7 +273,12 @@ def login():
     response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='None')
     response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='None')
     
-    # Set new cookies
+    # Add cache-busting headers to force browser to use new cookies
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    # Set new cookies with cache-busting
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
     
@@ -323,6 +329,19 @@ def clear_cookies():
 def test_jwt():
     logging.info(f"[JWT TEST] JWT is working!")
     return jsonify({"message": "JWT is working!"})
+
+# Debug endpoint to check what cookies are being sent
+@auth_routes.route('/debug-cookies', methods=['GET'])
+def debug_cookies():
+    """Debug endpoint to see what cookies are being sent"""
+    logging.info(f"[DEBUG] Request cookies: {dict(request.cookies)}")
+    logging.info(f"[DEBUG] Request headers: {dict(request.headers)}")
+    
+    return jsonify({
+        'cookies': dict(request.cookies),
+        'headers': dict(request.headers),
+        'user_agent': request.headers.get('User-Agent', 'Unknown')
+    }), 200
 
 # Get current user
 @auth_routes.route('/me', methods=['GET'])
