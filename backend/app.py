@@ -64,21 +64,12 @@ app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/refresh'
 
-# JWT Cookie configuration - different for development vs production
-if app.debug or os.getenv('FLASK_ENV') == 'development':
-    # Development settings
-    app.config['JWT_COOKIE_SECURE'] = False  # Allow HTTP in development
-    app.config['JWT_COOKIE_SAMESITE'] = 'Lax'  # Less restrictive for local development
-    app.config['JWT_COOKIE_DOMAIN'] = None  # No domain restriction for localhost
-    app.config['JWT_COOKIE_HTTPONLY'] = True
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Disable CSRF for development
-else:
-    # Production settings
-    app.config['JWT_COOKIE_SECURE'] = True
-    app.config['JWT_COOKIE_SAMESITE'] = 'Lax'  # Allow same-site cookies for single service
-    app.config['JWT_COOKIE_DOMAIN'] = None  # No domain restriction for single service
-    app.config['JWT_COOKIE_HTTPONLY'] = True
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Disable CSRF for single service
+# JWT Cookie configuration - simplified for production
+app.config['JWT_COOKIE_SECURE'] = True
+app.config['JWT_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies for Render deployment
+app.config['JWT_COOKIE_DOMAIN'] = None  # No domain restriction
+app.config['JWT_COOKIE_HTTPONLY'] = True
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Disable CSRF for simplicity
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 jwt = JWTManager(app)

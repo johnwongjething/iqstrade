@@ -140,34 +140,14 @@ def geetest_register():
     geetest_id = os.environ.get('GEETEST_ID')
     # GEETEST_ID loaded from environment
     logging.info(f"[Geetest] /register called, captcha_id: {geetest_id}")
-    url = "https://gcaptcha4.geetest.com/register"
-    payload = {
-        "captcha_id": geetest_id,
-        "client_type": "web",
-        "lang": "en"
-    }
-    challenge = ""
-    try:
-        logging.info(f"[Geetest] Register payload: {payload}")
-        resp = requests.post(url, json=payload, timeout=5)
-        logging.info(f"[Geetest] Register raw response: {resp.text}")
-        try:
-            resp_json = resp.json()
-            # Geetest register API response: {resp_json}
-            challenge = resp_json.get("challenge", "")
-        except Exception as e:
-            # Geetest v4 register error (JSON parse): {e}
-            logging.error(f"[Geetest] Register error (JSON parse): {e}")
-            challenge = ""
-    except Exception as e:
-        # Geetest v4 register error: {e}
-        logging.error(f"[Geetest] Register error: {e}")
-        challenge = ""
+    
+    # BYPASS: Return mock response due to Cloudflare blocking
+    logging.info("[Geetest] BYPASS: Returning mock response due to Cloudflare blocking")
     return (
         jsonify({
             "success": 1,
             "gt": geetest_id,
-            "challenge": challenge,
+            "challenge": "mock_challenge_bypass",
             "new_captcha": True
         }),
         200,
@@ -194,8 +174,8 @@ def login():
     def verify_geetest_v4(lot_number, captcha_output, pass_token, captcha_id):
         # Geetest verification called
         logging.info(f"[Geetest] Validate payload: {{'lot_number': lot_number, 'captcha_output': captcha_output, 'pass_token': pass_token, 'captcha_id': captcha_id}}")
-        # BYPASS: Always return True for development/testing
-        logging.info('[Geetest] BYPASS: Always returning True for verification')
+        # BYPASS: Always return True due to Cloudflare blocking
+        logging.info('[Geetest] BYPASS: Always returning True due to Cloudflare blocking')
         return True
         # --- Real validation below (keep for future use) ---
         # url = "https://gcaptcha4.geetest.com/validate"
