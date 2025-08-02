@@ -272,6 +272,11 @@ def login():
     }), 200)
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
+    
+    # Debug: Log the cookies being set
+    logging.info(f"[DEBUG] Response cookies: {dict(response.headers)}")
+    logging.info(f"[DEBUG] Set-Cookie headers: {[h for h in response.headers if h[0].lower() == 'set-cookie']}")
+    
     cur.close()
     conn.close()
     logging.info(f"[Login] Login successful for user {username}")
@@ -298,6 +303,10 @@ def logout():
 @auth_routes.route('/me', methods=['GET'])
 @jwt_required()
 def get_me():
+    # Debug: Log all cookies
+    logging.info(f"[DEBUG] All cookies: {dict(request.cookies)}")
+    logging.info(f"[DEBUG] Access token cookie: {request.cookies.get('access_token_cookie')}")
+    logging.info(f"[DEBUG] Refresh token cookie: {request.cookies.get('refresh_token_cookie')}")
     user = json.loads(get_jwt_identity())
     conn = get_db_conn()
     cur = conn.cursor()
