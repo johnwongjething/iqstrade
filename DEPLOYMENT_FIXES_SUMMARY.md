@@ -24,8 +24,10 @@ Geetest was being blocked by Cloudflare, causing login failures.
 - **Maintained secure settings**: Kept `Secure=True` and `HttpOnly=True`
 
 #### `backend/routes/auth_routes.py`
+- **Added cookie clearing**: Clear old cookies before setting new ones to prevent token conflicts
 - **Bypassed Geetest verification**: Due to Cloudflare blocking, always return `True` for verification
 - **Bypassed Geetest registration**: Return mock response instead of calling external API
+- **Added debug logging**: Enhanced logging to track cookie behavior
 - **Maintained login flow**: All other authentication logic remains intact
 
 ### Frontend Changes

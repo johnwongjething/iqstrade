@@ -263,6 +263,10 @@ def login():
         'username': username
     }), 200)
     
+    # Clear any existing cookies first
+    response.delete_cookie('access_token_cookie', path='/', domain=None, secure=True, samesite='None')
+    response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None, secure=True, samesite='None')
+    
     # Set new cookies
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
@@ -305,6 +309,8 @@ def test_jwt():
 @jwt_required()
 def get_me():
     # Debug: Log all cookies
+    logging.info(f"[ME DEBUG] Request cookies: {dict(request.cookies)}")
+    logging.info(f"[ME DEBUG] Request headers: {dict(request.headers)}")
     logging.info(f"[DEBUG] All cookies: {dict(request.cookies)}")
     logging.info(f"[DEBUG] Access token cookie: {request.cookies.get('access_token_cookie')}")
     logging.info(f"[DEBUG] Refresh token cookie: {request.cookies.get('refresh_token_cookie')}")
