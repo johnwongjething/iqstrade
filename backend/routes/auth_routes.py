@@ -280,12 +280,17 @@ def login():
         "customer_email": customer_email,
         "customer_phone": customer_phone,
         'role': role,
-        'username': username
+        'username': username,
+        'access_token': access_token  # Include token in response body for immediate use
     }), 200)
     
     # Clear old cookies first with explicit domain and path
     response.delete_cookie('access_token_cookie', path='/', domain=None)
     response.delete_cookie('refresh_token_cookie', path='/api/refresh', domain=None)
+    
+    # Force clear cookies by setting them with past expiration
+    response.set_cookie('access_token_cookie', '', expires=0, path='/', domain=None, secure=True, httponly=True, samesite='Lax')
+    response.set_cookie('refresh_token_cookie', '', expires=0, path='/api/refresh', domain=None, secure=True, httponly=True, samesite='Lax')
     
     # Set new cookies
     set_access_cookies(response, access_token)
