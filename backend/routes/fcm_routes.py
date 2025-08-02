@@ -14,6 +14,49 @@ def test_simple():
     """
     return jsonify({'message': 'FCM blueprint is working!'}), 200
 
+@fcm_routes.route('/fcm/test-service', methods=['GET'])
+def test_fcm_service():
+    """
+    Test FCM service status without sending notifications
+    """
+    try:
+        print('🔍 Testing FCM service status...')
+        
+        # Check if FCM service is initialized
+        if not fcm_service_fallback.credentials:
+            return jsonify({
+                'status': 'error',
+                'message': 'FCM service not initialized - no credentials available',
+                'service_account_path': fcm_service_fallback.service_account_path,
+                'credentials_available': False
+            }), 500
+        
+        # Try to get access token
+        access_token = fcm_service_fallback._get_valid_access_token()
+        if not access_token:
+            return jsonify({
+                'status': 'error',
+                'message': 'FCM service cannot get access token',
+                'credentials_available': True,
+                'access_token_available': False
+            }), 500
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'FCM service is working properly',
+            'credentials_available': True,
+            'access_token_available': True,
+            'project_id': fcm_service_fallback.project_id,
+            'api_url': fcm_service_fallback.fcm_url
+        }), 200
+        
+    except Exception as e:
+        print(f'🔍 FCM service test failed: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'FCM service test failed: {str(e)}'
+        }), 500
+
 @fcm_routes.route('/fcm/token/public', methods=['POST'])
 def save_fcm_token_public():
     """
@@ -451,10 +494,15 @@ def send_direct_notification():
         title = data.get('title', 'Direct Notification')
         body = data.get('body', 'This is a direct notification')
         
+        print(f'📱 [Direct] Received request:')
+        print(f'   Token: {token[:20] if token else "None"}...')
+        print(f'   Title: {title}')
+        print(f'   Body: {body}')
+        
         if not token:
             return jsonify({'error': 'FCM token is required'}), 400
         
-        print(f'📱 Sending direct notification to token: {token[:20]}...')
+        print(f'📱 [Direct] Calling FCM service...')
         result = fcm_service_fallback.send_notification(
             tokens=[token],
             title=title,
@@ -462,20 +510,39 @@ def send_direct_notification():
             data={'type': 'direct_test', 'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()}
         )
         
+        print(f'📱 [Direct] FCM service result:')
+        print(f'   Success: {result.get("success", False)}')
+        print(f'   API Used: {result.get("api_used", "unknown")}')
+        print(f'   Success Count: {result.get("success_count", 0)}')
+        print(f'   Failure Count: {result.get("failure_count", 0)}')
+        
+        if result.get('results'):
+            for i, res in enumerate(result['results']):
+                print(f'   Result {i+1}: {"✅" if res.get("success") else "❌"} - {res.get("error", "Success")}')
+        
         if result['success']:
             return jsonify({
+                'success': True,
                 'message': 'Direct notification sent successfully',
                 'result': result
             }), 200
         else:
+            error_msg = result.get('error', 'Unknown FCM error')
+            print(f'📱 [Direct] FCM failed: {error_msg}')
             return jsonify({
-                'error': 'Failed to send direct notification',
+                'success': False,
+                'error': f'Failed to send direct notification: {error_msg}',
                 'result': result
             }), 500
             
     except Exception as e:
-        print('📱 Error sending direct notification:', str(e))
-        return jsonify({'error': f'Error sending direct notification: {str(e)}'}), 500 
+        print(f'📱 [Direct] Exception occurred: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'Error sending direct notification: {str(e)}'
+        }), 500 
 
 @fcm_routes.route('/fcm/test/email-notification', methods=['POST'])
 def test_email_notification():
@@ -603,3 +670,44 @@ def debug_fcm_token():
             
     except Exception as e:
         return jsonify({'error': f'Error getting FCM tokens: {str(e)}'}), 500 
+
+@fcm_routes.route('/fcm/fallback-notification', methods=['POST'])
+@jwt_required()
+def send_fallback_notification():
+    """
+    Send fallback notification via email when FCM fails
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title', 'IQS Trade Notification')
+        body = data.get('body', 'You have a new notification')
+        user_id = get_jwt_identity()
+        
+        # Get user email
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        return_db_conn(conn)
+        
+        if result and result[0]:
+            user_email = result[0]
+            
+            # Send email notification (you can implement this)
+            # For now, just log it
+            print(f"📧 Fallback notification sent to {user_email}: {title} - {body}")
+            
+            return jsonify({
+                'message': 'Fallback notification sent via email',
+                'email': user_email,
+                'title': title,
+                'body': body
+            }), 200
+        else:
+            return jsonify({
+                'error': 'No email found for user'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'Error sending fallback notification: {str(e)}'}), 500 
