@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 // Utility function to handle token validation and API calls
 export const handleApiCall = async (url, options = {}, navigate) => {
@@ -65,7 +66,7 @@ export async function fetchWithAuth(url, options = {}) {
   
   if (res.status === 401) {
     // Try to refresh the access token
-    const refreshRes = await fetch('/api/refresh', { 
+    const refreshRes = await fetch(`${API_BASE_URL}/api/refresh`, { 
       method: 'POST', 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -81,7 +82,7 @@ export async function fetchWithAuth(url, options = {}) {
     } else {
       // Only redirect to login if not /admin/ingest-emails
       if (!url.includes('/admin/ingest-emails')) {
-        window.location.href = '/login';
+        window.location.href = `${window.location.origin}/login`;
       }
       throw new Error('Session expired');
     }

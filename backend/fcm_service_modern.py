@@ -66,18 +66,19 @@ class FCMService:
     
     def send_notification(self, tokens: List[str], title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification to specific FCM tokens using HTTP v1 API with server key
+        Send notification to specific FCM tokens using HTTP v1 API with service account
         """
-        server_key = os.getenv('FIREBASE_SERVER_KEY')
-        if not server_key:
-            return {'success': False, 'error': 'FIREBASE_SERVER_KEY not found in environment variables'}
-        
         if not tokens:
             return {'success': False, 'error': 'No tokens provided'}
         
-        # HTTP v1 API format with server key
+        # Get valid access token
+        access_token = self._get_valid_access_token()
+        if not access_token:
+            return {'success': False, 'error': 'Failed to get valid access token'}
+        
+        # HTTP v1 API format with service account
         headers = {
-            'Authorization': f'key={server_key}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
         
@@ -152,11 +153,12 @@ class FCMService:
     
     def send_to_topic(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
         """
-        Send notification to a topic using HTTP v1 API with server key
+        Send notification to a topic using HTTP v1 API with service account
         """
-        server_key = os.getenv('FIREBASE_SERVER_KEY')
-        if not server_key:
-            return {'success': False, 'error': 'FIREBASE_SERVER_KEY not found in environment variables'}
+        # Get valid access token
+        access_token = self._get_valid_access_token()
+        if not access_token:
+            return {'success': False, 'error': 'Failed to get valid access token'}
         
         # HTTP v1 API format for topics
         message = {
@@ -188,7 +190,7 @@ class FCMService:
         }
         
         headers = {
-            'Authorization': f'key={server_key}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
         
