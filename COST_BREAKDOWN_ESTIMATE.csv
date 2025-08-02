@@ -1,0 +1,12 @@
+Service,Description,Unit Cost,Monthly Usage,Monthly Cost (USD),Notes
+OpenAI (WhatsApp GPT),GPT-4o for WhatsApp replies,$5/million input tokens,24,000 messages (4.8M tokens),$12,Input tokens (100/msg)
+OpenAI (WhatsApp GPT),GPT-4o for WhatsApp replies,$15/million output tokens,24,000 messages (4.8M tokens),$36,Output tokens (100/msg)
+OpenAI (Vision OCR),Vision API for PDF images,$0.0025/image,30,000 images,$75,2 pages per bill, 500 bills/day
+Azure App Service,Web/API/Worker hosting,~$75/month,1 instance,$75,Standard S1 (1.75GB RAM, 50GB storage)
+Azure PostgreSQL,Database hosting,~$75/month,1 instance,$75,Basic tier (100GB, 2 vCores)
+Azure Blob Storage,File storage,$0.0184/GB,15GB,$0.28,500 uploads/day, 1MB/file
+Azure Bandwidth,Outbound data,$0.087/GB,10GB (over free tier),$0.87,First 5GB free
+Email (SendGrid),Transactional email,$34.95/100,000 emails,100,000 emails,$34.95,Essentials plan
+Domain,Domain name,$15/year,1,$1.25,Annual cost divided by 12
+SSL,SSL certificate,Free,1,0,Included with Azure/Let's Encrypt
+Total,,,,$309.15,Estimated monthly total 

@@ -7,7 +7,12 @@ function UnmatchedBankRecords() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/admin/bank-unmatched')
+    const token = localStorage.getItem('token');
+    axios.get('/admin/unmatched-receipts', {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ''
+      }
+    })
       .then(res => {
         setRecords(res.data);
         setLoading(false);

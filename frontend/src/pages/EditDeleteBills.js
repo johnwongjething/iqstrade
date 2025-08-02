@@ -6,6 +6,8 @@ import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import { UserContext } from '../UserContext';
+import { fetchWithAuth } from '../utils/tokenUtils';
+import { useMediaQuery } from '@mui/material';
 
 function EditDeleteBills({ t = x => x }) {
   const [search, setSearch] = useState({ customer_name: '', customer_id: '', created_at: '', bl_number: '' });
@@ -14,6 +16,7 @@ function EditDeleteBills({ t = x => x }) {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
+  const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
     const checkUser = async () => {
@@ -36,7 +39,7 @@ function EditDeleteBills({ t = x => x }) {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/search_bills`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/search_bills`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +68,7 @@ function EditDeleteBills({ t = x => x }) {
 
   const handleDeleteConfirmed = async (id) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/bill/${id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -121,6 +124,10 @@ function EditDeleteBills({ t = x => x }) {
       )
     }
   ];
+
+  const handleEdit = (row) => {
+    navigate(`/edit-bill/${row.id}`);
+  };
 
   return (
     <div style={{ padding: 24 }}>

@@ -15,79 +15,72 @@ function Login({ t = x => x }) {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [geetestReady, setGeetestReady] = useState(false);
-  const [geetestObj, setGeetestObj] = useState(null);
+  const [scriptReady, setScriptReady] = useState(false);
   const [geetestData, setGeetestData] = useState(null);
-  const geetestRef = useRef();
+  const geetestContainerRef = useRef(null);
+  const geetestWidgetRef = useRef(null);
   const navigate = useNavigate();
-  const { setUser, fetchCsrfToken, fetchUserIfNeeded } = useContext(UserContext);
+  const { fetchCsrfToken, fetchUserIfNeeded } = useContext(UserContext);
 
-  // Dynamically load Geetest script
+  // Effect 1: Load the Geetest script once.
   useEffect(() => {
     const scriptId = 'geetest-script';
-    if (document.getElementById(scriptId)) return;
+    if (document.getElementById(scriptId)) {
+      setScriptReady(true);
+      return;
+    }
     const script = document.createElement('script');
     script.id = scriptId;
     script.src = 'https://static.geetest.com/v4/gt4.js';
     script.async = true;
-    script.onload = () => setGeetestReady(true);
+    script.onload = () => setScriptReady(true);
     document.body.appendChild(script);
-    return () => {
-      if (document.getElementById(scriptId)) {
-        document.body.removeChild(document.getElementById(scriptId));
-      }
-    };
   }, []);
 
-  // Fetch Geetest challenge and render widget
+  // Effect 2: Initialize the widget when the script is ready.
   useEffect(() => {
-    if (!geetestReady) return;
-    async function initGeetest() {
-      try {
-        // Fetch real Geetest challenge from backend
-        const res = await fetch(`${API_BASE_URL}/api/geetest/register`);
-        const data = await res.json();
-        console.log('Geetest /register response:', data); // Debug
+    if (!scriptReady || geetestWidgetRef.current) {
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/geetest/register`)
+      .then(res => res.json())
+      .then(data => {
         if (window.initGeetest4) {
           window.initGeetest4(
             {
               captchaId: data.gt,
-              challenge: data.challenge, // Pass challenge from backend
+              challenge: data.challenge,
               product: 'float',
-              language: 'en'
+              language: 'en',
             },
-            (captchaObj) => {
-              setGeetestObj(captchaObj);
-              captchaObj.appendTo(geetestRef.current);
-              captchaObj.onReady(() => {
-                console.log('Geetest widget ready');
+            (captcha) => {
+              geetestWidgetRef.current = captcha;
+              if (geetestContainerRef.current) {
+                captcha.appendTo(geetestContainerRef.current);
+              }
+              captcha.onSuccess(() => {
+                const result = captcha.getValidate();
+                setGeetestData(result);
               });
-              captchaObj.onSuccess(() => {
-                // Get real Geetest data from widget
-                const result = captchaObj.getValidate();
-                console.log('Geetest widget validate result:', result); // Debug
-                setGeetestData({
-                  lot_number: result.lot_number,
-                  captcha_output: result.captcha_output,
-                  pass_token: result.pass_token
-                });
-              });
-              captchaObj.onError((err) => {
-                console.error('Geetest widget error:', err);
+              captcha.onError(() => {
                 setError('Geetest failed to load.');
               });
             }
           );
-        } else {
-          console.error('window.initGeetest4 not found');
         }
-      } catch (err) {
-        console.error('Failed to load Geetest:', err);
+      })
+      .catch(() => {
         setError('Failed to load Geetest.');
+      });
+
+    return () => {
+      if (geetestWidgetRef.current) {
+        geetestWidgetRef.current.destroy();
+        geetestWidgetRef.current = null;
       }
-    }
-    initGeetest();
-  }, [geetestReady]);
+    };
+  }, [scriptReady]);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -104,11 +97,9 @@ function Login({ t = x => x }) {
       // Send Geetest v4 fields as top-level keys for backend compatibility
       const body = {
         ...formData,
-        lot_number: geetestData.lot_number,
-        captcha_output: geetestData.captcha_output,
-        pass_token: geetestData.pass_token
+        ...geetestData
       };
-      console.log('Submitting login with body:', body); // Debug
+      // Submitting login
       const res = await fetchWithTimeout(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,7 +112,7 @@ function Login({ t = x => x }) {
       } catch {
         data = {};
       }
-      console.log('Login response:', data); // Debug
+      // Login response received
       if (res.ok) {
         const success = await fetchUserIfNeeded(true);
         if (success) {
@@ -133,13 +124,17 @@ function Login({ t = x => x }) {
       } else {
         setError(data.error || t('loginFailed') || 'Login failed');
         setGeetestData(null);
-        if (geetestObj) geetestObj.reset && geetestObj.reset();
+        if (geetestWidgetRef.current) {
+            geetestWidgetRef.current.reset();
+        }
       }
     } catch (err) {
       console.error('Login error:', err);
       setError(t('loginFailed') + ': ' + err.message);
       setGeetestData(null);
-      if (geetestObj) geetestObj.reset && geetestObj.reset();
+      if (geetestWidgetRef.current) {
+        geetestWidgetRef.current.reset();
+      }
     } finally {
       setLoading(false);
     }
@@ -153,7 +148,7 @@ function Login({ t = x => x }) {
           <TextField fullWidth label={t('username')} name="username" value={formData.username} onChange={handleChange} margin="normal" required />
           <TextField fullWidth label={t('password')} name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required />
           <Box sx={{ mt: 2, mb: 2, display: 'flex', justifyContent: 'center' }}>
-            <div ref={geetestRef} style={{ width: 300, minHeight: 60 }} />
+            <div ref={geetestContainerRef} style={{ width: 300, minHeight: 60 }} />
           </Box>
           <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }} disabled={loading || !geetestData}>
             {loading ? t('loading') || 'Loading...' : t('login')}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { Container, Typography, Box, Grid, Paper, Button, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Link } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, Button, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Link, useMediaQuery } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function StaffStats({ t = x => x }) {
   const [stats, setStats] = useState(null);
@@ -12,6 +13,7 @@ function StaffStats({ t = x => x }) {
   const [loadingOutstanding, setLoadingOutstanding] = useState(true);
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
+  const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
     // Ensure user is loaded and authenticated
@@ -29,7 +31,7 @@ function StaffStats({ t = x => x }) {
       setError(null);
       if (!(await checkUser())) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/stats/summary`, {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/stats/summary`, {
           credentials: 'include',
         });
         if (res.status === 401) {
@@ -60,7 +62,7 @@ function StaffStats({ t = x => x }) {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE_URL}/api/stats/outstanding_bills`, {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/stats/outstanding_bills`, {
           credentials: 'include',
         });
         if (res.status === 401) {
@@ -160,7 +162,7 @@ function StaffStats({ t = x => x }) {
                     <TableCell>{t('ctnFee')}</TableCell>
                     <TableCell>{t('serviceFee')}</TableCell>
                     <TableCell>{t('total')}</TableCell>
-                    <TableCell>{t('outstanding')}</TableCell> {/* 🔹 Add this */}
+                    <TableCell>{t('outstanding')}</TableCell>
                     <TableCell>{t('invoicePDF')}</TableCell>
                   </TableRow>
                 </TableHead>
@@ -202,11 +204,11 @@ function StaffStats({ t = x => x }) {
                         href={row.invoice_filename}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={() => console.log('[DEBUG] Opening invoice Cloudinary URL:', row.invoice_filename)}
+                        onClick={() => {}}
                       >
                         {t('viewPDF')}
                       </Link>
-                    ) : 'N/A'}
+                    ) : t('N_A')}
                   </TableCell>
                     </TableRow>
                   ))}

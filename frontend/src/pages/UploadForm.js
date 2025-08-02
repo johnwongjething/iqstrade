@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import LoadingModal from '../components/LoadingModal';
 import { UserContext } from '../UserContext';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function UploadForm({ t = x => x }) {
   const [billFiles, setBillFiles] = useState([]);
@@ -18,13 +19,13 @@ function UploadForm({ t = x => x }) {
   // Move fetchCustomerInfo to a regular function
   async function fetchCustomerInfo() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/me`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/me`, {
         credentials: 'include', // Send cookies (for JWT)
       });
       if (res.ok) {
         const data = await res.json();
         setFormValues({
-          name: data.customer_name || '',
+          name: data.customer_name || data.username || '', // Use username as fallback if customer_name is empty
           email: data.customer_email || '',
           phone: data.customer_phone || ''
         });
@@ -73,6 +74,13 @@ function UploadForm({ t = x => x }) {
       setSnackbar({ open: true, message: 'Security token not ready. Please wait and try again.', severity: 'error' });
       return;
     }
+    
+    // Check if name is provided
+    if (!formValues.name || !formValues.name.trim()) {
+      setSnackbar({ open: true, message: 'Name is required. Please fill in your name.', severity: 'error' });
+      return;
+    }
+    
     if (billFiles.length === 0 && !invoiceFile && !packingFile) {
       setSnackbar({ open: true, message: t('pleaseUpload'), severity: 'error' });
       return;
@@ -90,9 +98,21 @@ function UploadForm({ t = x => x }) {
     billFiles.forEach((file, idx) => formData.append('bill_pdf', file));
     if (invoiceFile) formData.append('invoice_pdf', invoiceFile);
     if (packingFile) formData.append('packing_pdf', packingFile);
+    
+    // Debug: Log what we're sending
+    console.log('🔍 DEBUG - Form data being sent:');
+    console.log('  name:', formValues.name);
+    console.log('  email:', formValues.email);
+    console.log('  phone:', formValues.phone);
+    console.log('  billFiles count:', billFiles.length);
+    console.log('  invoiceFile:', invoiceFile ? invoiceFile.name : 'none');
+    console.log('  packingFile:', packingFile ? packingFile.name : 'none');
+    
     try {
       const headers = {};
       if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+      
+      // Try regular fetch instead of fetchWithAuth to debug authentication issue
       const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData,
@@ -107,7 +127,8 @@ function UploadForm({ t = x => x }) {
         setBillFiles([]);
         setInvoiceFile(null);
         setPackingFile(null);
-        setFormValues({ name: '', email: '', phone: '' });
+        // Refresh user data after successful upload
+        await fetchCustomerInfo();
       }
     } catch (err) {
       setSnackbar({ open: true, message: t('failed'), severity: 'error' });
@@ -115,14 +136,7 @@ function UploadForm({ t = x => x }) {
     setLoading(false);
   };
 
-  // Debug: log selected files
-  useEffect(() => {
-    if (billFiles.length > 0) {
-      billFiles.forEach(file => console.log('[DEBUG] Selected bill PDF for upload:', file.name));
-    }
-    if (invoiceFile) console.log('[DEBUG] Selected invoice PDF for upload:', invoiceFile.name);
-    if (packingFile) console.log('[DEBUG] Selected packing PDF for upload:', packingFile.name);
-  }, [billFiles, invoiceFile, packingFile]);
+  // File selection handled silently
   // Conditional rendering for loading state
   if (!csrfToken && csrfToken !== null) {
     return <div>Loading...</div>;

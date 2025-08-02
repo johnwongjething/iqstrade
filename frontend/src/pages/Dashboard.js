@@ -1,12 +1,16 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Box, Typography, Stack } from '@mui/material';
 import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
+import ProfileUpdateModal from '../components/ProfileUpdateModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 function Dashboard({ t = x => x }) {
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -44,8 +48,22 @@ function Dashboard({ t = x => x }) {
 
   // Management Dashboard navigation button
   const handleGoToManagementDashboard = () => {
-    console.log('Navigating to Management Dashboard');
     navigate('/admin/dashboard');
+  };
+
+  // Profile update success handler
+  const handleProfileUpdateSuccess = (updatedProfile) => {
+    // Update user context with new profile data
+    setUser(prev => ({
+      ...prev,
+      ...updatedProfile
+    }));
+  };
+
+  // Password change success handler
+  const handlePasswordChangeSuccess = () => {
+    // User will be logged out automatically
+    setUser(null);
   };
 
   return (
@@ -57,16 +75,31 @@ function Dashboard({ t = x => x }) {
         {t('welcome')}, {user.username} ({t(user.role)})
       </Typography>
 
-      {/* Management Dashboard Button - only for user 'ray40' */}
+      {/* Management Dashboard + Customer Emails + Import Bank Statement - only for user 'ray40' */}
       {user && user.username === 'ray40' && (
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ mb: 2 }}
-          onClick={handleGoToManagementDashboard}
-        >
-          Go to Management Dashboard
-        </Button>
+        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleGoToManagementDashboard}
+          >
+            {t('goToManagementDashboard')}
+          </Button>
+          <Button
+            variant="contained"
+            color="info"
+            onClick={() => navigate('/customer-emails')}
+          >
+            {t('customerEmails')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate('/bank-import')}
+          >
+            {t('importBankStatement')}
+          </Button>
+        </Stack>
       )}
 
       {/* First Row - Primary Navigation */}
@@ -76,6 +109,7 @@ function Dashboard({ t = x => x }) {
           <>
             <Button variant="contained" onClick={() => navigate('/review')}>{t('reviewBills')}</Button>
             <Button variant="contained" onClick={() => navigate('/staff-stats')}>{t('staffStats')}</Button>
+            {/* Customer Emails button moved to top for ray40 */}
           </>
         )}
         <Button variant="contained" onClick={() => navigate('/search')}>{t('billSearch')}</Button>
@@ -93,6 +127,26 @@ function Dashboard({ t = x => x }) {
         <Button variant="contained" onClick={() => navigate('/upload')}>{t('uploadBill')}</Button>
       </Stack>
 
+      {/* Third Row - Customer Profile Management */}
+      {user.role === 'customer' && (
+        <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => setProfileModalOpen(true)}
+          >
+            {t('updateProfile') || 'Update Profile'}
+          </Button>
+          <Button 
+            variant="contained" 
+            color="secondary"
+            onClick={() => setPasswordModalOpen(true)}
+          >
+            {t('changePassword') || 'Change Password'}
+          </Button>
+        </Stack>
+      )}
+
       {/* Third Row - User Management */}
       <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
         {user.role === 'staff' || user.role === 'admin' ? (
@@ -106,14 +160,24 @@ function Dashboard({ t = x => x }) {
         )}
       </Stack>
 
-      {/* Bank Import Row - only for user 'ray40' */}
-      {user && user.username === 'ray40' && (
-        <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
-          <Button variant="contained" color="primary" onClick={() => navigate('/bank-import')}>
-            Import Bank Statement
-          </Button>
-        </Stack>
-      )}
+      {/* Fourth Row - Staff Tools */}
+      <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
+        {user.role === 'staff' || user.role === 'admin' ? (
+          <>
+            <Button 
+              variant="contained" 
+              color="info"
+              onClick={() => navigate('/fcm-setup')}
+            >
+              🔔 Setup Notifications
+            </Button>
+          </>
+        ) : (
+          <></>
+        )}
+      </Stack>
+
+      {/* Bank Import button moved to top for ray40 */}
 
       {/* Logout button */}
       <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 4 }}>
@@ -125,6 +189,20 @@ function Dashboard({ t = x => x }) {
           {t('logout')}
         </Button>
       </Stack>
+
+      {/* Modals */}
+      <ProfileUpdateModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={user}
+        onSuccess={handleProfileUpdateSuccess}
+      />
+
+      <ChangePasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </Box>
   );
 }

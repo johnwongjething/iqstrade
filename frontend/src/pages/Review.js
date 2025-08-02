@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
 import { Snackbar, Alert } from '@mui/material';
 import LoadingModal from '../components/LoadingModal';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function Review({ t = x => x }) {
   const [bills, setBills] = useState([]);
@@ -13,6 +14,12 @@ function Review({ t = x => x }) {
   const [fields, setFields] = useState({});
   const [serviceFee, setServiceFee] = useState('');
   const [ctnFee, setCtnFee] = useState('');
+  const [containerCount, setContainerCount] = useState('');
+  const [containerCount20ft, setContainerCount20ft] = useState('');
+  const [containerCount40ft, setContainerCount40ft] = useState('');
+  const [containerCount40ftHc, setContainerCount40ftHc] = useState('');
+  const [totalWeightKg, setTotalWeightKg] = useState('');
+  const [shipmentType, setShipmentType] = useState('ocean');
   const [paymentLink, setPaymentLink] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [uniqueNumber, setUniqueNumber] = useState('');
@@ -67,7 +74,7 @@ function Review({ t = x => x }) {
         bl_number: params.blSearch !== undefined ? params.blSearch : blSearch,
         status: params.statusFilter !== undefined ? params.statusFilter : statusFilter
       });
-      const response = await fetch(`${API_BASE_URL}/api/bills?${query.toString()}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/api/bills?${query.toString()}`, {
         credentials: 'include',
       });
       if (response.status === 401) {
@@ -100,8 +107,15 @@ function Review({ t = x => x }) {
       flight_or_vessel: record.flight_or_vessel || '',
       product_description: record.product_description || '',
     });
-    setServiceFee(record.service_fee || '');
-    setCtnFee(record.ctn_fee || '');
+    // Use calculated fees if available, otherwise fall back to manual fees
+    setServiceFee(record.calculated_service_fee || record.service_fee || '');
+    setCtnFee(record.calculated_ctn_fee || record.ctn_fee || '');
+    setContainerCount(record.container_count || '');
+    setContainerCount20ft(record.container_count_20ft || '0');
+    setContainerCount40ft(record.container_count_40ft || '0');
+    setContainerCount40ftHc(record.container_count_40ft_hc || '0');
+    setTotalWeightKg(record.total_weight_kg || '');
+    setShipmentType(record.shipment_type || 'ocean');
     setPaymentLink(record.payment_link || '');
     setUniqueNumber(record.unique_number || '');
     setModalVisible(true);
@@ -110,6 +124,45 @@ function Review({ t = x => x }) {
   // Handle field change
   const handleFieldChange = (key, value) => {
     setFields({ ...fields, [key]: value });
+  };
+
+  // Helper function to calculate total container count
+  const getTotalContainerCount = () => {
+    const total = parseInt(containerCount20ft || '0') +
+                   parseInt(containerCount40ft || '0') +
+                   parseInt(containerCount40ftHc || '0');
+    return total;
+  };
+
+  // Recalculate fees when container count or weight changes
+  const recalculateFees = async () => {
+    if (!selected) return;
+    
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/recalculate_fees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+        credentials: 'include',
+        body: JSON.stringify({
+          bill_id: selected.id,
+          container_count: getTotalContainerCount() > 0 ? getTotalContainerCount() : null,
+          total_weight_kg: totalWeightKg ? parseFloat(totalWeightKg) : null,
+          shipment_type: shipmentType
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setCtnFee(data.calculated_ctn_fee?.toString() || '');
+        setServiceFee(data.calculated_service_fee?.toString() || '');
+        setSnackbar({ open: true, message: 'Fees recalculated successfully!', severity: 'success' });
+      } else {
+        const errorData = await res.json();
+        setSnackbar({ open: true, message: `Failed to recalculate fees: ${errorData.error}`, severity: 'error' });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error recalculating fees: ${err.message}`, severity: 'error' });
+    }
   };
 
   // --- Input validation helpers ---
@@ -137,8 +190,6 @@ function Review({ t = x => x }) {
     }
     setSaving(true);
     try {
-      // Debug: log paymentLink and updateData before saving
-      console.log('[DEBUG] paymentLink before save:', paymentLink);
       const updateData = {
         ...fields,
         service_fee: serviceFee === '' ? null : Number(serviceFee),
@@ -149,8 +200,7 @@ function Review({ t = x => x }) {
         payment_status: selected?.payment_status || '',
         reserve_status: selected?.reserve_status || ''
       };
-      console.log('[DEBUG] updateData payload:', updateData);
-      const res = await fetch(`${API_BASE_URL}/api/bill/${selected.id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${selected.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
         credentials: 'include',
@@ -173,8 +223,9 @@ function Review({ t = x => x }) {
   const showEmailModal = (record) => {
     setEmailTo(record.customer_email);
     setEmailSubject(t('invoiceSubject'));
-    const ctnFeeVal = record.ctn_fee || 0;
-    const serviceFeeVal = record.service_fee || 0;
+    // Use calculated fees if available, otherwise fall back to manual fees
+    const ctnFeeVal = record.calculated_ctn_fee || record.ctn_fee || 0;
+    const serviceFeeVal = record.calculated_service_fee || record.service_fee || 0;
     const total = (parseFloat(ctnFeeVal) + parseFloat(serviceFeeVal)).toFixed(2);
     setEmailBody(
       `Dear ${record.customer_name},\n\nPlease find your invoice attached.\nCTN Fee: $${ctnFeeVal}\nService Fee: $${serviceFeeVal}\nTotal Amount: $${total}\n\nPlease follow the below link to make the payment:\n${record.payment_link || ''}\n\nThank you!`
@@ -186,7 +237,7 @@ function Review({ t = x => x }) {
   const handleSendInvoiceEmail = async () => {
     setSendingEmail(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/send_invoice_email`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/send_invoice_email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
         credentials: 'include',
@@ -223,7 +274,7 @@ function Review({ t = x => x }) {
   const handleSendUniqueEmail = async () => {
     setUniqueSending(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/send_unique_number_email`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/send_unique_number_email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
         credentials: 'include',
@@ -254,7 +305,7 @@ function Review({ t = x => x }) {
   const handleUpload = async (file, record) => {
     const formData = new FormData();
     formData.append('receipt', file);
-    await fetch(`${API_BASE_URL}/api/bill/${record.id}/upload_receipt`, {
+    await fetchWithAuth(`${API_BASE_URL}/api/bill/${record.id}/upload_receipt`, {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': csrfToken },
       credentials: 'include',
@@ -338,7 +389,7 @@ function Review({ t = x => x }) {
               href={record.receipt_filename}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => console.log('[DEBUG] Opening receipt URL:', record.receipt_filename)}
+                                      onClick={() => {}}
             >
               <Button size="small">{t('viewReceipt')}</Button>
             </a>
@@ -364,7 +415,7 @@ function Review({ t = x => x }) {
       ),
     },
     {
-      title: <span>Customer<br/>Document</span>,
+      title: <span>{t('customerDocument')}</span>,
       key: 'customerDocument',
       width: 120,
       render: (_, record) => (
@@ -375,7 +426,7 @@ function Review({ t = x => x }) {
             href={record.customer_invoice ? record.customer_invoice : undefined}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => console.log('[DEBUG] Opening customer_invoice URL:', record.customer_invoice)}
+                                    onClick={() => {}}
           >
             {t('invoice')}
           </Button>
@@ -385,7 +436,7 @@ function Review({ t = x => x }) {
             href={record.customer_packing_list ? record.customer_packing_list : undefined}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => console.log('[DEBUG] Opening customer_packing_list URL:', record.customer_packing_list)}
+                                    onClick={() => {}}
           >
             {t('packingList')}
           </Button>
@@ -452,14 +503,14 @@ function Review({ t = x => x }) {
         {selected && selected.pdf_filename ? (
           <div style={{ display: 'flex', gap: 24 }}>
             <div style={{ width: '60%', minWidth: 400 }}>
-          <iframe
-            src={selected.pdf_filename}
-            width="100%"
-            height="600px"
-            style={{ border: 'none' }}
-            title="PDF Preview"
-            onLoad={() => console.log('[DEBUG] PDF Preview loaded from Cloudinary URL:', selected.pdf_filename)}
-          />
+              <iframe
+                src={selected.pdf_filename}
+                width="100%"
+                height="600px"
+                style={{ border: 'none' }}
+                title="PDF Preview"
+                onLoad={() => {}}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <div>
@@ -521,6 +572,84 @@ function Review({ t = x => x }) {
                   autoSize={{ minRows: 2, maxRows: 4 }}
                 />
               </div>
+              
+              {/* Container and Weight Fields for Fee Recalculation */}
+              <div style={{ marginTop: 16 }}>
+                <b>Container Breakdown:</b>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label>20ft Containers:</label>
+                    <Input
+                      value={containerCount20ft || ''}
+                      onChange={e => setContainerCount20ft(e.target.value)}
+                      placeholder="0"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>40ft Containers:</label>
+                    <Input
+                      value={containerCount40ft || ''}
+                      onChange={e => setContainerCount40ft(e.target.value)}
+                      placeholder="0"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>40ft High Cube:</label>
+                    <Input
+                      value={containerCount40ftHc || ''}
+                      onChange={e => setContainerCount40ftHc(e.target.value)}
+                      placeholder="0"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+                  Total: {getTotalContainerCount()} containers
+                </div>
+              </div>
+              
+              <div style={{ marginTop: 16 }}>
+                <b>Total Weight (kg):</b>
+                <Input
+                  value={totalWeightKg}
+                  onChange={e => setTotalWeightKg(e.target.value)}
+                  placeholder="e.g., 324.5"
+                  style={{ marginTop: 8 }}
+                />
+              </div>
+              
+              <div style={{ marginTop: 16 }}>
+                <b>Shipment Type:</b>
+                <Select
+                  value={shipmentType}
+                  onChange={setShipmentType}
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  <Select.Option value="ocean">Ocean Freight</Select.Option>
+                  <Select.Option value="air">Air Freight</Select.Option>
+                  <Select.Option value="loose_cargo">Loose Cargo</Select.Option>
+                </Select>
+              </div>
+              
+              <Button 
+                type="primary" 
+                onClick={recalculateFees}
+                style={{ marginTop: 16 }}
+                disabled={(() => {
+                  const total = getTotalContainerCount();
+                  const disabled = total === 0 && !totalWeightKg;
+                  return disabled;
+                })()}
+                title={`Container count: ${getTotalContainerCount()}, Weight: ${totalWeightKg || 'empty'}`}
+              >
+                🔄 Recalculate Fees
+              </Button>
+              
               <Input
                 style={{ width: 200, marginTop: 16 }}
                 addonBefore={t('ctnFee') + '(USD)'}
@@ -553,7 +682,7 @@ function Review({ t = x => x }) {
                       return;
                     }
                     try {
-                      const res = await fetch(`${API_BASE_URL}/api/generate_payment_link/${selected.id}`,
+                      const res = await fetchWithAuth(`${API_BASE_URL}/api/generate_payment_link/${selected.id}`,
                         {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },

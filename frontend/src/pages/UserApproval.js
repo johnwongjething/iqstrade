@@ -3,6 +3,7 @@ import { Container, Typography, Box, Button, List, ListItem, ListItemText, Snack
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function UserApproval({ t = x => x }) {
   const [unapprovedUsers, setUnapprovedUsers] = useState([]);
@@ -19,7 +20,7 @@ function UserApproval({ t = x => x }) {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/unapproved_users`, {
         credentials: 'include',
       });
       if (res.status === 401) {
@@ -58,7 +59,7 @@ function UserApproval({ t = x => x }) {
     try {
       const headers = {};
       if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
-      const res = await fetch(`${API_BASE_URL}/api/approve_user/${id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/approve_user/${id}`, {
         method: 'POST',
         credentials: 'include',
         headers

@@ -5,6 +5,9 @@ import { API_BASE_URL } from '../config';
 import { useNavigate } from 'react-router-dom';
 import LoadingModal from '../components/LoadingModal';
 import { UserContext } from '../UserContext';
+import { useMediaQuery } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import { formatHKDateTimeShort } from '../utils/timezoneUtils';
 
 function AccountingReview({ t = x => x }) {
   const [allBills, setAllBills] = useState([]);
@@ -23,7 +26,7 @@ function AccountingReview({ t = x => x }) {
         headers
       });
       const data = await res.json();
-      console.log('[DEBUG] Manual check triggered', data);
+      // Manual check triggered
       if (res.ok) {
         setSnackbar({ open: true, message: 'Manual payment check complete.', severity: 'success' });
         await fetchBills();
@@ -51,6 +54,33 @@ function AccountingReview({ t = x => x }) {
   const [total, setTotal] = useState(0);
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
+  const isMobile = useMediaQuery('(max-width:600px)');
+  // Add handler to process unprocessed payment emails
+  const [processingPayments, setProcessingPayments] = useState(false);
+  const handleProcessUnprocessedPayments = async () => {
+    setProcessingPayments(true);
+    try {
+      // Step 1: Fetch new emails from IMAP
+      await fetch(`${API_BASE_URL}/admin/ingest-emails`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : undefined
+      });
+      // Step 2: Process unprocessed payment emails
+      const res = await fetch(`${API_BASE_URL}/process_unprocessed_payment_emails`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : undefined
+      });
+      const data = await res.json();
+      setSnackbar({ open: true, message: `Fetched new emails and processed ${data.count} payment emails.`, severity: 'success' });
+      await fetchBills();
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Failed to fetch/process payment emails', severity: 'error' });
+    } finally {
+      setProcessingPayments(false);
+    }
+  };
 
   // Move checkUser and fetchBills to regular functions
   async function checkUser() {
@@ -84,16 +114,17 @@ function AccountingReview({ t = x => x }) {
     // eslint-disable-next-line
   }, [user, navigate]);
 
+  
   // Fetch all bills once
   useEffect(() => { fetchBills(); }, []);
 
   // Filter bills as user types or changes page/pageSize
   useEffect(() => {
-    // Only show bills with status "Awaiting Bank In" or (Allinpay + Paid 85%)
+    // Show bills with status "Awaiting Bank In", or (Allinpay + Paid 85%), or (Allinpay + Unsettled reserve)
     let filtered = allBills.filter(bill =>
       bill.status === 'Awaiting Bank In' ||
       (bill.payment_method && bill.payment_method.toLowerCase() === 'allinpay' && bill.payment_status === 'Paid 85%')
-    );
+     );
     if (blSearch) {
       filtered = filtered.filter(bill =>
         bill.bl_number && bill.bl_number.toLowerCase().includes(blSearch.toLowerCase())
@@ -116,6 +147,12 @@ function AccountingReview({ t = x => x }) {
   };
 
   const handleComplete = async (record) => {
+    // Check if the reserve payment is unsettled
+    const isReserveUnsettled = record.payment_method?.toLowerCase() === 'allinpay' && record.reserve_status?.toLowerCase() === 'unsettled';
+    if (isReserveUnsettled) {
+      setSnackbar({ open: true, message: 'Reserve payment is not yet settled', severity: 'warning' });
+      return;
+    }
     setConfirmModal({ visible: true, record });
   };
 
@@ -174,7 +211,7 @@ const handleSendUniqueEmail = async () => {
     });
 
     const data = await res.json();
-    console.log('Backend response:', data);
+    // Backend response received
 
     if (res.ok) {
       setSnackbar({ open: true, message: t('uniqueEmailSent'), severity: 'success' });
@@ -236,13 +273,13 @@ const handleSendUniqueEmail = async () => {
           href={record.receipt_filename}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => console.log('[DEBUG] Opening receipt Cloudinary URL:', record.receipt_filename)}
+                                  onClick={() => {}}
         >
           {t('viewPDF')}
         </a>
-      ) : 'N/A',
+      ) : t('N_A'),
     },
-    { title: t('receiptUploadedAt'), dataIndex: 'receipt_uploaded_at', key: 'receipt_uploaded_at', render: (text) => text ? new Date(text).toLocaleString() : '' },
+    { title: t('receiptUploadedAt'), dataIndex: 'receipt_uploaded_at', key: 'receipt_uploaded_at', render: (text) => text ? formatHKDateTimeShort(text) : '' },
     { title: t('ctnNumber'), dataIndex: 'unique_number', key: 'unique_number', render: renderCTNNumber },
     {
       title: t('reserveStatus'),
@@ -262,13 +299,18 @@ const handleSendUniqueEmail = async () => {
     {
       title: t('complete'),
       key: 'complete',
-      render: (_, record) => (
-        user.role === 'staff' ? (
-          <Button type="primary" onClick={() => handleComplete(record)}>
+      render: (_, record) => {
+        const isReserveUnsettled = record.payment_method?.toLowerCase() === 'allinpay' && record.reserve_status?.toLowerCase() === 'unsettled';
+        return user.role === 'staff' ? (
+          <Button
+            type="primary"
+            onClick={() => handleComplete(record)}
+            disabled={isReserveUnsettled}
+          >
             {t('complete')}
           </Button>
-        ) : null
-      )
+        ) : null;
+      }
     }
   ];
 
@@ -289,12 +331,21 @@ const handleSendUniqueEmail = async () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Button
           variant="contained"
-          color="primary"
-          style={{ color: '#fff', backgroundColor: '#1976d2' }}
+          style={{ backgroundColor: '#1976d2', color: '#fff' }}
           onClick={() => navigate('/dashboard')}
         >
           {t('backToDashboard')}
         </Button>
+        {user && user.username === 'ray40' && (
+          <Button
+            variant="contained"
+            style={{ backgroundColor: '#1976d2', color: '#fff', marginLeft: 8 }}
+            onClick={handleProcessUnprocessedPayments}
+            disabled={processingPayments}
+          >
+            {processingPayments ? 'Processing...' : 'Process New Payment Emails'}
+          </Button>
+        )}
         <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>{t('accountSettlementPage')}</h2>
         <form onSubmit={handleBlSearch} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Input
@@ -309,27 +360,51 @@ const handleSendUniqueEmail = async () => {
           <Button type="primary" htmlType="submit">{t('search')}</Button>
           <Button onClick={handleClearBlSearch}>{t('clear')}</Button>
         </form>
-        <Button
-          variant="contained"
-          color="secondary"
-          style={{ marginLeft: 8 }}
-          onClick={handleManualCheckPayments}
-          disabled={manualCheckLoading}
-        >
-          Manual Check for New Payments
-        </Button>
       </div>
 
-      <Table dataSource={bills} columns={columns} rowKey="id" loading={loading} pagination={false} />
-      <Pagination
-        current={page}
-        pageSize={pageSize}
-        total={total}
-        showSizeChanger
-        onChange={handlePageChange}
-        onShowSizeChange={handlePageChange}
-        style={{ marginTop: 16, textAlign: 'right' }}
-      />
+      {isMobile ? (
+        <>
+          {bills.map((bill, idx) => {
+            const isReserveUnsettled = bill.payment_method && bill.payment_method.toLowerCase() === 'allinpay' && bill.reserve_status && bill.reserve_status.toLowerCase() === 'unsettled';
+            return (
+              <Box key={bill.id || idx} sx={{ border: '1px solid #ccc', borderRadius: 2, p: 2, mb: 2, backgroundColor: '#f9f9f9' }}>
+                <Typography><b>{t('blNumber')}:</b> {bill.bl_number}</Typography>
+                <Typography><b>{t('customerName')}:</b> {bill.customer_name}</Typography>
+                <Typography><b>{t('ctnFee')}:</b> {bill.ctn_fee}</Typography>
+                <Typography><b>{t('serviceFee')}:</b> {bill.service_fee}</Typography>
+                <Typography><b>{t('reserveStatus')}:</b> {bill.reserve_status}</Typography>
+                <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                  {isReserveUnsettled && (
+                    <Button size="small" variant="contained" sx={{ fontSize: '0.7rem', px: 1.5, py: 0.5 }} onClick={() => handleSettleReserve(bill)}>{t('settleReserve')}</Button>
+                  )}
+                  <Button
+                    size="small"
+                    variant="contained"
+                    sx={{ fontSize: '0.7rem', px: 1.5, py: 0.5 }}
+                    onClick={() => handleComplete(bill)}
+                    disabled={isReserveUnsettled}
+                  >
+                    {t('complete')}
+                  </Button>
+                </Box>
+              </Box>
+            );
+          })}
+        </>
+      ) : (
+        <>
+          <Table dataSource={bills} columns={columns} rowKey="id" loading={loading} pagination={false} />
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+            style={{ marginTop: 16, textAlign: 'right' }}
+          />
+        </>
+      )}
 
       <LoadingModal open={loading} message={t('loadingData')} />
       <LoadingModal open={saving} message={t('savingData')} />

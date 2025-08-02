@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 function Home({ t = x => x }) {
   const navigate = useNavigate();
+
   return (
     <Box
       sx={{
@@ -28,6 +29,8 @@ function Home({ t = x => x }) {
         <Button variant="contained" color="primary" size="large" sx={{ mt: 2 }} onClick={() => navigate('/about')}>
           {t('learnMore')}
         </Button>
+        
+
       </Container>
     </Box>
   );

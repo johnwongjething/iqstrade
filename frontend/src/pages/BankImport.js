@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Button, Snackbar, Alert, TextField } from '@mui/material';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 function BankImport() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ function BankImport() {
       if (lines[0].toLowerCase().includes('date') && lines[0].toLowerCase().includes('description')) count -= 1;
       setEntryCount(count);
 
-      const res = await axios.post('/admin/import-bank-statement', formData);
+      const res = await axios.post(`${API_BASE_URL}/admin/import-bank-statement`, formData);
       setResults(res.data.results || []);
       setSnackbar({ open: true, message: res.data.message || 'Import complete.', severity: 'success' });
     } catch (err) {

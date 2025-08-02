@@ -29,6 +29,10 @@ import AccountingReview from './AccountingReview';
 import ForgotUsername from './ForgotUsername';
 import ManagementDashboard from './ManagementDashboard';
 import BankImport from './BankImport';
+import CustomerEmails from './CustomerEmails';
+import FCMSetup from '../pages/FCMSetup';
+import TestFCMSetup from '../pages/TestFCMSetup';
+import MinimalTest from '../pages/MinimalTest';
 import './App.css';
 
 //trigger rebuild
@@ -95,11 +99,15 @@ function App() {
           <Route path="/forgot-username" element={<ForgotUsername t={t} />} />
           <Route path="/accounting-review" element={<AccountingReview t={t} />} />
           <Route path="/test" element={<TestRoute />} />
+          <Route path="/fcm-setup" element={<FCMSetup />} />
+          <Route path="/test-fcm-setup" element={<TestFCMSetup />} />
+          <Route path="/simple-test" element={<div>Simple Test Route Working!</div>} />
+          <Route path="/minimal" element={<MinimalTest />} />
           <Route path="/bank-import" element={<BankImport />} />
+          <Route path="/customer-emails" element={<CustomerEmails />} />
           <Route path="*" element={<NotFound t={t} />} />
         </Routes>
-        <WeChatButton />
-        <WhatsAppButton />
+        <WhatsAppButton />        
       </div>
     </ThemeProvider>
   );

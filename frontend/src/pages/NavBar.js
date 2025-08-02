@@ -20,6 +20,8 @@ const NavBar = ({ lang, setLang, t }) => {
     { to: '/register', label: t('register') },
   ];
 
+
+
   return (
     <AppBar position="static">
       <Toolbar>
@@ -50,6 +52,7 @@ const NavBar = ({ lang, setLang, t }) => {
                       </ListItemButton>
                     </ListItem>
                   ))}
+                  
                   <ListItem>
                     <Select
                       value={lang}
@@ -76,6 +79,7 @@ const NavBar = ({ lang, setLang, t }) => {
                 {link.label}
               </Button>
             ))}
+
             <Select
               value={lang}
               onChange={e => {

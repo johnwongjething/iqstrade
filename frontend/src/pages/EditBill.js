@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import LoadingModal from '../components/LoadingModal';
 import { UserContext } from '../UserContext';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function EditBill({ t = x => x }) {
   const { id } = useParams();
@@ -28,7 +29,7 @@ function EditBill({ t = x => x }) {
       setLoading(true);
       if (!(await checkUser())) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/bill/${id}`, {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${id}`, {
           credentials: 'include',
         });
         if (res.status === 401) {
@@ -38,7 +39,7 @@ function EditBill({ t = x => x }) {
         }
         if (res.ok) {
           const data = await res.json();
-          console.log('Fetched bill data:', data); // Debug log
+          // Bill data fetched
           setFormValues(data);
         } else {
           const errorText = await res.text();
@@ -84,7 +85,7 @@ function EditBill({ t = x => x }) {
         payment_link: formValues.payment_link,
         unique_number: formValues.unique_number
       };
-      const res = await fetch(`${API_BASE_URL}/api/bill/${id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

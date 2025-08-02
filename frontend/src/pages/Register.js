@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -10,7 +10,8 @@ import {
   InputLabel,
   FormControl,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
@@ -27,18 +28,107 @@ function Register({ t = x => x }) {
   };
   const [formData, setFormData] = useState(initialFormData);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [validationErrors, setValidationErrors] = useState({});
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(null);
+  const [emailAvailable, setEmailAvailable] = useState(null);
   const navigate = useNavigate();
 
+  // Debounced validation functions
+  const checkUsernameAvailability = async (username) => {
+    if (!username || username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    
+    setIsCheckingUsername(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/check-username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await response.json();
+      setUsernameAvailable(data.available);
+    } catch (error) {
+      setUsernameAvailable(null);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
+  const checkEmailAvailability = async (email) => {
+    if (!email || !email.includes('@')) {
+      setEmailAvailable(null);
+      return;
+    }
+    
+    setIsCheckingEmail(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      setEmailAvailable(data.available);
+    } catch (error) {
+      setEmailAvailable(null);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
+  // Debounced effect for username validation
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkUsernameAvailability(formData.username);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.username]);
+
+  // Debounced effect for email validation
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkEmailAvailability(formData.customer_email);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.customer_email]);
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    // Clear validation errors when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors = {};
+    
     if (formData.confirm_email && formData.customer_email !== formData.confirm_email) {
-      setSnackbar({ open: true, message: t('emailMismatch') || 'Email addresses do not match', severity: 'error' });
+      errors.confirm_email = t('emailMismatch') || 'Email addresses do not match';
+    }
+    
+    if (usernameAvailable === false) {
+      errors.username = 'Username is already taken';
+    }
+    
+    if (emailAvailable === false) {
+      errors.customer_email = 'Email is already taken';
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       return;
     }
+    
     try {
       const res = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
@@ -81,6 +171,22 @@ function Register({ t = x => x }) {
             onChange={handleChange}
             margin="normal"
             required
+            error={!!validationErrors.username || usernameAvailable === false}
+            helperText={
+              validationErrors.username || 
+              (usernameAvailable === false ? 'Username is already taken' : '') ||
+              (usernameAvailable === true ? 'Username is available' : '') ||
+              (isCheckingUsername ? 'Checking availability...' : '')
+            }
+            InputProps={{
+              endAdornment: isCheckingUsername ? (
+                <CircularProgress size={20} />
+              ) : usernameAvailable === true ? (
+                <span style={{ color: 'green' }}>✓</span>
+              ) : usernameAvailable === false ? (
+                <span style={{ color: 'red' }}>✗</span>
+              ) : null
+            }}
           />
           <TextField
             fullWidth
@@ -128,6 +234,22 @@ function Register({ t = x => x }) {
             onChange={handleChange}
             margin="normal"
             required
+            error={!!validationErrors.customer_email || emailAvailable === false}
+            helperText={
+              validationErrors.customer_email || 
+              (emailAvailable === false ? 'Email is already taken' : '') ||
+              (emailAvailable === true ? 'Email is available' : '') ||
+              (isCheckingEmail ? 'Checking availability...' : '')
+            }
+            InputProps={{
+              endAdornment: isCheckingEmail ? (
+                <CircularProgress size={20} />
+              ) : emailAvailable === true ? (
+                <span style={{ color: 'green' }}>✓</span>
+              ) : emailAvailable === false ? (
+                <span style={{ color: 'red' }}>✗</span>
+              ) : null
+            }}
           />
           <TextField
             fullWidth
@@ -138,6 +260,8 @@ function Register({ t = x => x }) {
             onChange={handleChange}
             margin="normal"
             required
+            error={!!validationErrors.confirm_email}
+            helperText={validationErrors.confirm_email}
           />
           <TextField
             fullWidth

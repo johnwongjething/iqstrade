@@ -50,6 +50,46 @@ export const handleApiCall = async (url, options = {}, navigate) => {
   }
 };
 
+export async function fetchWithAuth(url, options = {}) {
+  // Set up headers - backend uses cookies for JWT tokens
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  
+  let res = await fetch(url, { 
+    ...options, 
+    headers,
+    credentials: 'include'  // This sends cookies with the request
+  });
+  
+  if (res.status === 401) {
+    // Try to refresh the access token
+    const refreshRes = await fetch('/api/refresh', { 
+      method: 'POST', 
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (refreshRes.ok) {
+      // Retry the original request with refreshed cookies
+      res = await fetch(url, { 
+        ...options, 
+        headers,
+        credentials: 'include' 
+      });
+    } else {
+      // Only redirect to login if not /admin/ingest-emails
+      if (!url.includes('/admin/ingest-emails')) {
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired');
+    }
+  }
+  
+  return res;
+}
+
 // Hook for token validation
 export const useTokenValidation = () => {
   const navigate = useNavigate();

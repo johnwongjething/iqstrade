@@ -4,7 +4,7 @@ const environment = process.env.NODE_ENV || 'development';
 
 const config = {
   development: {
-    API_BASE_URL: 'https://iqstrade.onrender.com',
+    API_BASE_URL: 'http://localhost:8000',
   },
   production: {
     API_BASE_URL: 'https://iqstrade.onrender.com',

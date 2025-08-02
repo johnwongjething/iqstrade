@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import {
-  Typography, Paper, Box, Table, TableHead, TableRow, TableCell,
+  Container, Typography, Paper, Box, Table, TableHead, TableRow, TableCell,
   TableBody, CircularProgress, Alert, Button, Modal, TextField
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
-import UnmatchedBankRecords from './UnmatchedBankRecords';
+import { fetchWithAuth } from '../utils/tokenUtils';
 
 function ManagementDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,71 +14,53 @@ function ManagementDashboard() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [ingestErrors, setIngestErrors] = useState([]);
-  const [ingestLoading, setIngestLoading] = useState(false);
   const [emailModalData, setEmailModalData] = useState(null);
+  const [deleteModalData, setDeleteModalData] = useState(null);
+  const [unmatchedRecords, setUnmatchedRecords] = useState([]);
+  const [blinkReceipts, setBlinkReceipts] = useState(false);
+  const [blinkBols, setBlinkBols] = useState(false);
+  const ingestRef = useRef(0);
+  const bolsRef = useRef(0);
   const { csrfToken } = useContext(UserContext);
   const navigate = useNavigate();
 
-  const [hasNewUnmatched, setHasNewUnmatched] = useState(false);
-  const [hasNewBOL, setHasNewBOL] = useState(false);
-  const [prevUnmatchedCount, setPrevUnmatchedCount] = useState(0);
-  const [prevBOLCount, setPrevBOLCount] = useState(0);
+  // Helper to get CSRF token from cookie
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
 
-  const ocrIssues = (data?.flags?.ocr_missing || []);
-  const emailErrors = ingestErrors || [];
-
-  const tabs = [
-    { key: 'overview', label: '📊 Dashboard' },
-    { key: 'ocr', label: `🧾 OCR Issues (${ocrIssues.length})` },
-    { key: 'email', label: `📧 Email Ingest (${emailErrors.length})` },
-    {
-      key: 'receipts',
-      label: (
-        <span style={hasNewUnmatched && activeTab !== 'receipts' ? {
-          animation: 'blinker 1s linear infinite', color: 'red'
-        } : {}}>
-          💳 Unmatched Receipts
-        </span>
-      )
-    },
-    {
-      key: 'bols',
-      label: (
-        <span style={hasNewBOL && activeTab !== 'bols' ? {
-          animation: 'blinker 1s linear infinite', color: 'red'
-        } : {}}>
-          📂 All B/L Records
-        </span>
-      )
-    },
-  ];
-
-  useEffect(() => {
-    if (activeTab === 'receipts') setHasNewUnmatched(false);
-    if (activeTab === 'bols') setHasNewBOL(false);
-  }, [activeTab]);
+  const fetchUnmatched = async () => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/admin/unmatched-receipts`);
+      if (!response.ok) throw new Error('Failed to fetch unmatched receipts');
+      const data = await response.json();
+      setUnmatchedRecords(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setUnmatchedRecords([]);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/management/overview`, {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/management/overview`, {
           credentials: 'include',
           headers: { 'X-CSRF-TOKEN': csrfToken }
         });
         const json = await res.json();
         if (res.ok) {
           setData(json);
-          const newUnmatched = json.unmatched_receipts?.length || 0;
-          if (newUnmatched > prevUnmatchedCount) setHasNewUnmatched(true);
-          setPrevUnmatchedCount(newUnmatched);
-
-          const newBOLs = json.bills?.length || 0;
-          if (newBOLs > prevBOLCount) setHasNewBOL(true);
-          setPrevBOLCount(newBOLs);
+          if (json.bills && json.bills.length !== bolsRef.current) {
+            setBlinkBols(true);
+            bolsRef.current = json.bills.length;
+          }
         } else {
           setError(json.error || 'Failed to load');
         }
-      } catch {
+      } catch (e) {
         setError('Failed to load');
       } finally {
         setLoading(false);
@@ -87,92 +69,125 @@ function ManagementDashboard() {
 
     const fetchIngestErrors = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/admin/email-ingest-errors`, {
-          credentials: 'include',
-          headers: { 'X-CSRF-TOKEN': csrfToken }
+        const response = await fetchWithAuth(`${API_BASE_URL}/admin/email-ingest-errors`, {
+          credentials: 'include'
         });
-        const errors = await res.json();
-        setIngestErrors(errors);
-      } catch {
+        if (!response.ok) throw new Error('Failed to fetch ingest errors');
+        const data = await response.json();
+        setIngestErrors(Array.isArray(data) ? data : []);
+      } catch (err) {
         setIngestErrors([]);
       }
     };
 
     fetchData();
     fetchIngestErrors();
+    fetchUnmatched();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [csrfToken]);
 
+  useEffect(() => {
+    if (activeTab === 'email') setBlinkReceipts(false);
+    if (activeTab === 'bols') setBlinkBols(false);
+  }, [activeTab]);
+
+  const deleteItem = async (type, id) => {
+    const endpoint = type === 'ingest' ? 'email-ingest-errors' : 'unmatched-receipts';
+    // Always get the latest CSRF token from the cookie
+    const csrfToken = getCookie('csrf_access_token');
+    if (!csrfToken) {
+      alert('CSRF token missing. Please refresh and try again.');
+      return;
+    }
+    // Debug: log the CSRF token being sent
+    // CSRF token sent
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/admin/${endpoint}/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken
+        }
+      });
+      if (response.status === 200) {
+        if (type === 'ingest') setIngestErrors(Array.isArray(ingestErrors) ? ingestErrors.filter(e => e.id !== id) : []);
+        if (type === 'receipt') setUnmatchedRecords(Array.isArray(unmatchedRecords) ? unmatchedRecords.filter(r => r.id !== id) : []);
+        setDeleteModalData(null);
+      } else if (response.status === 404) {
+        alert('Entry already deleted or not found.');
+        if (type === 'ingest') setIngestErrors(Array.isArray(ingestErrors) ? ingestErrors.filter(e => e.id !== id) : []);
+        if (type === 'receipt') setUnmatchedRecords(Array.isArray(unmatchedRecords) ? unmatchedRecords.filter(r => r.id !== id) : []);
+        setDeleteModalData(null);
+      } else {
+        alert('Delete failed. Please try again.');
+        setDeleteModalData(null);
+      }
+    } catch (err) {
+      alert('Delete failed. Please try again.');
+      setDeleteModalData(null);
+    }
+  };
+
+  const metrics = data?.metrics || {};
+  const ocrIssues = (data?.flags?.ocr_missing) || [];
+  const tabs = [
+    { key: 'overview', label: '📊 Dashboard' },
+    { key: 'ocr', label: `🧾 OCR Issues (${ocrIssues.length})` },
+    { key: 'email', label: `📧 Email Ingest (${ingestErrors.length})${blinkReceipts ? ' 🔴' : ''}` },
+    { key: 'receipts', label: `💳 Unmatched Receipts${blinkReceipts ? ' 🔴' : ''}` },
+    { key: 'bols', label: `📂 All B/L Records${blinkBols ? ' 🔴' : ''}` }
+  ];
+
   if (loading) return <CircularProgress />;
   if (error) return <Alert severity="error">{error}</Alert>;
 
-  const metrics = data?.metrics || {};
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex' }}>
       <div style={{ width: '220px', background: '#f5f5f5', padding: '20px' }}>
         <h3>📋 Menu</h3>
         {tabs.map(tab => (
           <div
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '10px 0',
-              cursor: 'pointer',
-              color: activeTab === tab.key ? 'blue' : 'black',
-              fontWeight: activeTab === tab.key ? 'bold' : 'normal'
-            }}
-          >
+            style={{ cursor: 'pointer', padding: '8px 0', color: activeTab === tab.key ? 'blue' : 'black' }}>
             {tab.label}
           </div>
         ))}
       </div>
-
       <div style={{ flex: 1, padding: '20px' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-          <Button variant="contained" onClick={() => navigate('/dashboard')}>
-            Back To Dashboard
-          </Button>
+        <Box mb={2}>
+          <Button variant="contained" onClick={() => navigate('/dashboard')}>Back To Dashboard</Button>
         </Box>
         <Typography variant="h4" gutterBottom>Management Dashboard</Typography>
 
         {activeTab === 'overview' && (
-          <>
-            <h2>📊 System Metrics</h2>
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <Box><strong>Total B/L records:</strong> {metrics.total_bills}</Box>
-                <Box><strong>Pending:</strong> {metrics.pending_bills}</Box>
-                <Box><strong>Awaiting Bank In:</strong> {metrics.awaiting_bank_in}</Box>
-                <Box><strong>Completed:</strong> {metrics.completed_bills}</Box>
-                <Box><strong>Paid:</strong> {metrics.paid_bills}</Box>
-                <Box><strong>Sum invoice:</strong> {metrics.sum_invoice_amount}</Box>
-                <Box><strong>Sum paid:</strong> {metrics.sum_paid_amount}</Box>
-                <Box><strong>Sum outstanding:</strong> {metrics.sum_outstanding_amount}</Box>
-              </Box>
-            </Paper>
-          </>
+          <Paper sx={{ p: 2 }}>
+            <Box display="flex" flexWrap="wrap" gap={2}>
+              <Box><strong>Total B/L records:</strong> {metrics.total_bills}</Box>
+              <Box><strong>Pending:</strong> {metrics.pending_bills}</Box>
+              <Box><strong>Awaiting Bank In:</strong> {metrics.awaiting_bank_in}</Box>
+              <Box><strong>Completed:</strong> {metrics.completed_bills}</Box>
+              <Box><strong>Paid:</strong> {metrics.paid_bills}</Box>
+              <Box><strong>Sum Invoice:</strong> {metrics.sum_invoice_amount}</Box>
+              <Box><strong>Sum Paid:</strong> {metrics.sum_paid_amount}</Box>
+              <Box><strong>Outstanding:</strong> {metrics.sum_outstanding_amount}</Box>
+            </Box>
+          </Paper>
         )}
 
         {activeTab === 'ocr' && (
           <>
             <h2>🧾 OCR Issues</h2>
             {ocrIssues.length > 0 ? (
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>BL Number</TableCell>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Missing Fields</TableCell>
-                  </TableRow>
-                </TableHead>
+              <Table size="small">
+                <TableHead><TableRow><TableCell>BL</TableCell><TableCell>ID</TableCell><TableCell>Missing</TableCell></TableRow></TableHead>
                 <TableBody>
-                  {ocrIssues.map((issue, idx) => (
+                  {ocrIssues.map((i, idx) => (
                     <TableRow key={idx}>
-                      <TableCell>{issue.bl_number}</TableCell>
-                      <TableCell>{issue.id}</TableCell>
-                      <TableCell>{issue.missing.join(', ')}</TableCell>
+                      <TableCell>{i.bl_number}</TableCell>
+                      <TableCell>{i.id}</TableCell>
+                      <TableCell>{i.missing.join(', ')}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -184,393 +199,97 @@ function ManagementDashboard() {
         {activeTab === 'email' && (
           <>
             <h2>📧 Email Ingest Errors</h2>
-            <Paper sx={{ p: 2 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={async () => {
-                  setIngestLoading(true);
-                  try {
-                    const res = await fetch(`${API_BASE_URL}/admin/email-ingest-errors`, {
-                      credentials: 'include',
-                      headers: { 'X-CSRF-TOKEN': csrfToken }
-                    });
-                    const errors = await res.json();
-                    setIngestErrors(errors);
-                  } catch {
-                    setIngestErrors([]);
-                  } finally {
-                    setIngestLoading(false);
-                  }
-                }}
-                disabled={ingestLoading}
-              >
-                Refresh
-              </Button>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Filename</TableCell>
-                    <TableCell>Reason</TableCell>
-                    <TableCell>Timestamp</TableCell>
+            <Table size="small">
+              <TableHead><TableRow><TableCell>ID</TableCell><TableCell>Filename</TableCell><TableCell>Reason</TableCell></TableRow></TableHead>
+              <TableBody>
+                {(Array.isArray(ingestErrors) ? ingestErrors : []).map((err) => (
+                  <TableRow key={err.id} onClick={() => setDeleteModalData({ type: 'ingest', id: err.id, detail: err })} style={{ cursor: 'pointer' }}>
+                    <TableCell>{err.id}</TableCell>
+                    <TableCell>{err.filename}</TableCell>
+                    <TableCell>{err.reason}</TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {ingestErrors.map((err) => (
-                    <TableRow key={err.id} onClick={() => setEmailModalData(err)} style={{ cursor: 'pointer' }}>
-                      <TableCell>{err.id}</TableCell>
-                      <TableCell>{err.filename || 'N/A'}</TableCell>
-                      <TableCell>{err.reason}</TableCell>
-                      <TableCell>{err.created_at}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Paper>
+                ))}
+              </TableBody>
+            </Table>
           </>
         )}
 
         {activeTab === 'receipts' && (
           <>
             <h2>💳 Unmatched Bank Records</h2>
-            <UnmatchedBankRecords />
+            <Table size="small">
+              <TableHead><TableRow>
+                <TableCell>ID</TableCell><TableCell>Date</TableCell><TableCell>Description</TableCell>
+                <TableCell>Amount</TableCell><TableCell>Reason</TableCell><TableCell>Created At</TableCell>
+              </TableRow></TableHead>
+              <TableBody>
+                {(Array.isArray(unmatchedRecords) ? unmatchedRecords : []).map(row => (
+                  <TableRow key={row.id} onClick={() => setDeleteModalData({ type: 'receipt', id: row.id, detail: row })} style={{ cursor: 'pointer' }}>
+                    <TableCell>{row.id}</TableCell>
+                    <TableCell>{row.date}</TableCell>
+                    <TableCell>{row.description}</TableCell>
+                    <TableCell>{row.amount}</TableCell>
+                    <TableCell>{row.reason}</TableCell>
+                    <TableCell>{row.created_at}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </>
         )}
 
         {activeTab === 'bols' && (
           <>
             <h2>📂 All B/L Records</h2>
-            <Paper sx={{ p: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>BL Number</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Invoice</TableCell>
-                    <TableCell>Receipt</TableCell>
-                    <TableCell>Total</TableCell>
-                    <TableCell>NEW</TableCell>
-                    <TableCell>OVERDUE</TableCell>
+            <Table size="small">
+              <TableHead><TableRow>
+                <TableCell>ID</TableCell><TableCell>Customer</TableCell><TableCell>BL Number</TableCell>
+                <TableCell>Status</TableCell><TableCell>Invoice</TableCell><TableCell>Email</TableCell>
+              </TableRow></TableHead>
+              <TableBody>
+                {data.bills.map((b) => (
+                  <TableRow key={b.id}>
+                    <TableCell>{b.id}</TableCell>
+                    <TableCell>{b.customer_name}</TableCell>
+                    <TableCell>{b.bl_number}</TableCell>
+                    <TableCell>{b.status}</TableCell>
+                    <TableCell>{b.ctn_fee + b.service_fee}</TableCell>
+                    <TableCell>
+                      <Button onClick={() => setEmailModalData({ to: b.customer_email, subject: `Regarding B/L ${b.bl_number}`, body: `Dear ${b.customer_name},\n\nWe would like to inform you regarding B/L ${b.bl_number}...` })}>
+                        📧
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.bills.map(b => (
-                    <TableRow key={b.id}>
-                      <TableCell>{b.id}</TableCell>
-                      <TableCell>{b.customer_name}</TableCell>
-                      <TableCell>{b.bl_number}</TableCell>
-                      <TableCell>{b.status}</TableCell>
-                      <TableCell>{b.invoice_filename ? <a href={b.invoice_filename} target="_blank" rel="noreferrer">View</a> : 'N/A'}</TableCell>
-                      <TableCell>{b.receipt_filename ? <a href={b.receipt_filename} target="_blank" rel="noreferrer">View</a> : 'N/A'}</TableCell>
-                      <TableCell>{b.total_invoice_amount}</TableCell>
-                      <TableCell>{b.is_new ? <span style={{ color: 'green' }}>NEW</span> : ''}</TableCell>
-                      <TableCell>{b.is_overdue ? <span style={{ color: 'red' }}>OVERDUE</span> : ''}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Paper>
+                ))}
+              </TableBody>
+            </Table>
           </>
         )}
-      </div>
 
-      {/* Email Modal (Test Only) */}
-      {emailModalData ? (
         <Modal open={!!emailModalData} onClose={() => setEmailModalData(null)}>
-          <Box sx={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)', width: 500,
-            bgcolor: 'white', p: 3
-          }}>
+          <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 500, bgcolor: 'white', p: 3 }}>
             <h3>Email Draft (Test Mode)</h3>
-            {emailModalData.error ? (
-              <Alert severity="error">{emailModalData.error}</Alert>
-            ) : (
-              <>
-                <p><strong>To:</strong> {emailModalData.to || ""}</p>
-                <p><strong>Subject:</strong> {emailModalData.subject || ""}</p>
-                <TextField
-                  fullWidth multiline rows={6}
-                  value={emailModalData.body || ""}
-                  variant="outlined"
-                />
-              </>
-            )}
+            <p><strong>To:</strong> {emailModalData?.to}</p>
+            <p><strong>Subject:</strong> {emailModalData?.subject}</p>
+            <TextField fullWidth multiline rows={6} value={emailModalData?.body} variant="outlined" />
           </Box>
         </Modal>
-      ) : null}
+
+        <Modal open={!!deleteModalData} onClose={() => setDeleteModalData(null)}>
+          <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, bgcolor: 'white', p: 3 }}>
+            <h3>Confirm Deletion</h3>
+            <p>Are you sure you want to delete this {deleteModalData?.type} entry?</p>
+            <Box mt={2} display="flex" justifyContent="flex-end" gap={1}>
+              <Button onClick={() => setDeleteModalData(null)}>Cancel</Button>
+              <Button color="error" variant="contained" onClick={() => deleteItem(deleteModalData.type, deleteModalData.id)}>Delete</Button>
+            </Box>
+          </Box>
+        </Modal>
+
+      </div>
     </div>
   );
 }
 
 export default ManagementDashboard;
-
-
-
-// import React, { useEffect, useState, useContext } from 'react';
-// import {
-//   Container, Typography, Paper, Box, Table, TableHead,
-//   TableRow, TableCell, TableBody, CircularProgress, Alert, Button
-// } from '@mui/material';
-// import { useNavigate } from 'react-router-dom';
-// import { API_BASE_URL } from '../config';
-// import { UserContext } from '../UserContext';
-// import UnmatchedBankRecords from './UnmatchedBankRecords';
-
-// function ManagementDashboard() {
-//   const [activeTab, setActiveTab] = useState('overview');
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState(null);
-//   const [data, setData] = useState(null);
-//   const [ingestErrors, setIngestErrors] = useState([]);
-//   const [ingestLoading, setIngestLoading] = useState(false);
-//   const { csrfToken } = useContext(UserContext);
-//   const navigate = useNavigate();
-
-//   useEffect(() => {
-//     let intervalId;
-//     const fetchData = async () => {
-//       try {
-//         const res = await fetch(`${API_BASE_URL}/api/management/overview`, {
-//           credentials: 'include',
-//           headers: { 'X-CSRF-TOKEN': csrfToken }
-//         });
-//         const json = await res.json();
-//         if (res.ok) {
-//           setData(json);
-//         } else {
-//           setError(json.error || "Failed to load");
-//         }
-//       } catch (e) {
-//         setError("Failed to load");
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     const fetchIngestErrors = async () => {
-//       setIngestLoading(true);
-//       try {
-//         const res = await fetch(`${API_BASE_URL}/admin/email-ingest-errors`, {
-//           credentials: 'include',
-//           headers: { 'X-CSRF-TOKEN': csrfToken }
-//         });
-//         const errors = await res.json();
-//         setIngestErrors(errors);
-//       } catch (e) {
-//         setIngestErrors([]);
-//       } finally {
-//         setIngestLoading(false);
-//       }
-//     };
-
-//     fetchData();
-//     fetchIngestErrors();
-//     intervalId = setInterval(fetchData, 10000);
-
-//     return () => clearInterval(intervalId);
-//   }, [csrfToken]);
-
-//   if (loading) return <CircularProgress />;
-//   if (error) return <Alert severity="error">{error}</Alert>;
-
-//   const metrics = data.metrics || {};
-//   const ocrIssues = (data.flags?.ocr_missing) || [];
-//   const emailErrors = ingestErrors || [];
-
-//   const tabs = [
-//     { key: 'overview', label: '📊 Dashboard' },
-//     { key: 'ocr', label: `🧾 OCR Issues (${ocrIssues.length})` },
-//     { key: 'email', label: `📧 Email Ingest (${emailErrors.length})` },
-//     { key: 'receipts', label: '💳 Unmatched Receipts' },
-//     { key: 'bols', label: '📂 All B/L Records' },
-//   ];
-
-//   return (
-//     <div style={{ display: 'flex', minHeight: '100vh' }}>
-//       {/* Sidebar */}
-//       <div style={{ width: '220px', background: '#f5f5f5', padding: '20px' }}>
-//         <h3 style={{ marginBottom: '16px' }}>📋 Menu</h3>
-//         {tabs.map(tab => (
-//           <div
-//             key={tab.key}
-//             onClick={() => setActiveTab(tab.key)}
-//             style={{
-//               padding: '10px 0',
-//               cursor: 'pointer',
-//               color: activeTab === tab.key ? 'blue' : 'black',
-//               fontWeight: activeTab === tab.key ? 'bold' : 'normal',
-//             }}
-//           >
-//             {tab.label}
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* Main Content */}
-//       <div style={{ flex: 1, padding: '20px' }}>
-//         <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-//           <Button variant="contained" onClick={() => navigate('/dashboard')}>Back To Dashboard</Button>
-//         </Box>
-//         <Typography variant="h4" gutterBottom>Management Dashboard</Typography>
-
-//         {/* 📊 Overview */}
-//         {activeTab === 'overview' && (
-//           <>
-//             <h2>📊 System Metrics</h2>
-//             <Box sx={{ my: 2 }}>
-//               <Paper sx={{ p: 2 }}>
-//                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-//                   <Box><strong>Total B/L records:</strong> {metrics.total_bills}</Box>
-//                   <Box><strong>Pending:</strong> {metrics.pending_bills}</Box>
-//                   <Box><strong>Awaiting Bank In:</strong> {metrics.awaiting_bank_in}</Box>
-//                   <Box><strong>Completed:</strong> {metrics.completed_bills}</Box>
-//                   <Box><strong>Paid:</strong> {metrics.paid_bills}</Box>
-//                   <Box><strong>Sum of invoice amounts:</strong> {metrics.sum_invoice_amount}</Box>
-//                   <Box><strong>Sum of paid:</strong> {metrics.sum_paid_amount}</Box>
-//                   <Box><strong>Sum of outstanding:</strong> {metrics.sum_outstanding_amount}</Box>
-//                 </Box>
-//               </Paper>
-//             </Box>
-//           </>
-//         )}
-
-//         {/* 🧾 OCR Issues */}
-//         {activeTab === 'ocr' && (
-//           <>
-//             <h2>🧾 OCR Issues</h2>
-//             {ocrIssues.length > 0 ? (
-//               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-//                 <thead>
-//                   <tr>
-//                     <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>BL Number</th>
-//                     <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>ID</th>
-//                     <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>Missing Fields</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {ocrIssues.map((issue, index) => (
-//                     <tr key={index} style={{ background: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
-//                       <td style={{ padding: '6px' }}>{issue.bl_number}</td>
-//                       <td style={{ padding: '6px' }}>{issue.id}</td>
-//                       <td style={{ padding: '6px' }}>{issue.missing.join(', ')}</td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             ) : <p>No OCR issues found.</p>}
-//           </>
-//         )}
-
-//         {/* 📧 Email Ingestion Errors */}
-//         {activeTab === 'email' && (
-//           <>
-//             <h2>📧 Email Ingestion Errors</h2>
-//             <Box sx={{ my: 2 }}>
-//               <Paper sx={{ p: 2 }}>
-//                 <Button
-//                   variant="outlined"
-//                   size="small"
-//                   onClick={async () => {
-//                     setIngestLoading(true);
-//                     try {
-//                       const res = await fetch(`${API_BASE_URL}/admin/email-ingest-errors`, {
-//                         credentials: 'include',
-//                         headers: { 'X-CSRF-TOKEN': csrfToken }
-//                       });
-//                       const errors = await res.json();
-//                       setIngestErrors(errors);
-//                     } catch (e) {
-//                       setIngestErrors([]);
-//                     } finally {
-//                       setIngestLoading(false);
-//                     }
-//                   }}
-//                   disabled={ingestLoading}
-//                   sx={{ mb: 2 }}
-//                 >
-//                   Refresh
-//                 </Button>
-//                 <Table>
-//                   <TableHead>
-//                     <TableRow>
-//                       <TableCell>ID</TableCell>
-//                       <TableCell>Filename</TableCell>
-//                       <TableCell>Reason</TableCell>
-//                       <TableCell>Timestamp</TableCell>
-//                     </TableRow>
-//                   </TableHead>
-//                   <TableBody>
-//                     {emailErrors.map(err => (
-//                       <TableRow key={err.id}>
-//                         <TableCell>{err.id}</TableCell>
-//                         <TableCell>{err.filename || 'N/A'}</TableCell>
-//                         <TableCell>{err.reason}</TableCell>
-//                         <TableCell>{err.created_at}</TableCell>
-//                       </TableRow>
-//                     ))}
-//                   </TableBody>
-//                 </Table>
-//               </Paper>
-//             </Box>
-//           </>
-//         )}
-
-//         {/* 💳 Unmatched Bank Records */}
-//         {activeTab === 'receipts' && (
-//           <>
-//             <h2>💳 Unmatched Bank Records</h2>
-//             <UnmatchedBankRecords />
-//           </>
-//         )}
-
-//         {/* 📂 All B/L Records */}
-//         {activeTab === 'bols' && (
-//           <>
-//             <h2>📂 All B/L Records</h2>
-//             <Box sx={{ my: 2 }}>
-//               <Paper sx={{ p: 2 }}>
-//                 <Table>
-//                   <TableHead>
-//                     <TableRow>
-//                       <TableCell>ID</TableCell>
-//                       <TableCell>Customer</TableCell>
-//                       <TableCell>BL Number</TableCell>
-//                       <TableCell>Status</TableCell>
-//                       <TableCell>Invoice</TableCell>
-//                       <TableCell>Receipt</TableCell>
-//                       <TableCell>Total Invoice Amount</TableCell>
-//                       <TableCell>NEW</TableCell>
-//                       <TableCell>OVERDUE</TableCell>
-//                     </TableRow>
-//                   </TableHead>
-//                   <TableBody>
-//                     {data.bills.map((b) => (
-//                       <TableRow key={b.id}>
-//                         <TableCell>{b.id}</TableCell>
-//                         <TableCell>{b.customer_name}</TableCell>
-//                         <TableCell>{b.bl_number}</TableCell>
-//                         <TableCell>{b.status}</TableCell>
-//                         <TableCell>{b.invoice_filename ? <a href={b.invoice_filename} target="_blank" rel="noreferrer">View</a> : 'N/A'}</TableCell>
-//                         <TableCell>{b.receipt_filename ? <a href={b.receipt_filename} target="_blank" rel="noreferrer">View</a> : 'N/A'}</TableCell>
-//                         <TableCell>{b.total_invoice_amount}</TableCell>
-//                         <TableCell>{b.is_new ? <span style={{ color: 'green', fontWeight: 'bold' }}>NEW</span> : ''}</TableCell>
-//                         <TableCell>{b.is_overdue ? <span style={{ color: 'red', fontWeight: 'bold' }}>OVERDUE</span> : ''}</TableCell>
-//                       </TableRow>
-//                     ))}
-//                   </TableBody>
-//                 </Table>
-//               </Paper>
-//             </Box>
-//           </>
-//         )}
-//       </div> {/* Close Main Content */}
-//     </div>  // Close Sidebar + Layout
-//   );
-// }
-
-// export default ManagementDashboard;
 
