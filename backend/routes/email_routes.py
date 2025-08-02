@@ -501,15 +501,17 @@ def reply_to_email(email_id):
         # Save the reply to database
         cursor.execute("""
             INSERT INTO customer_email_replies (
-                customer_email_id, sender, body, created_at, is_draft, auto_sent
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                customer_email_id, sender, body, created_at, is_draft, auto_sent, sent_at, sent_via
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             email_id,
             'support@iqstrade.com',  # or get from config
             reply_body,
             datetime.now(),
             False,  # Not a draft since we're sending it
-            True    # Auto-sent
+            True,   # Auto-sent
+            datetime.now(),  # sent_at - mark as sent immediately
+            'email'  # sent_via - mark as sent via email
         ))
         
         reply_id = cursor.fetchone()[0] if cursor.description else None
@@ -595,7 +597,7 @@ def send_draft_reply(reply_id):
                 f.write(r.content)
             attachments.append(local_path)
     send_email_with_attachment(to_email, f"Re: {subject}", body, attachments)
-    cursor.execute("UPDATE customer_email_replies SET is_draft = FALSE WHERE id = %s", (reply_id,))
+    cursor.execute("UPDATE customer_email_replies SET is_draft = FALSE, sent_at = %s, sent_via = 'email' WHERE id = %s", (datetime.now(), reply_id))
     conn.commit()
     cursor.close()
     conn.close()

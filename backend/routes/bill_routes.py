@@ -477,7 +477,7 @@ def upload_file():
         
         # Send FCM push notification for new file upload
         try:
-            from fcm_service_modern import fcm_service
+            from fcm_service_fallback import fcm_service_fallback
             # Get all FCM tokens for notifications
             conn = get_db_conn()
             cur = conn.cursor()
@@ -504,7 +504,7 @@ def upload_file():
             return_db_conn(conn)
             
             if tokens:
-                fcm_service.send_notification(
+                result = fcm_service_fallback.send_notification(
                     tokens=tokens,
                     title='📁 New File Upload',
                     body=f'{uploaded_count} new bill(s) uploaded by {name}',
@@ -515,7 +515,12 @@ def upload_file():
                         'timestamp': datetime.now().isoformat()
                     }
                 )
-                print(f"✅ FCM notification sent for new upload: {uploaded_count} files by {name}")
+                
+                if result['success']:
+                    api_used = result.get('api_used', 'unknown')
+                    print(f"✅ FCM notification sent for new upload: {uploaded_count} files by {name} (API: {api_used})")
+                else:
+                    print(f"❌ FCM notification failed: {result.get('error', 'Unknown error')}")
             else:
                 print("ℹ️ No FCM tokens found for notifications")
         except Exception as e:

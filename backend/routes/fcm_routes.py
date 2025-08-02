@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 import pytz
 from config import get_db_conn, return_db_conn
-from fcm_service_modern import fcm_service
+from fcm_service_fallback import fcm_service_fallback
 
 fcm_routes = Blueprint('fcm_routes', __name__)
 
@@ -123,11 +123,18 @@ def notify_new_bill():
         if not all([bill_id, customer_name, amount, bill_number]):
             return jsonify({'error': 'Missing required fields: bill_id, customer_name, amount, bill_number'}), 400
         
-        result = fcm_service.send_new_bill_notification(
-            bill_id=bill_id,
-            customer_name=customer_name,
-            amount=float(amount),
-            bill_number=bill_number
+        result = fcm_service_fallback.send_to_topic(
+            topic='new_bills',
+            title='📄 New Bill Uploaded',
+            body=f'Bill {bill_number} uploaded by {customer_name} - ${amount:.2f}',
+            data={
+                'type': 'new_bill',
+                'bill_id': str(bill_id),
+                'bill_number': bill_number,
+                'customer_name': customer_name,
+                'amount': str(amount),
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }
         )
         
         if result['success']:
@@ -160,11 +167,18 @@ def notify_payment_confirmation():
         if not all([bill_id, bill_number, amount]):
             return jsonify({'error': 'Missing required fields: bill_id, bill_number, amount'}), 400
         
-        result = fcm_service.send_payment_confirmation_notification(
-            bill_id=bill_id,
-            bill_number=bill_number,
-            amount=float(amount),
-            payment_method=payment_method
+        result = fcm_service_fallback.send_to_topic(
+            topic='payment_confirmations',
+            title='✅ Payment Confirmed',
+            body=f'Payment received for Bill {bill_number} - ${amount:.2f}',
+            data={
+                'type': 'payment_confirmation',
+                'bill_id': str(bill_id),
+                'bill_number': bill_number,
+                'amount': str(amount),
+                'payment_method': payment_method,
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }
         )
         
         if result['success']:
@@ -196,10 +210,17 @@ def notify_system_error():
         if not all([error_type, error_message]):
             return jsonify({'error': 'Missing required fields: error_type, error_message'}), 400
         
-        result = fcm_service.send_system_error_notification(
-            error_type=error_type,
-            error_message=error_message,
-            severity=severity
+        result = fcm_service_fallback.send_to_topic(
+            topic='system_alerts',
+            title=f'🚨 System {error_type.title()}',
+            body=f'{error_message}',
+            data={
+                'type': 'system_error',
+                'error_type': error_type,
+                'error_message': error_message,
+                'severity': severity,
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }
         )
         
         if result['success']:
@@ -232,11 +253,18 @@ def notify_customer_escalation():
         if not all([customer_name, customer_phone, issue_type]):
             return jsonify({'error': 'Missing required fields: customer_name, customer_phone, issue_type'}), 400
         
-        result = fcm_service.send_customer_escalation_notification(
-            customer_name=customer_name,
-            customer_phone=customer_phone,
-            issue_type=issue_type,
-            priority=priority
+        result = fcm_service_fallback.send_to_topic(
+            topic='customer_escalations',
+            title=f'📞 Customer Escalation - {issue_type.title()}',
+            body=f'{customer_name} ({customer_phone}) needs attention',
+            data={
+                'type': 'customer_escalation',
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'issue_type': issue_type,
+                'priority': priority,
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }
         )
         
         if result['success']:
@@ -269,7 +297,7 @@ def send_custom_notification():
         if not all([topic, title, body]):
             return jsonify({'error': 'Missing required fields: topic, title, body'}), 400
         
-        result = fcm_service.send_to_topic(
+        result = fcm_service_fallback.send_to_topic(
             topic=topic,
             title=title,
             body=body,
@@ -359,7 +387,7 @@ def test_notification_public():
     """
     try:
         print('🧪 Sending test notification via FCM...')
-        result = fcm_service.send_to_topic(
+        result = fcm_service_fallback.send_to_topic(
             topic='test',
             title='🧪 Test Notification',
             body='This is a test notification from IQS Trade system',
@@ -391,7 +419,7 @@ def test_notification():
     Send a test notification
     """
     try:
-        result = fcm_service.send_to_topic(
+        result = fcm_service_fallback.send_to_topic(
             topic='test',
             title='🧪 Test Notification',
             body='This is a test notification from IQS Trade system',
@@ -427,7 +455,7 @@ def send_direct_notification():
             return jsonify({'error': 'FCM token is required'}), 400
         
         print(f'📱 Sending direct notification to token: {token[:20]}...')
-        result = fcm_service.send_notification(
+        result = fcm_service_fallback.send_notification(
             tokens=[token],
             title=title,
             body=body,
@@ -466,7 +494,7 @@ def test_email_notification():
         return_db_conn(conn)
         
         if tokens:
-            fcm_service.send_notification(
+            fcm_service_fallback.send_notification(
                 tokens=tokens,
                 title='📧 You have new email',
                 body='New customer email received',
