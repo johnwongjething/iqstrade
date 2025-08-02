@@ -299,6 +299,13 @@ def logout():
     unset_jwt_cookies(response)
     return response, 200
 
+# Test endpoint to check JWT without database
+@auth_routes.route('/test-jwt', methods=['GET'])
+@jwt_required()
+def test_jwt():
+    logging.info(f"[JWT TEST] JWT is working!")
+    return jsonify({"message": "JWT is working!"})
+
 # Get current user
 @auth_routes.route('/me', methods=['GET'])
 @jwt_required()

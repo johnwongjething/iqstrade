@@ -81,6 +81,22 @@ else:
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 jwt = JWTManager(app)
+
+# Add JWT error handlers for debugging
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    logging.error(f"[JWT DEBUG] Token expired: {jwt_payload}")
+    return jsonify({"error": "Token has expired"}), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    logging.error(f"[JWT DEBUG] Invalid token: {error}")
+    return jsonify({"error": "Invalid token"}), 401
+
+@jwt.unauthorized_loader
+def missing_token_callback(error):
+    logging.error(f"[JWT DEBUG] Missing token: {error}")
+    return jsonify({"error": "Missing token"}), 401
 limiter.init_app(app)
 
 # Register all route blueprints
