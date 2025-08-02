@@ -555,3 +555,51 @@ def check_email_status():
     except Exception as e:
         print('📧 Error checking email status:', str(e))
         return jsonify({'error': f'Error checking email status: {str(e)}'}), 500 
+
+@fcm_routes.route('/debug-token', methods=['GET'])
+@jwt_required()
+def debug_fcm_token():
+    """Debug endpoint to show current user's FCM tokens"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get all FCM tokens for this user from the correct table
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT token, created_at, updated_at FROM fcm_tokens 
+            WHERE user_id = %s
+            ORDER BY updated_at DESC
+        """, (user_id,))
+        
+        tokens = cursor.fetchall()
+        cursor.close()
+        return_db_conn(conn)
+        
+        if tokens:
+            token_list = []
+            for i, (token, created_at, updated_at) in enumerate(tokens):
+                token_list.append({
+                    'device': f'Device {i+1}',
+                    'token': token,
+                    'token_length': len(token),
+                    'token_preview': token[:50] + '...' if len(token) > 50 else token,
+                    'created_at': created_at.isoformat() if created_at else None,
+                    'updated_at': updated_at.isoformat() if updated_at else None
+                })
+            
+            return jsonify({
+                'message': f'Found {len(tokens)} FCM token(s) for this user',
+                'tokens': token_list,
+                'total_tokens': len(tokens)
+            })
+        else:
+            return jsonify({
+                'message': 'No FCM tokens found for this user',
+                'tokens': [],
+                'total_tokens': 0
+            })
+            
+    except Exception as e:
+        return jsonify({'error': f'Error getting FCM tokens: {str(e)}'}), 500 
