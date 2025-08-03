@@ -63,8 +63,16 @@ def save_fcm_token_public():
     Save FCM token for testing (no authentication required)
     """
     try:
+        print('🔍 [FCM Public] Public token endpoint called')
         data = request.get_json()
+        print(f'🔍 [FCM Public] Request data: {data}')
+        
         token = data.get('token')
+        print(f'🔍 [FCM Public] Token length: {len(token) if token else 0}')
+        print(f'🔍 [FCM Public] Token type: {type(token)}')
+        print(f'🔍 [FCM Public] Token preview: {token[:50] + "..." if token else "None"}')
+        print(f'🔍 [FCM Public] Token ends with: {token[-20:] if token and len(token) > 20 else "None"}')
+        print(f'🔍 [FCM Public] Token contains ":" count: {token.count(":") if token else 0}')
         
         if not token:
             return jsonify({'error': 'FCM token is required'}), 400
@@ -73,6 +81,7 @@ def save_fcm_token_public():
         return jsonify({'message': 'FCM token received successfully', 'token': token[:20] + '...'}), 200
         
     except Exception as e:
+        print(f'❌ [FCM Public] Error: {str(e)}')
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
 
 @fcm_routes.route('/fcm/token', methods=['POST'])
@@ -83,14 +92,31 @@ def save_fcm_token():
     """
     try:
         print('🔍 [FCM Token] Starting token save...')
-        user_id = get_jwt_identity()
-        print(f'🔍 [FCM Token] User ID: {user_id}')
+        user_identity = get_jwt_identity()
+        print(f'🔍 [FCM Token] User Identity: {user_identity}')
+        
+        # Extract user ID from JWT identity
+        if isinstance(user_identity, str):
+            import json
+            try:
+                user_data = json.loads(user_identity)
+                user_id = user_data.get('id')
+            except json.JSONDecodeError:
+                user_id = user_identity
+        else:
+            user_id = user_identity
+        
+        print(f'🔍 [FCM Token] Extracted User ID: {user_id}')
         
         data = request.get_json()
         print(f'🔍 [FCM Token] Request data: {data}')
         
         token = data.get('token')
         print(f'🔍 [FCM Token] Token length: {len(token) if token else 0}')
+        print(f'🔍 [FCM Token] Token type: {type(token)}')
+        print(f'🔍 [FCM Token] Token preview: {token[:50] + "..." if token else "None"}')
+        print(f'🔍 [FCM Token] Token ends with: {token[-20:] if token and len(token) > 20 else "None"}')
+        print(f'🔍 [FCM Token] Token contains ":" count: {token.count(":") if token else 0}')
         
         if not token:
             return jsonify({'error': 'FCM token is required'}), 400
