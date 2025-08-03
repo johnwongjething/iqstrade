@@ -82,40 +82,82 @@ def save_fcm_token():
     Save FCM token for the current user
     """
     try:
+        print('🔍 [FCM Token] Starting token save...')
         user_id = get_jwt_identity()
+        print(f'🔍 [FCM Token] User ID: {user_id}')
+        
         data = request.get_json()
+        print(f'🔍 [FCM Token] Request data: {data}')
+        
         token = data.get('token')
+        print(f'🔍 [FCM Token] Token length: {len(token) if token else 0}')
         
         if not token:
             return jsonify({'error': 'FCM token is required'}), 400
         
+        print('🔍 [FCM Token] Getting database connection...')
         conn = get_db_conn()
         cur = conn.cursor()
         
+        # Check if fcm_tokens table exists
+        print('🔍 [FCM Token] Checking if fcm_tokens table exists...')
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'fcm_tokens'
+            );
+        """)
+        table_exists = cur.fetchone()[0]
+        print(f'🔍 [FCM Token] Table exists: {table_exists}')
+        
+        if not table_exists:
+            print('🔍 [FCM Token] Creating fcm_tokens table...')
+            cur.execute("""
+                CREATE TABLE fcm_tokens (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    token TEXT NOT NULL UNIQUE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            """)
+            conn.commit()
+            print('🔍 [FCM Token] Table created successfully')
+        
         # Check if token already exists
+        print('🔍 [FCM Token] Checking for existing token...')
         cur.execute('SELECT id FROM fcm_tokens WHERE token = %s', (token,))
         existing_token = cur.fetchone()
+        print(f'🔍 [FCM Token] Existing token found: {existing_token is not None}')
         
         if existing_token:
             # Update existing token
+            print('🔍 [FCM Token] Updating existing token...')
             cur.execute(
                 'UPDATE fcm_tokens SET user_id = %s, updated_at = %s WHERE token = %s',
                 (user_id, datetime.now(pytz.timezone('Asia/Hong_Kong')), token)
             )
         else:
             # Insert new token
+            print('🔍 [FCM Token] Inserting new token...')
             cur.execute(
                 'INSERT INTO fcm_tokens (user_id, token, created_at, updated_at) VALUES (%s, %s, %s, %s)',
                 (user_id, token, datetime.now(pytz.timezone('Asia/Hong_Kong')), datetime.now(pytz.timezone('Asia/Hong_Kong')))
             )
         
+        print('🔍 [FCM Token] Committing transaction...')
         conn.commit()
         cur.close()
         return_db_conn(conn)
         
+        print('🔍 [FCM Token] Token saved successfully')
         return jsonify({'message': 'FCM token saved successfully'}), 200
         
     except Exception as e:
+        print(f'❌ [FCM Token] Error: {str(e)}')
+        import traceback
+        print(f'❌ [FCM Token] Traceback: {traceback.format_exc()}')
         return jsonify({'error': f'Error saving FCM token: {str(e)}'}), 500
 
 @fcm_routes.route('/fcm/tokens', methods=['GET'])
