@@ -40,6 +40,8 @@ export const requestNotificationPermission = async () => {
 export const getFCMToken = async () => {
   try {
     console.log('🔔 Getting FCM token...');
+    console.log('🔔 Firebase messaging object:', messaging);
+    console.log('🔔 VAPID key:', vapidKey);
     console.log('🔔 Checking if service worker is registered...');
     
     // Check if service worker is registered
@@ -65,20 +67,37 @@ export const getFCMToken = async () => {
     }
     
     console.log('🔔 Requesting FCM token with vapidKey:', vapidKey);
+    console.log('🔔 About to call getToken()...');
+    
     const currentToken = await getToken(messaging, { vapidKey });
+    
+    console.log('🔔 getToken() completed');
+    console.log('🔔 Token result:', currentToken);
+    console.log('🔔 Token type:', typeof currentToken);
     
     if (currentToken) {
       console.log('✅ FCM Token generated:', currentToken);
       console.log('📱 Token length:', currentToken.length);
+      console.log('📱 Token preview:', currentToken.substring(0, 50) + '...');
+      console.log('📱 Token ends with:', currentToken.substring(currentToken.length - 20));
+      console.log('📱 Token contains ":" count:', (currentToken.match(/:/g) || []).length);
+      
       // Send token to backend
+      console.log('🔔 Sending token to backend...');
       await sendTokenToBackend(currentToken);
+      console.log('🔔 Token sent to backend successfully');
+      
       return currentToken;
     } else {
       console.warn('❌ No registration token available');
+      console.log('🔔 currentToken is falsy:', currentToken);
       return null;
     }
   } catch (error) {
     console.error('❌ Error getting FCM token:', error);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
     return null;
   }
 };

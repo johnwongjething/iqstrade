@@ -358,11 +358,11 @@ def nuclear_clear():
     for name, path, domain, secure, samesite in variations:
         response.delete_cookie(name, path=path, domain=domain, secure=secure, samesite=samesite)
     
-    # Add aggressive cache-busting
+    # Add aggressive cache-busting (but preserve Firebase storage)
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
-    response.headers['Clear-Site-Data'] = '"cookies", "storage"'
+    # Removed Clear-Site-Data to preserve Firebase FCM tokens
     
     return response, 200
 
