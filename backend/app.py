@@ -31,6 +31,7 @@ from routes.fcm_routes import fcm_routes  # Register FCM routes
 from payment_webhook import payment_webhook  # Register payment webhook blueprint
 from payment_link import payment_link  # Register payment link blueprint
 from bank_routes import bank_routes
+from routes.balance_routes import balance_routes  # Register balance routes
 # Removed duplicate email processing system - using main email_ingestor.py instead
 from outlook_addin_api import outlook_api  # Register Outlook add-in API
 
@@ -98,6 +99,7 @@ app.register_blueprint(bill_routes, url_prefix='/api')
 app.register_blueprint(stats_routes, url_prefix='/api')
 app.register_blueprint(misc_routes, url_prefix='/api')
 app.register_blueprint(fcm_routes, url_prefix='/api')  # Register FCM routes
+app.register_blueprint(balance_routes, url_prefix='/api')  # Register balance routes
 app.register_blueprint(admin_routes)
 app.register_blueprint(management_routes, url_prefix='/api')
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')

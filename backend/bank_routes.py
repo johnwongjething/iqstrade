@@ -6,6 +6,7 @@ import io
 import re
 from config import get_db_conn
 from email_utils import send_payment_confirmation_email
+from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
 import pytz
 from datetime import datetime
 
@@ -103,23 +104,46 @@ def import_bank_statement():
             debug(f"Attempting match for BL: {bl}")
 
             cursor.execute("""
-                SELECT id, ctn_fee, service_fee, customer_email, customer_name
+                SELECT id, ctn_fee, service_fee, customer_email, customer_name, customer_username
                 FROM bill_of_lading
-                WHERE bl_number = %s AND status != 'Paid'
+                WHERE bl_number = %s AND status != 'Paid and CTN Valid'
             """, (bl,))
             bill = cursor.fetchone()
 
             if bill:
-                bl_id, ctn_fee, service_fee, customer_email, customer_name = bill
+                bl_id, ctn_fee, service_fee, customer_email, customer_name, customer_username = bill
                 ctn_fee = float(ctn_fee) if ctn_fee else 0
                 service_fee = float(service_fee) if service_fee else 0
                 expected = ctn_fee + service_fee
 
+                # Check if payment already processed to prevent duplicates
+                if check_payment_processed(bl_id, 'bank_import'):
+                    debug(f"Payment already processed for BL {bl} (ID: {bl_id}). Skipping.")
+                    continue
+
                 if abs(expected - amount) <= 2.0:
-                    debug(f"Match found for BL {bl_id}. Marking as Paid.")
+                    debug(f"Match found for BL {bl_id}. Marking as Paid and CTN Valid.")
+
+                    # Process payment and calculate balance adjustments
+                    balance_adjustment = 0.0
+                    if customer_username:
+                        try:
+                            balance_adjustment = process_payment_balance(
+                                username=customer_username,
+                                payment_amount=amount,
+                                invoice_amount=expected,
+                                bl_id=bl_id,
+                                payment_source='bank_import',
+                                created_by='bank_import'
+                            )
+                            debug(f"Balance adjustment for {customer_username}: {balance_adjustment}")
+                        except Exception as e:
+                            debug(f"Error processing balance for {customer_username}: {e}")
+
+                    # Mark payment as processed
+                    mark_payment_processed(bl_id, 'bank_import', 'bank_import')
 
                     # Get Hong Kong time
-                    
                     hk_tz = pytz.timezone('Asia/Hong_Kong')
                     completed_at = datetime.now(hk_tz)
 
@@ -137,7 +161,7 @@ def import_bank_statement():
                         debug(f"Email sending failed: {e}")
 
                     matched_any = True
-                    results.append({"bl_number": bl, "status": "Matched and marked Paid"})
+                    results.append({"bl_number": bl, "status": "Matched and marked Paid and CTN Valid"})
                 else:
                     debug(f"Amount mismatch. Expected: {expected}, Received: {amount}")
                     cursor.execute("""

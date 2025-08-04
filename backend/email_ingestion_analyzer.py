@@ -328,7 +328,7 @@ def analyze_database_updates():
                 COUNT(CASE WHEN receipt_url IS NOT NULL THEN 1 END) as bills_with_receipts,
                 COUNT(CASE WHEN paid_amount > 0 THEN 1 END) as bills_paid,
                 COUNT(CASE WHEN status = 'Awaiting Bank In' THEN 1 END) as awaiting_bank,
-                COUNT(CASE WHEN status = 'Paid' THEN 1 END) as paid_status
+                COUNT(CASE WHEN status = 'Paid and CTN Valid' THEN 1 END) as paid_status
             FROM bill_of_lading
             WHERE created_at >= NOW() - INTERVAL '24 hours'
         """)

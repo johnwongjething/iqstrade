@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from email_utils import send_unique_number_email  # Replaced send_simple_email with send_unique_number_email
+from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
 import logging
 import hmac
 import hashlib
@@ -63,7 +64,7 @@ def handle_payment_webhook():
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT ctn_fee, service_fee, unique_number
+            SELECT id, ctn_fee, service_fee, unique_number, customer_username
             FROM bill_of_lading
             WHERE unique_number = %s
         """, (transaction_id,))
@@ -75,16 +76,40 @@ def handle_payment_webhook():
             conn.close()
             return jsonify({"error": "Bill not found"}), 404
 
-        ctn_fee, service_fee, unique_number = bill
+        bl_id, ctn_fee, service_fee, unique_number, customer_username = bill
         ctn_fee = float(ctn_fee or 0)
         service_fee = float(service_fee or 0)
         invoice_total = ctn_fee + service_fee
+
+        # Check if payment already processed to prevent duplicates
+        if check_payment_processed(bl_id, 'webhook'):
+            logger.warning(f"Payment already processed for unique_number {transaction_id} (ID: {bl_id}). Skipping.")
+            return jsonify({"error": "Payment already processed"}), 409
 
         # Determine payment phase
         received_85 = abs(amount - (invoice_total * 0.85)) < 0.01
         received_15 = abs(amount - (invoice_total * 0.15)) < 0.01
         is_initial = payment_phase == 'initial' or received_85
         is_final = payment_phase == 'final' or received_15
+
+        # Process payment and calculate balance adjustments
+        balance_adjustment = 0.0
+        if customer_username:
+            try:
+                balance_adjustment = process_payment_balance(
+                    username=customer_username,
+                    payment_amount=amount,
+                    invoice_amount=invoice_total,
+                    bl_id=bl_id,
+                    payment_source='webhook',
+                    created_by='payment_webhook'
+                )
+                logger.info(f"Balance adjustment for {customer_username}: {balance_adjustment}")
+            except Exception as e:
+                logger.error(f"Error processing balance for {customer_username}: {e}")
+
+        # Mark payment as processed
+        mark_payment_processed(bl_id, 'webhook', 'payment_webhook')
 
         # Update database
         hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))

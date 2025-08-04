@@ -1002,7 +1002,7 @@ Return a JSON object:
                     # Use actual status from database, fallback to calculated status
                     db_status = info.get('status', 'Unknown')
                     if db_status == 'Unknown' or db_status == 'Unknown':
-                        status = "Paid" if due <= 0 else f"Due: ${due:.2f}"
+                        status = "Paid and CTN Valid" if due <= 0 else f"Due: ${due:.2f}"
                     else:
                         status = db_status
                     reply_lines.append(f"  - BL {bl}: Total Fee: ${total_fee:.2f}, Paid: ${paid:.2f}, Status: {status}")

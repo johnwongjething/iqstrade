@@ -24,6 +24,7 @@ from utils.unified_response_handler import get_response_handler
 from utils.timezone_utils import get_hk_now, get_hk_now_iso, get_hk_timestamp
 from utils.confidence_scorer import confidence_scorer
 from invoice_utils import find_invoice_info, find_ctn_info, generate_pdf_from_text
+from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
 from decimal import Decimal
 import tempfile
 import pytz
@@ -261,7 +262,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
 
     # 3. For each BL, verify and update
     for bl, paid_amount in bl_payment_map.items():
-        cursor.execute("SELECT id, ctn_fee, service_fee FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        cursor.execute("SELECT id, ctn_fee, service_fee, customer_username FROM bill_of_lading WHERE bl_number = %s", (bl,))
         bill_row = cursor.fetchone()
         if not bill_row:
             logger.warning(f"BL {bl} not found in DB for email {email_id}. Skipping.")
@@ -269,24 +270,67 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         bill_id = bill_row[0]
         ctn_fee = float(bill_row[1] or 0)
         service_fee = float(bill_row[2] or 0)
+        customer_username = bill_row[3]
         invoice_amount = ctn_fee + service_fee
+        
         if paid_amount is None or not isinstance(paid_amount, (int, float)):
             logger.warning(f"No valid payment amount for BL {bl} in email {email_id}. Skipping.")
             continue
+            
         paid_amount_f = float(paid_amount)
-        if paid_amount_f < invoice_amount - tolerance:
-            logger.warning(f"Underpayment for BL {bl} in email {email_id}. Expected: {invoice_amount}, Paid: {paid_amount_f}. Skipping.")
+        
+        # Check if payment already processed to prevent duplicates
+        if check_payment_processed(bill_id, 'email'):
+            logger.warning(f"Payment already processed for BL {bl} (ID: {bill_id}). Skipping.")
             continue
-        # If exact or overpaid, proceed to process and upload receipt
-        if receipt_url:
-            cursor.execute("""
-                UPDATE bill_of_lading
-                SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s
-                WHERE id = %s
-            """, (receipt_url, hk_now, bill_id))
-            logger.info(f"Updated bill {bill_id} with receipt from email {email_id}")
+        
+        # Process payment and calculate balance adjustments
+        balance_adjustment = 0.0
+        if customer_username:
+            try:
+                balance_adjustment = process_payment_balance(
+                    username=customer_username,
+                    payment_amount=paid_amount_f,
+                    invoice_amount=invoice_amount,
+                    bl_id=bill_id,
+                    payment_source='email',
+                    created_by='email_ingestor'
+                )
+                logger.info(f"Balance adjustment for {customer_username}: {balance_adjustment}")
+            except Exception as e:
+                logger.error(f"Error processing balance for {customer_username}: {e}")
+        
+        # Mark payment as processed
+        mark_payment_processed(bill_id, 'email', 'email_ingestor')
+        
+        # Update bill status based on payment
+        if paid_amount_f >= invoice_amount - tolerance:
+            # Payment is sufficient (exact or overpayment)
+            if receipt_url:
+                cursor.execute("""
+                    UPDATE bill_of_lading
+                    SET receipt_filename = %s, status = 'Awaiting Bank In', receipt_uploaded_at = %s
+                    WHERE id = %s
+                """, (receipt_url, hk_now, bill_id))
+                logger.info(f"Updated bill {bill_id} with receipt from email {email_id}")
+            else:
+                logger.warning(f"No receipt could be generated for email {email_id}. Bill {bill_id} not updated.")
         else:
-            logger.warning(f"No receipt could be generated for email {email_id}. Bill {bill_id} not updated.")
+            # Underpayment - store in unmatched_receipts
+            try:
+                cursor.execute("""
+                    INSERT INTO unmatched_receipts (date, description, amount, reason, raw_text)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    datetime.datetime.now().date(),
+                    f"Email payment for BL {bl}",
+                    paid_amount_f,
+                    f"Underpayment: Expected ${invoice_amount}, Paid ${paid_amount_f}",
+                    f"Email from {from_addr}: {subject}"
+                ))
+                logger.info(f"Stored underpayment in unmatched_receipts for BL {bl}")
+            except Exception as e:
+                logger.error(f"Error storing underpayment: {e}")
 
     # Mark email as processed
     cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
@@ -1017,7 +1061,7 @@ Return a JSON object:
                     # Use actual status from database, fallback to calculated status
                     db_status = info.get('status', 'Unknown')
                     if db_status == 'Unknown' or db_status == 'Unknown':
-                        status = "Paid" if due <= 0 else f"Due: ${due:.2f}"
+                        status = "Paid and CTN Valid" if due <= 0 else f"Due: ${due:.2f}"
                     else:
                         status = db_status
                     reply_lines.append(f"  - BL {bl}: Total Fee: ${total_fee:.2f}, Paid: ${paid:.2f}, Status: {status}")
