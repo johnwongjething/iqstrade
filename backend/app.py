@@ -271,10 +271,14 @@ def test_route():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
-    static_path = os.path.join(build_dir, 'static', filename)
+    static_dir = os.path.join(build_dir, 'static')
+    static_path = os.path.join(static_dir, filename)
+    
     if not os.path.exists(static_path):
-        print(f"[ERROR] File not found: {static_path}")
-    return send_from_directory(os.path.join(build_dir, 'static'), filename)
+        print(f"[ERROR] Static file not found: {static_path}")
+        return jsonify({'error': 'Static file not found'}), 404
+    
+    return send_from_directory(static_dir, filename)
 
 @app.route('/outlook_addin/<path:filename>')
 def serve_outlook_addin(filename):
