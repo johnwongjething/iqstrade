@@ -16,7 +16,7 @@ import logging
 balance_routes = Blueprint('balance_routes', __name__)
 logger = logging.getLogger(__name__)
 
-@balance_routes.route('/api/balance/<username>', methods=['GET'])
+@balance_routes.route('/balance/<username>', methods=['GET'])
 @jwt_required()
 def get_balance(username):
     """Get customer balance"""
@@ -31,7 +31,7 @@ def get_balance(username):
         logger.error(f"Error getting balance for {username}: {e}")
         return jsonify({'error': 'Failed to get balance'}), 500
 
-@balance_routes.route('/api/balance/<username>/history', methods=['GET'])
+@balance_routes.route('/balance/<username>/history', methods=['GET'])
 @jwt_required()
 def get_balance_history(username):
     """Get customer balance transaction history"""
@@ -47,7 +47,7 @@ def get_balance_history(username):
         logger.error(f"Error getting balance history for {username}: {e}")
         return jsonify({'error': 'Failed to get balance history'}), 500
 
-@balance_routes.route('/api/balance/<username>/adjust', methods=['POST'])
+@balance_routes.route('/balance/<username>/adjust', methods=['POST'])
 @jwt_required()
 def adjust_balance(username):
     """Manually adjust customer balance"""
@@ -85,7 +85,7 @@ def adjust_balance(username):
         logger.error(f"Error adjusting balance for {username}: {e}")
         return jsonify({'error': 'Failed to adjust balance'}), 500
 
-@balance_routes.route('/api/balance/<username>/apply', methods=['POST'])
+@balance_routes.route('/balance/<username>/apply', methods=['POST'])
 @jwt_required()
 def apply_balance(username):
     """Apply customer balance to invoice"""
@@ -121,7 +121,7 @@ def apply_balance(username):
         logger.error(f"Error applying balance for {username}: {e}")
         return jsonify({'error': 'Failed to apply balance'}), 500
 
-@balance_routes.route('/api/balance/search', methods=['GET'])
+@balance_routes.route('/balance/search', methods=['GET'])
 @jwt_required()
 def search_customers():
     """Search customers by name for balance lookup"""
@@ -168,7 +168,7 @@ def search_customers():
         logger.error(f"Error searching customers: {e}")
         return jsonify({'error': 'Failed to search customers'}), 500
 
-@balance_routes.route('/api/balance/all', methods=['GET'])
+@balance_routes.route('/balance/all', methods=['GET'])
 @jwt_required()
 def get_all_balances():
     """Get all customer balances (for admin view)"""
