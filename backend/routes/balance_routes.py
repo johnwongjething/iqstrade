@@ -133,24 +133,26 @@ def search_customers():
         conn = get_db_conn()
         cursor = conn.cursor()
         
-        # Search by customer name (not username)
+        # Search by username, customer name, or customer email
         cursor.execute("""
             SELECT u.username, u.customer_name, u.customer_email, 
                    COALESCE(cb.balance_amount, 0) as balance
             FROM users u
             LEFT JOIN customer_balances cb ON u.username = cb.username
-            WHERE u.customer_name ILIKE %s OR u.customer_email ILIKE %s
-            ORDER BY u.customer_name
+            WHERE u.username ILIKE %s 
+               OR u.customer_name ILIKE %s 
+               OR u.customer_email ILIKE %s
+            ORDER BY u.username
             LIMIT 20
-        """, (f'%{search_term}%', f'%{search_term}%'))
+        """, (f'%{search_term}%', f'%{search_term}%', f'%{search_term}%'))
         
         customers = []
         for row in cursor.fetchall():
             customers.append({
                 'username': row[0],
-                'customer_name': row[1],
-                'customer_email': row[2],
-                'balance': float(row[3]) if row[3] else 0.0
+                'customer_name': row[1] or 'N/A',
+                'email': row[2] or 'N/A',  # Map customer_email to email for frontend
+                'balance_amount': float(row[3]) if row[3] else 0.0
             })
         
         cursor.close()
