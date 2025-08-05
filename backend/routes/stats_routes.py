@@ -127,17 +127,17 @@ def stats_summary():
     WHERE status IN ('Pending', 'Invoice Sent', 'Awaiting Bank In')
     """)
     pending_bills = cur.fetchone()[0]
-    cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee), 0) FROM bill_of_lading")
+    cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee - COALESCE(balance_applied, 0)), 0) FROM bill_of_lading")
     total_invoice_amount = float(cur.fetchone()[0] or 0)
     cur.execute("""
         SELECT COALESCE(SUM(
             CASE 
                 WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid'
-                    THEN ctn_fee + service_fee
+                    THEN ctn_fee + service_fee - COALESCE(balance_applied, 0)
                 WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled'
-                    THEN ctn_fee + service_fee
+                    THEN ctn_fee + service_fee - COALESCE(balance_applied, 0)
                 WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled'
-                    THEN (ctn_fee * 0.85) + (service_fee * 0.85)
+                    THEN (ctn_fee * 0.85) + (service_fee * 0.85) - COALESCE(balance_applied, 0)
                 ELSE 0
             END
         ), 0)
@@ -145,7 +145,7 @@ def stats_summary():
     """)
     total_payment_received = float(cur.fetchone()[0] or 0)
     cur.execute("""
-    SELECT COALESCE(SUM(service_fee + ctn_fee), 0)
+    SELECT COALESCE(SUM(service_fee + ctn_fee - COALESCE(balance_applied, 0)), 0)
     FROM bill_of_lading
     WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
     """)
@@ -177,7 +177,7 @@ def outstanding_bills():
     cur.execute("""
         SELECT 
             id, customer_name, bl_number,
-            ctn_fee, service_fee, reserve_amount,
+            ctn_fee, service_fee, balance_applied, reserve_amount,
             payment_method, reserve_status, invoice_filename
         FROM bill_of_lading
         WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
@@ -190,11 +190,12 @@ def outstanding_bills():
         bill = dict(zip(columns, row))
         ctn_fee = float(bill.get('ctn_fee') or 0)
         service_fee = float(bill.get('service_fee') or 0)
+        balance_applied = float(bill.get('balance_applied') or 0)
         payment_method = str(bill.get('payment_method') or '').strip().lower()
         reserve_status = str(bill.get('reserve_status') or '').strip().lower()
-        outstanding_amount = round(ctn_fee + service_fee, 2)
+        outstanding_amount = round(ctn_fee + service_fee - balance_applied, 2)
         if payment_method == 'allinpay' and reserve_status == 'unsettled':
-            outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+            outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15 - balance_applied, 2)
         bill['outstanding_amount'] = outstanding_amount
         bills.append(bill)
     cur.close()

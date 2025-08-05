@@ -64,7 +64,7 @@ def handle_payment_webhook():
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, ctn_fee, service_fee, unique_number, customer_username
+            SELECT id, ctn_fee, service_fee, unique_number, customer_username, balance_applied
             FROM bill_of_lading
             WHERE unique_number = %s
         """, (transaction_id,))
@@ -76,10 +76,12 @@ def handle_payment_webhook():
             conn.close()
             return jsonify({"error": "Bill not found"}), 404
 
-        bl_id, ctn_fee, service_fee, unique_number, customer_username = bill
+        bl_id, ctn_fee, service_fee, unique_number, customer_username, balance_applied = bill
         ctn_fee = float(ctn_fee or 0)
         service_fee = float(service_fee or 0)
-        invoice_total = ctn_fee + service_fee
+        balance_applied = float(balance_applied or 0)
+        # Calculate adjusted invoice total (original fees minus balance applied)
+        invoice_total = (ctn_fee + service_fee) - balance_applied
 
         # Check if payment already processed to prevent duplicates
         if check_payment_processed(bl_id, 'webhook'):

@@ -9,7 +9,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 
-def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link=None, output_path=None):
+def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link=None, balance_applied=0, output_path=None):
     if output_path is None:
         raise ValueError("output_path must be provided for Cloudinary workflow")
     c = canvas.Canvas(output_path, pagesize=A4)
@@ -39,8 +39,16 @@ def generate_invoice_pdf(customer, bill, service_fee, ctn_fee=None, payment_link
     y -= 20
     c.drawString(50, y, f"Service Fee (USD): {service_fee}")
     y -= 20
-    total = (float(service_fee or 0) + float(ctn_fee or 0))
-    c.drawString(50, y, f"Total Amount (USD): {total}")
+    subtotal = (float(service_fee or 0) + float(ctn_fee or 0))
+    c.drawString(50, y, f"Subtotal (USD): {subtotal}")
+    y -= 20
+    if balance_applied and balance_applied > 0:
+        c.drawString(50, y, f"Balance Applied (USD): -{balance_applied}")
+        y -= 20
+        total = subtotal - float(balance_applied)
+        c.drawString(50, y, f"Total Amount (USD): {total}")
+    else:
+        c.drawString(50, y, f"Total Amount (USD): {subtotal}")
     y -= 30
     if payment_link:
         c.drawString(50, y, f"Payment Link: {payment_link}")

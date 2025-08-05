@@ -104,17 +104,19 @@ def import_bank_statement():
             debug(f"Attempting match for BL: {bl}")
 
             cursor.execute("""
-                SELECT id, ctn_fee, service_fee, customer_email, customer_name, customer_username
+                SELECT id, ctn_fee, service_fee, customer_email, customer_name, customer_username, balance_applied
                 FROM bill_of_lading
                 WHERE bl_number = %s AND status != 'Paid and CTN Valid'
             """, (bl,))
             bill = cursor.fetchone()
 
             if bill:
-                bl_id, ctn_fee, service_fee, customer_email, customer_name, customer_username = bill
+                bl_id, ctn_fee, service_fee, customer_email, customer_name, customer_username, balance_applied = bill
                 ctn_fee = float(ctn_fee) if ctn_fee else 0
                 service_fee = float(service_fee) if service_fee else 0
-                expected = ctn_fee + service_fee
+                balance_applied = float(balance_applied) if balance_applied else 0
+                # Calculate adjusted expected amount (original fees minus balance applied)
+                expected = (ctn_fee + service_fee) - balance_applied
 
                 # Check if payment already processed to prevent duplicates
                 if check_payment_processed(bl_id, 'bank_import'):

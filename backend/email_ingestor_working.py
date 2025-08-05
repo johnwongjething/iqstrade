@@ -262,7 +262,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
 
     # 3. For each BL, verify and update
     for bl, paid_amount in bl_payment_map.items():
-        cursor.execute("SELECT id, ctn_fee, service_fee, customer_username FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        cursor.execute("SELECT id, ctn_fee, service_fee, customer_username, balance_applied FROM bill_of_lading WHERE bl_number = %s", (bl,))
         bill_row = cursor.fetchone()
         if not bill_row:
             logger.warning(f"BL {bl} not found in DB for email {email_id}. Skipping.")
@@ -271,7 +271,9 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         ctn_fee = float(bill_row[1] or 0)
         service_fee = float(bill_row[2] or 0)
         customer_username = bill_row[3]
-        invoice_amount = ctn_fee + service_fee
+        balance_applied = float(bill_row[4] or 0)
+        # Calculate adjusted invoice amount (original fees minus balance applied)
+        invoice_amount = (ctn_fee + service_fee) - balance_applied
         
         if paid_amount is None or not isinstance(paid_amount, (int, float)):
             logger.warning(f"No valid payment amount for BL {bl} in email {email_id}. Skipping.")

@@ -789,7 +789,7 @@ def update_bill(id):
             'shipper', 'consignee', 'port_of_loading', 'port_of_discharge',
             'container_numbers', 'service_fee', 'ctn_fee', 'payment_link', 'unique_number',
             'flight_or_vessel', 'product_description',
-            'payment_method', 'payment_status', 'reserve_status'
+            'payment_method', 'payment_status', 'reserve_status', 'balance_applied'
         ]
         update_fields = []
         update_values = []
@@ -831,7 +831,7 @@ def update_bill(id):
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
                 invoice_local_path = tmp.name
             # Pass the temp file path to generate_invoice_pdf so it writes to the correct location
-            generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'), output_path=invoice_local_path)
+            generate_invoice_pdf(customer, bill, bill.get('service_fee'), bill.get('ctn_fee'), bill.get('payment_link'), bill.get('balance_applied', 0), output_path=invoice_local_path)
             cloud_url = upload_filepath_to_cloudinary(invoice_local_path, folder="invoices")
             bill['invoice_filename'] = cloud_url
             # Save Cloudinary URL to DB

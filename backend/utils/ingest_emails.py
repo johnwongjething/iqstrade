@@ -203,14 +203,17 @@ def match_payment_to_bls(payment_data):
     matched = []
     total_invoice = 0
     for bl in bls:
-        cursor.execute("SELECT id, ctn_fee, service_fee, status FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        cursor.execute("SELECT id, ctn_fee, service_fee, status, balance_applied FROM bill_of_lading WHERE bl_number = %s", (bl,))
         row = cursor.fetchone()
         if row:
             matched.append(row)
             ctn_fee = float(row[1]) if row[1] else 0
             service_fee = float(row[2]) if row[2] else 0
-            total_invoice += ctn_fee + service_fee
-            debug(f"Matched BL number: {bl} | ctn_fee: {ctn_fee} | service_fee: {service_fee}")
+            balance_applied = float(row[4]) if row[4] else 0
+            # Calculate adjusted total (original fees minus balance applied)
+            adjusted_total = (ctn_fee + service_fee) - balance_applied
+            total_invoice += adjusted_total
+            debug(f"Matched BL number: {bl} | ctn_fee: {ctn_fee} | service_fee: {service_fee} | balance_applied: {balance_applied} | adjusted_total: {adjusted_total}")
     tolerance = 2.0
     if abs(total_invoice - amount) <= tolerance and matched:
         debug(f"Receipt matches payment for BLs: {bls}")
@@ -275,7 +278,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
 
     # 3. For each BL, verify and update
     for bl, paid_amount in bl_payment_map.items():
-        cursor.execute("SELECT id, ctn_fee, service_fee FROM bill_of_lading WHERE bl_number = %s", (bl,))
+        cursor.execute("SELECT id, ctn_fee, service_fee, balance_applied FROM bill_of_lading WHERE bl_number = %s", (bl,))
         bill_row = cursor.fetchone()
         if not bill_row:
             print(f"[WARN] BL {bl} not found in DB for email {email_id}. Skipping.")
@@ -283,7 +286,9 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         bill_id = bill_row[0]
         ctn_fee = float(bill_row[1] or 0)
         service_fee = float(bill_row[2] or 0)
-        invoice_amount = ctn_fee + service_fee
+        balance_applied = float(bill_row[3] or 0)
+        # Calculate adjusted invoice amount (original fees minus balance applied)
+        invoice_amount = (ctn_fee + service_fee) - balance_applied
         if paid_amount is None or not isinstance(paid_amount, (int, float)):
             print(f"[WARN] No valid payment amount for BL {bl} in email {email_id}. Skipping.")
             continue
