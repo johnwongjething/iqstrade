@@ -11,6 +11,7 @@ from utils.balance_utils import (
     process_payment_balance
 )
 from config import get_db_conn
+from utils.security import decrypt_sensitive_data
 import logging
 
 balance_routes = Blueprint('balance_routes', __name__)
@@ -22,11 +23,28 @@ def get_balance(username):
     """Get customer balance"""
     try:
         balance = get_customer_balance(username)
-        return jsonify({
-            'username': username,
-            'balance': balance,
-            'status': 'success'
-        })
+        
+        # Get additional balance info for frontend compatibility
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT balance_amount, last_updated 
+                FROM customer_balances 
+                WHERE username = %s AND is_active = true
+            """, (username,))
+            result = cursor.fetchone()
+            
+            return jsonify({
+                'username': username,
+                'balance': balance,
+                'balance_amount': balance,  # Frontend compatibility
+                'last_updated': result[1].isoformat() if result and result[1] else None,
+                'status': 'success'
+            })
+        finally:
+            cursor.close()
+            conn.close()
     except Exception as e:
         logger.error(f"Error getting balance for {username}: {e}")
         return jsonify({'error': 'Failed to get balance'}), 500
@@ -148,10 +166,20 @@ def search_customers():
         
         customers = []
         for row in cursor.fetchall():
+            # Decrypt the email address
+            encrypted_email = row[2]
+            decrypted_email = 'N/A'
+            if encrypted_email:
+                try:
+                    decrypted_email = decrypt_sensitive_data(encrypted_email)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt email for {row[0]}: {e}")
+                    decrypted_email = 'N/A'
+            
             customers.append({
                 'username': row[0],
                 'customer_name': row[1] or 'N/A',
-                'email': row[2] or 'N/A',  # Map customer_email to email for frontend
+                'email': decrypted_email,  # Decrypted email address
                 'balance_amount': float(row[3]) if row[3] else 0.0
             })
         
@@ -188,10 +216,20 @@ def get_all_balances():
         
         balances = []
         for row in cursor.fetchall():
+            # Decrypt the email address
+            encrypted_email = row[2]
+            decrypted_email = 'N/A'
+            if encrypted_email:
+                try:
+                    decrypted_email = decrypt_sensitive_data(encrypted_email)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt email for {row[0]}: {e}")
+                    decrypted_email = 'N/A'
+            
             balances.append({
                 'username': row[0],
                 'customer_name': row[1],
-                'customer_email': row[2],
+                'customer_email': decrypted_email,  # Decrypted email address
                 'balance': float(row[3]) if row[3] else 0.0,
                 'last_updated': row[4].isoformat() if row[4] else None
             })
