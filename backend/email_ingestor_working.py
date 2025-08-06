@@ -296,7 +296,7 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
                 # Get original payment date
                 cursor.execute("""
                     SELECT created_at FROM customer_balance_transactions 
-                    WHERE bl_id = %s AND payment_source = 'email' 
+                    WHERE reference_id = %s AND payment_source = 'email' 
                     ORDER BY created_at DESC LIMIT 1
                 """, (bill_id,))
                 original_payment = cursor.fetchone()
@@ -671,8 +671,11 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
         return bl_payments
 
     # More flexible BL regex: matches various BL formats but excludes bank references
-    # Excludes patterns like TEST987, REF123, etc. that are common bank reference formats
-    expanded_bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|[A-Z]{2,4}\d{2,})', re.IGNORECASE)
+    # Excludes patterns like TEST987, REF123, RAY6330088, etc. that are common bank reference formats
+    # Bank reference patterns to exclude: RAY, TEST, REF, BANK, PAY, TRANS, TXN followed by numbers
+    bank_ref_patterns = ['RAY', 'TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN']
+    bank_ref_regex = '|'.join(bank_ref_patterns)
+    expanded_bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|(?!' + bank_ref_regex + r')[A-Z]{2,4}\d{2,})', re.IGNORECASE)
     logger.info(f"\033[92m[BL Processing] BL regex pattern: {expanded_bl_pattern.pattern}\033[0m")
     bls_from_pdfs = set()
     fallback_paid_amount = None
@@ -835,7 +838,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{body[:200]}...' if body else 'Empty'\033[0m")
     
     # Filter out common bank reference patterns
-    bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN']
+    bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN', 'RAY']
     filtered_bls = set()
     logger.info(f"\033[92m[BL Processing] Filtering BLs: {merged_bls}\033[0m")
     logger.info(f"\033[92m[BL Processing] Bank reference patterns: {bank_ref_patterns}\033[0m")
@@ -1098,25 +1101,42 @@ Return a JSON object:
                         status = db_status
                     reply_lines.append(f"  - BL {bl}: Total Fee: ${total_fee:.2f}, Paid: ${paid:.2f}, Status: {status}")
             elif req_type == 'payment_receipt' and valid_bls and paid_amount is not None:
-                reply_lines.append("Payment(s) found:")
+                # Check for duplicate payments first
+                duplicate_bls = []
                 for bl, info in valid_bls.items():
-                    reply_lines.append(f"  - For BL {bl}: Payment record found.")
+                    try:
+                        from utils.balance_utils import check_payment_processed
+                        if check_payment_processed(info.get('id'), 'email'):
+                            duplicate_bls.append(bl)
+                    except Exception as e:
+                        logger.error(f"Error checking duplicate payment for BL {bl}: {e}")
                 
-                # Check for underpayment/overpayment
-                total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
-                logger.info(f"\033[92m[Payment Check] Total invoice: ${total_invoice:.2f}, Paid amount: ${paid_amount:.2f}\033[0m")
-                
-                if paid_amount < total_invoice - 0.01:
-                    diff = total_invoice - paid_amount
-                    reply_lines.append(f"\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}.")
-                    logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
-                elif paid_amount > total_invoice + 0.01:
-                    diff = paid_amount - total_invoice
-                    reply_lines.append(f"\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}.")
-                    logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
+                if duplicate_bls:
+                    reply_lines.append("⚠️ DUPLICATE PAYMENT DETECTED:")
+                    for bl in duplicate_bls:
+                        reply_lines.append(f"  - For BL {bl}: This payment has already been processed previously.")
+                    reply_lines.append(f"\n💰 DUPLICATE PAYMENT: We detected that your payment of ${paid_amount:.2f} for BL(s) {', '.join(duplicate_bls)} has already been processed. No action is required from you.")
+                    logger.warning(f"\033[93m[Payment Check] Duplicate payment detected for BLs: {duplicate_bls}\033[0m")
                 else:
-                    reply_lines.append(f"\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}.")
-                    logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
+                    reply_lines.append("Payment(s) found:")
+                    for bl, info in valid_bls.items():
+                        reply_lines.append(f"  - For BL {bl}: Payment record found.")
+                    
+                    # Check for underpayment/overpayment
+                    total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
+                    logger.info(f"\033[92m[Payment Check] Total invoice: ${total_invoice:.2f}, Paid amount: ${paid_amount:.2f}\033[0m")
+                    
+                    if paid_amount < total_invoice - 0.01:
+                        diff = total_invoice - paid_amount
+                        reply_lines.append(f"\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}.")
+                        logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
+                    elif paid_amount > total_invoice + 0.01:
+                        diff = paid_amount - total_invoice
+                        reply_lines.append(f"\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}.")
+                        logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
+                    else:
+                        reply_lines.append(f"\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}.")
+                        logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
             elif req_type == 'business_hours':
                 reply_lines.append(f"Our business hours are: {BUSINESS_HOURS}")
             elif req_type == 'payment_methods':
@@ -1475,14 +1495,31 @@ def process_inbox(user_id=None):
                 reply_text = action.get('reply', '')
                 bl_numbers = action.get('bl_numbers', [])
                 
-                # Update email with extracted BL numbers
+                # Validate and filter BL numbers before saving
                 if bl_numbers:
-                    cursor.execute(
-                        "UPDATE customer_emails SET bl_numbers = %s WHERE id = %s",
-                        (bl_numbers, email_id)
-                    )
-                    conn.commit()
-                    logger.info(f"✅ Updated email {email_id} with BL numbers: {bl_numbers}")
+                    # Get valid BL numbers from database
+                    valid_bls = []
+                    invalid_bls = []
+                    
+                    for bl in bl_numbers:
+                        cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
+                        if cursor.fetchone():
+                            valid_bls.append(bl)
+                        else:
+                            invalid_bls.append(bl)
+                    
+                    # Only save valid BL numbers
+                    if valid_bls:
+                        cursor.execute(
+                            "UPDATE customer_emails SET bl_numbers = %s WHERE id = %s",
+                            (valid_bls, email_id)
+                        )
+                        conn.commit()
+                        logger.info(f"✅ Updated email {email_id} with valid BL numbers: {valid_bls}")
+                        if invalid_bls:
+                            logger.info(f"⚠️ Filtered out invalid BL numbers: {invalid_bls}")
+                    else:
+                        logger.info(f"⚠️ No valid BL numbers found for email {email_id}. Invalid BLs: {invalid_bls}")
                 
                 request_types_lower = [r.lower() for r in request_types]
                 is_payment_related = any(r in request_types_lower for r in ["payment_receipt", "payment_status", "combined_request"])

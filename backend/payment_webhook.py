@@ -98,7 +98,7 @@ def handle_payment_webhook():
                 # Get original payment date
                 cur.execute("""
                     SELECT created_at FROM customer_balance_transactions 
-                    WHERE bl_id = %s AND payment_source = 'webhook' 
+                    WHERE reference_id = %s AND payment_source = 'webhook' 
                     ORDER BY created_at DESC LIMIT 1
                 """, (bl_id,))
                 original_payment = cur.fetchone()

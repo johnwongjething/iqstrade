@@ -128,7 +128,7 @@ def import_bank_statement():
                         # Get original payment date
                         cursor.execute("""
                             SELECT created_at FROM customer_balance_transactions 
-                            WHERE bl_id = %s AND payment_source = 'bank_import' 
+                            WHERE reference_id = %s AND payment_source = 'bank_import' 
                             ORDER BY created_at DESC LIMIT 1
                         """, (bl_id,))
                         original_payment = cursor.fetchone()
