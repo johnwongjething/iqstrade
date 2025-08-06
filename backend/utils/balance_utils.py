@@ -208,16 +208,15 @@ def mark_payment_processed(bl_id, payment_source, processed_by):
     try:
         # Get customer_username from bill_of_lading table
         cursor.execute("""
-            SELECT customer_username, created_by FROM bill_of_lading WHERE id = %s
+            SELECT customer_username FROM bill_of_lading WHERE id = %s
         """, (bl_id,))
         
         result = cursor.fetchone()
         if result:
             customer_username = result[0]
-            created_by = result[1]
             
-            # Use customer_username if available, otherwise use created_by, fallback to processed_by
-            username = customer_username or created_by or processed_by
+            # Use customer_username if available, otherwise use processed_by
+            username = customer_username or processed_by
             
             # If username is still None, use a default system user
             if not username:
