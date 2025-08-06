@@ -1038,7 +1038,14 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     print(f"\033[94m[DEBUG] Final prompt sections: {prompt_sections}\033[0m")
     
     prompt = f"""
-You are a logistics assistant for IQS Trade. Draft a reply in English for the email below, addressing ONLY the specified request types using the provided data. Do NOT include information unrelated to the request types. Only include payment details for valid BLs. Do not mention payments for invalid BLs.
+You are a logistics assistant for IQS Trade. Draft a reply in English for the email below.
+
+CRITICAL REQUIREMENTS:
+1. You MUST address ALL Bill of Lading (BL) numbers mentioned in the customer's email
+2. For each BL number, provide complete information for ALL requested request types
+3. Do NOT skip any BL numbers or request types
+4. If multiple BLs are mentioned, address each one individually and completely
+5. Use ONLY the provided data - do not make up information
 
 Request types: {json.dumps(request_types)}
 {chr(10).join(prompt_sections)}
@@ -1050,7 +1057,7 @@ Canned responses: {canned_responses_text}
 Return a JSON object:
 {{
   "classification": "{"combined_request" if len(request_types) > 1 else request_types[0] if request_types else "general_enquiry"}",
-  "reply": "Reply addressing ONLY the detected requests."
+  "reply": "Reply addressing ALL BLs and ALL detected requests completely."
 }}
 """
     print(f"\033[94m[DEBUG] Final prompt sent to OpenAI:\033[0m")
@@ -1062,11 +1069,11 @@ Return a JSON object:
     # --- OpenAI Call ---
     try:
         messages = [
-            {"role": "system", "content": "You're a shipping email agent."},
+            {"role": "system", "content": "You're a shipping email agent. You MUST address ALL Bill of Lading (BL) numbers mentioned in customer emails. Never skip or ignore any BL numbers. Provide complete information for each BL and each request type."},
             {"role": "user", "content": prompt}
         ]
         print(f"\033[94m[DEBUG] ===== OPENAI CALL =====\033[0m")
-        print(f"\033[94m[DEBUG] System message: You're a shipping email agent.\033[0m")
+        print(f"\033[94m[DEBUG] System message: You're a shipping email agent. You MUST address ALL Bill of Lading (BL) numbers mentioned in customer emails. Never skip or ignore any BL numbers. Provide complete information for each BL and each request type.\033[0m")
         print(f"\033[94m[DEBUG] User message length: {len(prompt)} characters\033[0m")
         print(f"\033[94m[DEBUG] Complete prompt sent to OpenAI:\033[0m")
         print(f"\033[94m{prompt}\033[0m")
@@ -1264,6 +1271,60 @@ Return a JSON object:
             custom_reply = "\n".join(reply_lines)
         else:
             custom_reply = "Hello,\n\nWe could not process your request. Please provide more details or contact us for assistance."
+
+    # --- Post-Processing: Add Missing BL Information ---
+    print(f"\033[94m[DEBUG] ===== POST-PROCESSING =====\033[0m")
+    if missing_bls and valid_bls:
+        print(f"\033[94m[DEBUG] Missing BLs detected: {missing_bls}\033[0m")
+        print(f"\033[94m[DEBUG] Valid BLs available: {list(valid_bls.keys())}\033[0m")
+        
+        # Only add information for BLs that are both missing AND valid
+        bls_to_add = [bl for bl in missing_bls if bl in valid_bls]
+        
+        if bls_to_add:
+            print(f"\033[94m[DEBUG] Adding missing BL information for: {bls_to_add}\033[0m")
+            
+            # Add missing BL information to the reply
+            missing_bl_info = []
+            for bl in bls_to_add:
+                bl_data = valid_bls[bl]
+                bl_info_lines = [f"\n{bl}:"]
+                
+                # Add information based on request types
+                for req_type in request_types:
+                    if req_type == 'ctn_request' and bl_data.get('ctn'):
+                        bl_info_lines.append(f"  - CTN Number: {bl_data['ctn']}")
+                    if req_type == 'invoice_request' and bl_data.get('invoice_link'):
+                        bl_info_lines.append(f"  - Invoice: {bl_data['invoice_link']}")
+                    if req_type == 'fee_inquiry':
+                        ctn_fee = bl_data.get('ctn_fee', 0.0)
+                        service_fee = bl_data.get('service_fee', 0.0)
+                        total_fee = ctn_fee + service_fee
+                        bl_info_lines.append(f"  - CTN Fee: ${ctn_fee:.2f}, Service Fee: ${service_fee:.2f}, Total: ${total_fee:.2f}")
+                    if req_type == 'payment_status':
+                        ctn_fee = bl_data.get('ctn_fee', 0.0)
+                        service_fee = bl_data.get('service_fee', 0.0)
+                        total_fee = ctn_fee + service_fee
+                        paid = bl_data.get('paid_amount', 0.0)
+                        due = total_fee - paid
+                        db_status = bl_data.get('status', 'Unknown')
+                        if db_status == 'Unknown':
+                            status = "Paid and CTN Valid" if due <= 0 else f"Due: ${due:.2f}"
+                        else:
+                            status = db_status
+                        bl_info_lines.append(f"  - Total Fee: ${total_fee:.2f}, Paid: ${paid:.2f}, Status: {status}")
+                
+                missing_bl_info.append(" ".join(bl_info_lines))
+            
+            if missing_bl_info:
+                custom_reply += "\n\n" + "\n".join(missing_bl_info)
+                print(f"\033[94m[DEBUG] Added missing BL information to reply\033[0m")
+                logger.info(f"[Post-Processing] Added missing BL information for: {bls_to_add}")
+        else:
+            print(f"\033[94m[DEBUG] No valid BLs to add (missing BLs are invalid)\033[0m")
+    else:
+        print(f"\033[94m[DEBUG] No missing BLs or no valid BLs available\033[0m")
+    print(f"\033[94m[DEBUG] ===== END POST-PROCESSING =====\033[0m")
 
     # --- Translate Reply for Chinese Emails ---
     reply_is_chinese = False
