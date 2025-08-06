@@ -24,13 +24,13 @@ class OpenAIConfig:
     MAX_DELAY = float(os.getenv('OPENAI_MAX_DELAY', '60.0'))
     
     # Production Model Strategy
-    # OCR: GPT-4o (higher accuracy for document processing)
+    # OCR: GPT-3.5-turbo (faster, cheaper for text processing) → GPT-4o (fallback)
     # Email: GPT-3.5-turbo (faster, cheaper for text processing)
-    OCR_MODEL = os.getenv('OPENAI_OCR_MODEL', 'gpt-4o')
+    OCR_MODEL = os.getenv('OPENAI_OCR_MODEL', 'gpt-3.5-turbo')
     EMAIL_MODEL = os.getenv('OPENAI_EMAIL_MODEL', 'gpt-3.5-turbo')
     
     # Fallback models
-    OCR_FALLBACK_MODEL = os.getenv('OPENAI_OCR_FALLBACK_MODEL', 'gpt-3.5-turbo')
+    OCR_FALLBACK_MODEL = os.getenv('OPENAI_OCR_FALLBACK_MODEL', 'gpt-4o')
     EMAIL_FALLBACK_MODEL = os.getenv('OPENAI_EMAIL_FALLBACK_MODEL', 'gpt-4o')
     
     # API settings
@@ -118,9 +118,9 @@ OPENAI_BASE_DELAY=1.0
 OPENAI_MAX_DELAY=60.0
 
 # Production Model Strategy
-OPENAI_OCR_MODEL=gpt-4o
+OPENAI_OCR_MODEL=gpt-3.5-turbo
 OPENAI_EMAIL_MODEL=gpt-3.5-turbo
-OPENAI_OCR_FALLBACK_MODEL=gpt-3.5-turbo
+OPENAI_OCR_FALLBACK_MODEL=gpt-4o
 OPENAI_EMAIL_FALLBACK_MODEL=gpt-4o
 
 # API settings

@@ -833,19 +833,10 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     if incoming_is_chinese:
         text_to_parse.append(body)  # Parse original Chinese body for Chinese terms
     
-    print(f"\033[94m[DEBUG] Text to parse: {text_to_parse}\033[0m")
-    
     for text in text_to_parse:
-        print(f"\033[94m[DEBUG] Analyzing text: '{text[:200]}...'\033[0m")
         for req_type, pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                print(f"\033[94m[DEBUG] Pattern '{pattern}' matched '{match.group()}' for request type '{req_type}'\033[0m")
-                if req_type not in request_types:
-                    request_types.append(req_type)
-                    print(f"\033[94m[DEBUG] Added request type: {req_type}\033[0m")
-            else:
-                print(f"\033[94m[DEBUG] Pattern '{pattern}' did NOT match for request type '{req_type}'\033[0m")
+            if re.search(pattern, text, re.IGNORECASE) and req_type not in request_types:
+                request_types.append(req_type)
     
     # Prioritize payment_receipt and payment_status over fee_inquiry
     if 'payment_receipt' in request_types or 'payment_status' in request_types:
@@ -854,7 +845,6 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     if not request_types:
         request_types.append('general_enquiry')
     
-    print(f"\033[94m[DEBUG] Final request types: {request_types}\033[0m")
     logger.info(f"\033[92m[Pre-Parsing] Request types: {request_types} | Email body: {body}\033[0m")
 
     # --- Extract and Merge BLs from all sources ---
@@ -862,19 +852,13 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|[A-Z]{2,4}\d{2,})', re.IGNORECASE)
     bls_from_body = set()
     
-    print(f"\033[94m[DEBUG] BL extraction pattern: {bl_pattern.pattern}\033[0m")
-    
     for text in text_to_parse:
         found_bls = bl_pattern.findall(text)
-        print(f"\033[94m[DEBUG] BLs found in text '{text[:100]}...': {found_bls}\033[0m")
         logger.debug(f"[DEBUG] BLs found in body text '{text[:50]}...': {found_bls}")
         bls_from_body.update(found_bls)
     
     # Merge BLs from body, PDF, and OpenAI reply
     merged_bls = bls_from_body | bls_from_pdfs
-    print(f"\033[94m[DEBUG] BLs from body: {bls_from_body}\033[0m")
-    print(f"\033[94m[DEBUG] BLs from PDFs: {bls_from_pdfs}\033[0m")
-    print(f"\033[94m[DEBUG] Merged BLs: {merged_bls}\033[0m")
     logger.info(f"\033[92m[BL Processing] BLs from body: {bls_from_body}, BLs from PDFs: {bls_from_pdfs}, Merged: {merged_bls}\033[0m")
     logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{body[:200]}...' if body else 'Empty'\033[0m")
     
@@ -933,20 +917,12 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     valid_bls = {}
     invalid_bls = []
     if bl_numbers:
-        print(f"\033[94m[DEBUG] Querying database for BLs: {bl_numbers}\033[0m")
         ctn_infos = find_ctn_info(bl_numbers) or []
         invoice_infos = find_invoice_info(bl_numbers) or []
         
-        print(f"\033[94m[DEBUG] CTN infos from DB: {ctn_infos}\033[0m")
-        print(f"\033[94m[DEBUG] Invoice infos from DB: {invoice_infos}\033[0m")
-        
         for bl in bl_numbers:
-            print(f"\033[94m[DEBUG] Processing BL: {bl}\033[0m")
             ctn_info = next((info for info in ctn_infos if info.get('bl_number') == bl), {})
             invoice_info = next((info for info in invoice_infos if info.get('bl_number') == bl), {})
-            
-            print(f"\033[94m[DEBUG] CTN info for {bl}: {ctn_info}\033[0m")
-            print(f"\033[94m[DEBUG] Invoice info for {bl}: {invoice_info}\033[0m")
             
             if ctn_info or invoice_info:
                 valid_bls[bl] = {
@@ -957,13 +933,9 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                     'paid_amount': float(invoice_info.get('paid_amount', 0)) if invoice_info.get('paid_amount') else 0.0,
                     'status': invoice_info.get('status', 'Unknown')
                 }
-                print(f"\033[94m[DEBUG] Added {bl} to valid_bls: {valid_bls[bl]}\033[0m")
             else:
                 invalid_bls.append(bl)
-                print(f"\033[94m[DEBUG] Added {bl} to invalid_bls (no CTN or invoice info)\033[0m")
     
-    print(f"\033[94m[DEBUG] Final valid_bls: {valid_bls}\033[0m")
-    print(f"\033[94m[DEBUG] Final invalid_bls: {invalid_bls}\033[0m")
     logger.info(f"\033[92m[DB Query] Valid BLs: {valid_bls}, Invalid BLs: {invalid_bls}\033[0m")
 
     # --- Validate Paid Amount ---
@@ -1005,37 +977,24 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     
     # Build prompt sections only for detected request types
     prompt_sections = []
-    print(f"\033[94m[DEBUG] Building prompt sections for request types: {request_types}\033[0m")
-    print(f"\033[94m[DEBUG] Available valid_bls: {valid_bls}\033[0m")
-    
     if 'invoice_request' in request_types and valid_bls:
         prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
-        print(f"\033[94m[DEBUG] Added invoice_request section with Valid BLs\033[0m")
     if 'ctn_request' in request_types and valid_bls:
         prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
-        print(f"\033[94m[DEBUG] Added ctn_request section with Valid BLs\033[0m")
     if 'fee_inquiry' in request_types and valid_bls:
         prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
-        print(f"\033[94m[DEBUG] Added fee_inquiry section with Valid BLs\033[0m")
     if 'payment_status' in request_types or 'payment_receipt' in request_types:
         prompt_sections.append(f"Paid amount: {paid_amount if paid_amount is not None else 'None'}")
         if valid_bls:
             prompt_sections.append(f"Valid BLs: {json.dumps(valid_bls)}")
-            print(f"\033[94m[DEBUG] Added payment_status/payment_receipt section with Valid BLs\033[0m")
     if 'business_hours' in request_types:
         prompt_sections.append(f"Business hours: {BUSINESS_HOURS}")
-        print(f"\033[94m[DEBUG] Added business_hours section\033[0m")
     if 'payment_methods' in request_types:
         prompt_sections.append(f"Payment methods: {', '.join(PAYMENT_METHODS)}")
-        print(f"\033[94m[DEBUG] Added payment_methods section\033[0m")
     if 'ctn_process' in request_types:
         prompt_sections.append(f"CTN processing time: {CTN_PROCESSING_TIME}")
-        print(f"\033[94m[DEBUG] Added ctn_process section\033[0m")
     if invalid_bls:
         prompt_sections.append(f"Invalid BLs: {json.dumps(invalid_bls)}")
-        print(f"\033[94m[DEBUG] Added invalid_bls section: {invalid_bls}\033[0m")
-    
-    print(f"\033[94m[DEBUG] Final prompt sections: {prompt_sections}\033[0m")
     
     prompt = f"""
 You are a logistics assistant for IQS Trade. Draft a reply in English for the email below, addressing ONLY the specified request types using the provided data. Do NOT include information unrelated to the request types. Only include payment details for valid BLs. Do not mention payments for invalid BLs.
@@ -1053,10 +1012,6 @@ Return a JSON object:
   "reply": "Reply addressing ONLY the detected requests."
 }}
 """
-    print(f"\033[94m[DEBUG] Final prompt sent to OpenAI:\033[0m")
-    print(f"\033[94m[DEBUG] Request types: {json.dumps(request_types)}\033[0m")
-    print(f"\033[94m[DEBUG] Prompt sections: {chr(10).join(prompt_sections)}\033[0m")
-    print(f"\033[94m[DEBUG] Email text: {full_text}{attachment_info}\033[0m")
     logger.debug(f"[OpenAI Email] Sending prompt to OpenAI:\n{prompt}")
 
     # --- OpenAI Call ---
@@ -1065,45 +1020,24 @@ Return a JSON object:
             {"role": "system", "content": "You're a shipping email agent."},
             {"role": "user", "content": prompt}
         ]
-        print(f"\033[94m[DEBUG] ===== OPENAI CALL =====\033[0m")
-        print(f"\033[94m[DEBUG] System message: You're a shipping email agent.\033[0m")
-        print(f"\033[94m[DEBUG] User message length: {len(prompt)} characters\033[0m")
-        print(f"\033[94m[DEBUG] Complete prompt sent to OpenAI:\033[0m")
-        print(f"\033[94m{prompt}\033[0m")
-        print(f"\033[94m[DEBUG] ===== END PROMPT =====\033[0m")
-        
         content = openai_call_with_fallback(messages, temperature=0)
-        
-        print(f"\033[94m[DEBUG] ===== OPENAI RESPONSE =====\033[0m")
-        print(f"\033[94m[DEBUG] Response length: {len(content)} characters\033[0m")
-        print(f"\033[94m[DEBUG] Complete response from OpenAI:\033[0m")
-        print(f"\033[94m{content}\033[0m")
-        print(f"\033[94m[DEBUG] ===== END RESPONSE =====\033[0m")
-        
         logger.debug(f"[OpenAI Email] Received response from OpenAI:\n{content}")
         
-        print(f"\033[94m[DEBUG] ===== JSON PARSING =====\033[0m")
         try:
             action = json.loads(content)
-            print(f"\033[94m[DEBUG] Successfully parsed JSON: {action}\033[0m")
-        except json.JSONDecodeError as e:
-            print(f"\033[94m[DEBUG] JSON decode error: {e}\033[0m")
+        except json.JSONDecodeError:
             match = re.search(r'\{.*\}', content, re.DOTALL)
             if match:
                 try:
                     action = json.loads(match.group(0))
-                    print(f"\033[94m[DEBUG] Successfully parsed JSON from regex match: {action}\033[0m")
-                except json.JSONDecodeError as e2:
-                    print(f"\033[94m[DEBUG] Failed to parse JSON from regex match: {e2}\033[0m")
+                except json.JSONDecodeError:
                     logger.error(f"[OpenAI Email] Failed to parse JSON from response.\nPrompt: {prompt}\nResponse: {content}")
                     action = None
             else:
-                print(f"\033[94m[DEBUG] No JSON pattern found in response\033[0m")
                 logger.error(f"[OpenAI Email] No JSON found in response.\nPrompt: {prompt}\nResponse: {content}")
                 action = None
         
         if not action or not isinstance(action, dict):
-            print(f"\033[94m[DEBUG] Invalid action format, using fallback\033[0m")
             logger.error(f"[OpenAI Email] Invalid response format.\nPrompt: {prompt}\nResponse: {content}")
             action = {
                 'classification': 'general_enquiry',
@@ -1117,12 +1051,8 @@ Return a JSON object:
         }
 
     # --- Validate and Process Reply ---
-    print(f"\033[94m[DEBUG] ===== FINAL RESULT =====\033[0m")
     classification = action.get('classification', 'general_enquiry')
     custom_reply = action.get('reply', 'We could not process your request. Please provide more details or contact us for assistance.')
-    print(f"\033[94m[DEBUG] Final classification: {classification}\033[0m")
-    print(f"\033[94m[DEBUG] Final reply: {custom_reply}\033[0m")
-    print(f"\033[94m[DEBUG] ===== END PROCESSING =====\033[0m")
     logger.info(f"[OpenAI Email] Classification: {classification}, Reply: {custom_reply[:100]}...")
 
     # Validate reply includes all request types and BLs

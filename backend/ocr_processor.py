@@ -19,7 +19,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 def openai_call_with_fallback(messages, temperature=0, max_tokens=None):
     """
     Make OpenAI API call with production fallback strategy
-    OCR: GPT-4o → GPT-3.5-turbo (high accuracy for document processing)
+    OCR: GPT-3.5-turbo → GPT-4o (fast, cheap for text processing, GPT-4o for vision)
     """
     # Get OCR-specific configuration
     ocr_config = OpenAIConfig.get_ocr_settings()
