@@ -8,7 +8,7 @@ from datetime import datetime
 import pytz
 from config import get_db_conn
 from email_utils import send_simple_email
-from fcm_service_fallback import send_notification
+from fcm_service_fallback import fcm_service_fallback
 from utils.security import decrypt_sensitive_data
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ def send_fcm_duplicate_notification(fcm_tokens, bl_number, payment_amount, payme
             'timestamp': datetime.now().isoformat()
         }
         
-        send_notification(
+        fcm_service_fallback.send_notification(
             tokens=fcm_tokens,
             title=title,
             body=body,
