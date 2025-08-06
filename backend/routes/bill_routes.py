@@ -170,7 +170,7 @@ def get_all_bills():
     query = f'''
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, notify_party, port_of_loading, port_of_discharge, bl_number, container_numbers,
                flight_or_vessel, product_description, service_fee, ctn_fee, calculated_ctn_fee, calculated_service_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-               shipment_type, container_type, container_count, container_count_20ft, container_count_40ft, container_count_40ft_hc, total_weight_kg, weight_unit, pricing_method, ocr_confidence_score, pricing_calculation_log
+               shipment_type, container_type, container_count, container_count_20ft, container_count_40ft, container_count_40ft_hc, total_weight_kg, weight_unit, pricing_method, ocr_confidence_score, pricing_calculation_log, balance_applied
         FROM bill_of_lading
         {where_sql}
         ORDER BY id DESC

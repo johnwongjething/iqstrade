@@ -7,6 +7,7 @@ import re
 from config import get_db_conn
 from email_utils import send_payment_confirmation_email
 from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
+from utils.duplicate_payment_notifications import send_duplicate_payment_notifications
 import pytz
 from datetime import datetime
 
@@ -121,6 +122,30 @@ def import_bank_statement():
                 # Check if payment already processed to prevent duplicates
                 if check_payment_processed(bl_id, 'bank_import'):
                     debug(f"Payment already processed for BL {bl} (ID: {bl_id}). Skipping.")
+                    
+                    # Send duplicate payment notifications
+                    try:
+                        # Get original payment date
+                        cursor.execute("""
+                            SELECT created_at FROM customer_balance_transactions 
+                            WHERE bl_id = %s AND payment_source = 'bank_import' 
+                            ORDER BY created_at DESC LIMIT 1
+                        """, (bl_id,))
+                        original_payment = cursor.fetchone()
+                        original_payment_date = original_payment[0] if original_payment else None
+                        
+                        send_duplicate_payment_notifications(
+                            bl_id=bl_id,
+                            bl_number=bl,
+                            customer_username=customer_username,
+                            customer_email=customer_email,
+                            payment_amount=amount,
+                            payment_source='bank_import',
+                            original_payment_date=original_payment_date
+                        )
+                    except Exception as e:
+                        debug(f"Error sending duplicate payment notifications: {e}")
+                    
                     continue
 
                 if abs(expected - amount) <= 2.0:

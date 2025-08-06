@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from email_utils import send_unique_number_email  # Replaced send_simple_email with send_unique_number_email
 from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
+from utils.duplicate_payment_notifications import send_duplicate_payment_notifications
 import logging
 import hmac
 import hashlib
@@ -86,6 +87,35 @@ def handle_payment_webhook():
         # Check if payment already processed to prevent duplicates
         if check_payment_processed(bl_id, 'webhook'):
             logger.warning(f"Payment already processed for unique_number {transaction_id} (ID: {bl_id}). Skipping.")
+            
+            # Send duplicate payment notifications
+            try:
+                # Get BL number for notifications
+                cur.execute("SELECT bl_number FROM bill_of_lading WHERE id = %s", (bl_id,))
+                bl_result = cur.fetchone()
+                bl_number = bl_result[0] if bl_result else transaction_id
+                
+                # Get original payment date
+                cur.execute("""
+                    SELECT created_at FROM customer_balance_transactions 
+                    WHERE bl_id = %s AND payment_source = 'webhook' 
+                    ORDER BY created_at DESC LIMIT 1
+                """, (bl_id,))
+                original_payment = cur.fetchone()
+                original_payment_date = original_payment[0] if original_payment else None
+                
+                send_duplicate_payment_notifications(
+                    bl_id=bl_id,
+                    bl_number=bl_number,
+                    customer_username=customer_username,
+                    customer_email=customer_email,
+                    payment_amount=amount,
+                    payment_source='webhook',
+                    original_payment_date=original_payment_date
+                )
+            except Exception as e:
+                logger.error(f"Error sending duplicate payment notifications: {e}")
+            
             return jsonify({"error": "Payment already processed"}), 409
 
         # Determine payment phase

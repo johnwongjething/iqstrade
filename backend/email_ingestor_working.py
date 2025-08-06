@@ -25,6 +25,7 @@ from utils.timezone_utils import get_hk_now, get_hk_now_iso, get_hk_timestamp
 from utils.confidence_scorer import confidence_scorer
 from invoice_utils import find_invoice_info, find_ctn_info, generate_pdf_from_text
 from utils.balance_utils import process_payment_balance, check_payment_processed, mark_payment_processed
+from utils.duplicate_payment_notifications import send_duplicate_payment_notifications
 from decimal import Decimal
 import tempfile
 import pytz
@@ -284,6 +285,35 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
         # Check if payment already processed to prevent duplicates
         if check_payment_processed(bill_id, 'email'):
             logger.warning(f"Payment already processed for BL {bl} (ID: {bill_id}). Skipping.")
+            
+            # Send duplicate payment notifications
+            try:
+                # Get customer email for notifications
+                cursor.execute("SELECT customer_email FROM bill_of_lading WHERE id = %s", (bill_id,))
+                customer_email_result = cursor.fetchone()
+                customer_email = customer_email_result[0] if customer_email_result else None
+                
+                # Get original payment date
+                cursor.execute("""
+                    SELECT created_at FROM customer_balance_transactions 
+                    WHERE bl_id = %s AND payment_source = 'email' 
+                    ORDER BY created_at DESC LIMIT 1
+                """, (bill_id,))
+                original_payment = cursor.fetchone()
+                original_payment_date = original_payment[0] if original_payment else None
+                
+                send_duplicate_payment_notifications(
+                    bl_id=bill_id,
+                    bl_number=bl,
+                    customer_username=customer_username,
+                    customer_email=customer_email,
+                    payment_amount=paid_amount_f,
+                    payment_source='email',
+                    original_payment_date=original_payment_date
+                )
+            except Exception as e:
+                logger.error(f"Error sending duplicate payment notifications: {e}")
+            
             continue
         
         # Process payment and calculate balance adjustments
