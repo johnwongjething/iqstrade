@@ -183,14 +183,13 @@ def check_payment_processed(bl_id, payment_source):
     
     try:
         cursor.execute("""
-            SELECT payment_processed_by, payment_processed_at 
-            FROM bill_of_lading 
-            WHERE id = %s
-        """, (bl_id,))
+            SELECT id FROM customer_balance_transactions 
+            WHERE reference_id = %s AND payment_source = %s
+        """, (bl_id, payment_source))
         
         result = cursor.fetchone()
-        if result and result[0]:
-            logger.warning(f"Payment already processed for BL {bl_id} by {result[0]} at {result[1]}")
+        if result:
+            logger.warning(f"Payment already processed for BL {bl_id} via {payment_source}")
             return True
         return False
         
@@ -207,13 +206,12 @@ def mark_payment_processed(bl_id, payment_source, processed_by):
     cursor = conn.cursor()
     
     try:
+        # Insert a record in customer_balance_transactions to mark as processed
         cursor.execute("""
-            UPDATE bill_of_lading 
-            SET payment_processed_by = %s, 
-                payment_processed_at = %s,
-                payment_source = %s
-            WHERE id = %s
-        """, (processed_by, datetime.now(pytz.timezone('Asia/Hong_Kong')), payment_source, bl_id))
+            INSERT INTO customer_balance_transactions 
+            (username, transaction_type, amount, reference_type, reference_id, payment_source, description, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, ('system', 'credit', 0, 'bill_of_lading', bl_id, payment_source, f'Payment marked as processed for BL {bl_id}', processed_by))
         
         conn.commit()
         logger.info(f"Payment marked as processed for BL {bl_id} by {processed_by}")

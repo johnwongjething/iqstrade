@@ -48,12 +48,12 @@ def get_email_ingest_errors():
     cur.execute("""
         SELECT id, sender, subject, created_at, 
                CASE 
-                   WHEN bl_numbers IS NULL OR bl_numbers = '[]' THEN 'No BL numbers extracted'
+                   WHEN bl_numbers IS NULL OR bl_numbers = '{}' THEN 'No BL numbers extracted'
                    WHEN processed_for_payments = FALSE THEN 'Not processed for payments'
                    ELSE 'Processing completed'
                END as status
         FROM customer_emails 
-        WHERE (bl_numbers IS NULL OR bl_numbers = '[]' OR processed_for_payments = FALSE)
+        WHERE (bl_numbers IS NULL OR bl_numbers = '{}' OR processed_for_payments = FALSE)
         ORDER BY created_at DESC 
         LIMIT 50
     """)

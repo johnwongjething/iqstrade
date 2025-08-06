@@ -214,6 +214,29 @@ def release_email_processing_lock():
 def connect_imap():
     return imaplib.IMAP4_SSL(IMAP_SERVER)
 
+def generate_duplicate_payment_reply(duplicate_bls, bl_payment_map):
+    """Generate a duplicate payment response without calling AI"""
+    total_amount = sum(bl_payment_map.values()) if bl_payment_map else 0
+    
+    reply_lines = [
+        "Hello,",
+        "",
+        "⚠️ DUPLICATE PAYMENT DETECTED:",
+    ]
+    
+    for bl in duplicate_bls:
+        reply_lines.append(f"  - For BL {bl}: This payment has already been processed previously.")
+    
+    reply_lines.extend([
+        "",
+        f"💰 DUPLICATE PAYMENT: We detected that your payment of ${total_amount:.2f} for BL(s) {', '.join(duplicate_bls)} has already been processed. No action is required from you.",
+        "",
+        "Best regards,",
+        "IQS Trade Team"
+    ])
+    
+    return "\n".join(reply_lines)
+
 def process_payment_receipt_email(email_id, from_addr, subject, body_text, attachments, bl_payment_map, conn=None):
     """
     Centralized logic to process a payment receipt email using BL-to-amount mapping.
@@ -1526,6 +1549,31 @@ def process_inbox(user_id=None):
                 reply_text = action.get('reply', '')
                 bl_numbers = action.get('bl_numbers', [])
                 
+                # === Check for duplicate payments AFTER AI processing ===
+                duplicate_payment_detected = False
+                duplicate_bls = []
+                
+                if bl_numbers and bl_payment_map:
+                    # Check each BL for duplicate payments
+                    for bl in bl_numbers:
+                        cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
+                        bl_result = cursor.fetchone()
+                        if bl_result:
+                            bl_id = bl_result[0]
+                            from utils.balance_utils import check_payment_processed
+                            if check_payment_processed(bl_id, 'email'):
+                                duplicate_bls.append(bl)
+                                duplicate_payment_detected = True
+                                logger.warning(f"Duplicate payment detected for BL {bl}")
+                    
+                    # If duplicates detected, override the AI reply
+                    if duplicate_payment_detected:
+                        duplicate_reply = generate_duplicate_payment_reply(duplicate_bls, bl_payment_map)
+                        action['reply'] = duplicate_reply
+                        action['duplicate_payment'] = True
+                        reply_text = duplicate_reply
+                        logger.info("Generated duplicate payment reply instead of AI reply")
+                
                 # Validate and filter BL numbers before saving
                 if bl_numbers:
                     # Get valid BL numbers from database
@@ -1565,7 +1613,7 @@ def process_inbox(user_id=None):
                 logger.info(f"[CLASSIFICATION] Has payment data: {bool(bl_payment_map)}")
                 logger.info(f"[CLASSIFICATION] Is actual payment: {is_actual_payment}")
                 
-                if is_actual_payment:
+                if is_actual_payment and not action.get('duplicate_payment', False):
                     logger.info("[ROUTING] Detected payment receipt intent — processing receipt upload + DB update.")
                     process_payment_receipt_email(
                         email_id=email_id,
@@ -1576,6 +1624,41 @@ def process_inbox(user_id=None):
                         bl_payment_map=bl_payment_map,
                         conn=conn,
                     )
+                elif action.get('duplicate_payment', False):
+                    logger.info("[ROUTING] Duplicate payment detected — skipping payment processing, sending notifications only.")
+                    # Send duplicate payment notifications without processing
+                    for bl in duplicate_bls:
+                        cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
+                        bl_result = cursor.fetchone()
+                        if bl_result:
+                            bl_id = bl_result[0]
+                            cursor.execute("SELECT customer_email, customer_username FROM bill_of_lading WHERE id = %s", (bl_id,))
+                            customer_result = cursor.fetchone()
+                            if customer_result:
+                                customer_email, customer_username = customer_result
+                                payment_amount = bl_payment_map.get(bl, 0)
+                                
+                                # Get original payment date
+                                cursor.execute("""
+                                    SELECT created_at FROM customer_balance_transactions 
+                                    WHERE reference_id = %s AND payment_source = 'email' 
+                                    ORDER BY created_at DESC LIMIT 1
+                                """, (bl_id,))
+                                original_payment = cursor.fetchone()
+                                original_payment_date = original_payment[0] if original_payment else None
+                                
+                                send_duplicate_payment_notifications(
+                                    bl_id=bl_id,
+                                    bl_number=bl,
+                                    customer_username=customer_username,
+                                    customer_email=customer_email,
+                                    payment_amount=payment_amount,
+                                    payment_source='email',
+                                    original_payment_date=original_payment_date
+                                )
+                    
+                    # Save the duplicate payment reply
+                    save_draft_reply(from_addr, subject, reply_text, {'confidence_score': 1.0, 'auto_send': True})
                 
                 # Mark email as read
                 mail.store(num, '+FLAGS', '\\Seen')
