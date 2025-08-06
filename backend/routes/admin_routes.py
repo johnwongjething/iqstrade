@@ -40,16 +40,51 @@ def get_email_ingest_errors():
 
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT id, filename, reason, raw_text, created_at FROM email_ingest_errors ORDER BY created_at DESC")
+    
+    # Get email processing errors and issues
     errors = []
+    
+    # Check for emails with processing issues
+    cur.execute("""
+        SELECT id, sender, subject, created_at, 
+               CASE 
+                   WHEN bl_numbers IS NULL OR bl_numbers = '[]' THEN 'No BL numbers extracted'
+                   WHEN processed_for_payments = FALSE THEN 'Not processed for payments'
+                   ELSE 'Processing completed'
+               END as status
+        FROM customer_emails 
+        WHERE (bl_numbers IS NULL OR bl_numbers = '[]' OR processed_for_payments = FALSE)
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """)
+    
     for row in cur.fetchall():
         errors.append({
             'id': row[0],
-            'filename': row[1],
-            'reason': row[2],
-            'raw_text': row[3],
-            'created_at': str(row[4])
+            'filename': f"Email from {row[1]}",
+            'reason': row[4],
+            'raw_text': f"Subject: {row[2]}",
+            'created_at': str(row[3])
         })
+    
+    # Check for duplicate payment issues
+    cur.execute("""
+        SELECT id, date, description, amount, reason, created_at, raw_text
+        FROM unmatched_receipts 
+        WHERE reason LIKE '%Duplicate Payment%'
+        ORDER BY created_at DESC 
+        LIMIT 20
+    """)
+    
+    for row in cur.fetchall():
+        errors.append({
+            'id': f"DP_{row[0]}",
+            'filename': row[2],
+            'reason': row[4],
+            'raw_text': row[6],
+            'created_at': str(row[5])
+        })
+    
     cur.close()
     conn.close()
     return jsonify(errors)

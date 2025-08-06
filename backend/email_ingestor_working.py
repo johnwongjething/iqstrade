@@ -1103,13 +1103,18 @@ Return a JSON object:
             elif req_type == 'payment_receipt' and valid_bls and paid_amount is not None:
                 # Check for duplicate payments first
                 duplicate_bls = []
+                non_duplicate_bls = []
+                
                 for bl, info in valid_bls.items():
                     try:
                         from utils.balance_utils import check_payment_processed
                         if check_payment_processed(info.get('id'), 'email'):
                             duplicate_bls.append(bl)
+                        else:
+                            non_duplicate_bls.append(bl)
                     except Exception as e:
                         logger.error(f"Error checking duplicate payment for BL {bl}: {e}")
+                        non_duplicate_bls.append(bl)  # Assume not duplicate if check fails
                 
                 if duplicate_bls:
                     reply_lines.append("⚠️ DUPLICATE PAYMENT DETECTED:")
@@ -1117,13 +1122,16 @@ Return a JSON object:
                         reply_lines.append(f"  - For BL {bl}: This payment has already been processed previously.")
                     reply_lines.append(f"\n💰 DUPLICATE PAYMENT: We detected that your payment of ${paid_amount:.2f} for BL(s) {', '.join(duplicate_bls)} has already been processed. No action is required from you.")
                     logger.warning(f"\033[93m[Payment Check] Duplicate payment detected for BLs: {duplicate_bls}\033[0m")
-                else:
+                
+                # Only process non-duplicate BLs for payment analysis
+                if non_duplicate_bls:
                     reply_lines.append("Payment(s) found:")
-                    for bl, info in valid_bls.items():
+                    for bl in non_duplicate_bls:
                         reply_lines.append(f"  - For BL {bl}: Payment record found.")
                     
-                    # Check for underpayment/overpayment
-                    total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
+                    # Check for underpayment/overpayment only for non-duplicate BLs
+                    non_duplicate_info = {bl: valid_bls[bl] for bl in non_duplicate_bls}
+                    total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in non_duplicate_info.values())
                     logger.info(f"\033[92m[Payment Check] Total invoice: ${total_invoice:.2f}, Paid amount: ${paid_amount:.2f}\033[0m")
                     
                     if paid_amount < total_invoice - 0.01:
@@ -1165,21 +1173,44 @@ Return a JSON object:
 
     # --- Add Payment Summary for Payment Receipts ---
     if 'payment_receipt' in request_types and valid_bls and paid_amount is not None:
-        total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in valid_bls.values())
+        # Check for duplicate payments first
+        duplicate_bls = []
+        non_duplicate_bls = []
         
-        # Only add summary if it's not already in the reply
-        if 'underpayment' not in custom_reply.lower() and 'overpayment' not in custom_reply.lower() and 'payment match' not in custom_reply.lower():
-            if paid_amount < total_invoice - 0.01:
-                diff = total_invoice - paid_amount
-                custom_reply += f"\n\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}."
-                logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
-            elif paid_amount > total_invoice + 0.01:
-                diff = paid_amount - total_invoice
-                custom_reply += f"\n\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}."
-                logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
-            else:
-                custom_reply += f"\n\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}."
-                logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
+        for bl, info in valid_bls.items():
+            try:
+                from utils.balance_utils import check_payment_processed
+                if check_payment_processed(info.get('id'), 'email'):
+                    duplicate_bls.append(bl)
+                else:
+                    non_duplicate_bls.append(bl)
+            except Exception as e:
+                logger.error(f"Error checking duplicate payment for BL {bl}: {e}")
+                non_duplicate_bls.append(bl)
+        
+        # Only add summary if it's not already in the reply and no duplicate payments
+        if ('underpayment' not in custom_reply.lower() and 'overpayment' not in custom_reply.lower() and 
+            'payment match' not in custom_reply.lower() and 'duplicate payment' not in custom_reply.lower()):
+            
+            if duplicate_bls:
+                # Don't add payment summary for duplicate payments
+                pass
+            elif non_duplicate_bls:
+                # Only calculate for non-duplicate BLs
+                non_duplicate_info = {bl: valid_bls[bl] for bl in non_duplicate_bls}
+                total_invoice = sum(info.get('ctn_fee', 0.0) + info.get('service_fee', 0.0) for info in non_duplicate_info.values())
+                
+                if paid_amount < total_invoice - 0.01:
+                    diff = total_invoice - paid_amount
+                    custom_reply += f"\n\n⚠️ UNDERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. There is an outstanding balance of ${diff:.2f}."
+                    logger.warning(f"\033[93m[Payment Check] Underpayment detected: ${diff:.2f}\033[0m")
+                elif paid_amount > total_invoice + 0.01:
+                    diff = paid_amount - total_invoice
+                    custom_reply += f"\n\n💰 OVERPAYMENT: We have received your payment of ${paid_amount:.2f}, but the invoice amount is ${total_invoice:.2f}. We will contact you regarding the excess payment of ${diff:.2f}."
+                    logger.info(f"\033[92m[Payment Check] Overpayment detected: ${diff:.2f}\033[0m")
+                else:
+                    custom_reply += f"\n\n✅ PAYMENT MATCH: Your payment of ${paid_amount:.2f} matches the invoice amount of ${total_invoice:.2f}."
+                    logger.info(f"\033[92m[Payment Check] Payment matches invoice amount\033[0m")
 
     # --- Finalize Reply ---
     custom_reply = custom_reply.strip()

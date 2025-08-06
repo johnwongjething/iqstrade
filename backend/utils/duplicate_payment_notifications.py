@@ -28,6 +28,9 @@ def send_duplicate_payment_notifications(bl_id, bl_number, customer_username, cu
         original_payment_date: Date of original payment (optional)
     """
     try:
+        # Record duplicate payment in unmatched_receipts table for dashboard visibility
+        record_duplicate_payment(bl_id, bl_number, customer_username, payment_amount, payment_source, original_payment_date)
+        
         # Decrypt customer email
         decrypted_email = decrypt_sensitive_data(customer_email) if customer_email else None
         
@@ -47,6 +50,45 @@ def send_duplicate_payment_notifications(bl_id, bl_number, customer_username, cu
         
     except Exception as e:
         logger.error(f"Error sending duplicate payment notifications for BL {bl_number}: {e}")
+
+def record_duplicate_payment(bl_id, bl_number, customer_username, payment_amount, payment_source, original_payment_date=None):
+    """Record duplicate payment in unmatched_receipts table for dashboard visibility"""
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
+        # Format original payment date
+        original_date_str = ""
+        if original_payment_date:
+            if isinstance(original_payment_date, str):
+                original_date_str = f" (Original: {original_payment_date})"
+            else:
+                original_date_str = f" (Original: {original_payment_date.strftime('%Y-%m-%d %H:%M:%S')})"
+        
+        # Create description
+        description = f"Duplicate payment for BL {bl_number} from {customer_username}"
+        reason = f"Duplicate Payment: Payment of ${payment_amount:.2f} already processed{original_date_str}"
+        
+        # Insert into unmatched_receipts table
+        cur.execute("""
+            INSERT INTO unmatched_receipts (date, description, amount, reason, raw_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            datetime.now(),
+            description,
+            payment_amount,
+            reason,
+            f"Duplicate payment detected for BL {bl_number} via {payment_source}. Customer: {customer_username}"
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.info(f"Recorded duplicate payment in unmatched_receipts for BL {bl_number}")
+        
+    except Exception as e:
+        logger.error(f"Error recording duplicate payment in unmatched_receipts for BL {bl_number}: {e}")
 
 def get_customer_phone(username):
     """Get customer phone number from database"""
