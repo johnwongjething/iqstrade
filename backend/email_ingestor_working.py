@@ -1282,18 +1282,42 @@ Return a JSON object:
     bl_payment_map = {}
     
     # First try to extract BL-specific payments
-    bl_specific_payments = extract_bl_specific_payments(body, bl_numbers)
+    valid_bl_numbers = list(valid_bls.keys())  # Only use valid BLs for payment processing
+    bl_specific_payments = extract_bl_specific_payments(body, valid_bl_numbers)
     logger.info(f"\033[92m[Payment Mapping] BL-specific payments: {bl_specific_payments}\033[0m")
     
-    # If no BL-specific payments found but we have multiple BLs and a total paid amount, distribute evenly
-    if not bl_specific_payments and len(bl_numbers) > 1 and paid_amount is not None:
-        amount_per_bl = paid_amount / len(bl_numbers)
-        for bl in bl_numbers:
-            bl_specific_payments[bl] = amount_per_bl
-        logger.info(f"\033[92m[Payment Mapping] Distributed total amount {paid_amount} among {bl_numbers} = {amount_per_bl} each\033[0m")
+    # If no BL-specific payments found but we have multiple valid BLs and a total paid amount, distribute proportionally
+    if not bl_specific_payments and len(valid_bl_numbers) > 1 and paid_amount is not None:
+        # Get invoice amounts for valid BLs to calculate proportional distribution
+        total_invoice_amount = 0
+        bl_invoice_amounts = {}
+        
+        for bl in valid_bl_numbers:
+            if bl in valid_bls:
+                ctn_fee = float(valid_bls[bl].get('ctn_fee', 0) or 0)
+                service_fee = float(valid_bls[bl].get('service_fee', 0) or 0)
+                balance_applied = float(valid_bls[bl].get('balance_applied', 0) or 0)
+                invoice_amount = (ctn_fee + service_fee) - balance_applied
+                bl_invoice_amounts[bl] = invoice_amount
+                total_invoice_amount += invoice_amount
+        
+        # Only distribute if we have valid BLs with invoice amounts
+        if total_invoice_amount > 0:
+            for bl in valid_bl_numbers:
+                if bl in bl_invoice_amounts:
+                    # Calculate proportional amount based on invoice amount
+                    proportional_amount = (paid_amount * bl_invoice_amounts[bl]) / total_invoice_amount
+                    bl_specific_payments[bl] = proportional_amount
+            logger.info(f"\033[92m[Payment Mapping] Distributed total amount {paid_amount} proportionally among valid BLs {valid_bl_numbers} based on invoice amounts\033[0m")
+        else:
+            # Fallback to even distribution if no valid invoice amounts
+            amount_per_bl = paid_amount / len(valid_bl_numbers)
+            for bl in valid_bl_numbers:
+                bl_specific_payments[bl] = amount_per_bl
+            logger.info(f"\033[92m[Payment Mapping] Fallback: distributed total amount {paid_amount} evenly among valid BLs {valid_bl_numbers} = {amount_per_bl} each\033[0m")
     
-    # If valid_bls has paid_amount per BL, use that; else use BL-specific payments or fallback to total paid_amount
-    for bl in bl_numbers:
+    # Only process valid BLs for payment mapping
+    for bl in valid_bl_numbers:
         if bl in valid_bls and valid_bls[bl].get('paid_amount', 0) > 0:
             bl_payment_map[bl] = valid_bls[bl]['paid_amount']
             logger.info(f"\033[92m[Payment Mapping] Using DB paid_amount for {bl}: {valid_bls[bl]['paid_amount']}\033[0m")
@@ -1304,12 +1328,12 @@ Return a JSON object:
             bl_payment_map[bl] = paid_amount
             logger.info(f"\033[92m[Payment Mapping] Using total paid_amount for {bl}: {paid_amount}\033[0m")
     
-    # If no BLs but paid_amount exists, create a dummy mapping
+    # If no valid BLs but paid_amount exists, create a dummy mapping
     if not bl_payment_map and paid_amount is not None:
         bl_payment_map['UNKNOWN'] = paid_amount
         logger.info(f"\033[92m[Payment Mapping] Created dummy mapping for UNKNOWN: {paid_amount}\033[0m")
     
-    logger.info(f"\033[92m[Payment Mapping] Final BL payment map: {bl_payment_map}\033[0m")
+    logger.info(f"\033[92m[Payment Mapping] Final BL payment map (valid BLs only): {bl_payment_map}\033[0m")
 
     return {
         'classification': classification,

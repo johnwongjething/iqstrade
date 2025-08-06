@@ -206,19 +206,39 @@ def mark_payment_processed(bl_id, payment_source, processed_by):
     cursor = conn.cursor()
     
     try:
+        # Get customer_username from bill_of_lading table
+        cursor.execute("""
+            SELECT customer_username, created_by FROM bill_of_lading WHERE id = %s
+        """, (bl_id,))
+        
+        result = cursor.fetchone()
+        if result:
+            customer_username = result[0]
+            created_by = result[1]
+            
+            # Use customer_username if available, otherwise use created_by, fallback to processed_by
+            username = customer_username or created_by or processed_by
+            
+            # If username is still None, use a default system user
+            if not username:
+                username = 'system'
+        else:
+            username = processed_by or 'system'
+        
         # Insert a record in customer_balance_transactions to mark as processed
         cursor.execute("""
             INSERT INTO customer_balance_transactions 
             (username, transaction_type, amount, reference_type, reference_id, payment_source, description, created_by)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, ('system', 'credit', 0, 'bill_of_lading', bl_id, payment_source, f'Payment marked as processed for BL {bl_id}', processed_by))
+        """, (username, 'credit', 0, 'bill_of_lading', bl_id, payment_source, f'Payment marked as processed for BL {bl_id}', processed_by))
         
         conn.commit()
-        logger.info(f"Payment marked as processed for BL {bl_id} by {processed_by}")
+        logger.info(f"Payment marked as processed for BL {bl_id} by {processed_by} using username {username}")
         
     except Exception as e:
-        logger.error(f"Error marking payment as processed: {e}")
+        logger.error(f"Error marking payment as processed for BL {bl_id}: {e}")
         conn.rollback()
+        raise
     finally:
         cursor.close()
         conn.close() 
