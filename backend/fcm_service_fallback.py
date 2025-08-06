@@ -117,9 +117,25 @@ class FCMServiceFallback:
         if not tokens:
             return {'success': False, 'error': 'No tokens provided'}
         
+        # Filter out invalid tokens before sending
+        valid_tokens = []
+        invalid_tokens = []
+        
+        for token in tokens:
+            if token and len(token) > 50:  # Basic validation
+                valid_tokens.append(token)
+            else:
+                invalid_tokens.append(token)
+        
+        if invalid_tokens:
+            print(f"⚠️ Filtered out {len(invalid_tokens)} invalid tokens")
+        
+        if not valid_tokens:
+            return {'success': False, 'error': 'No valid tokens provided'}
+        
         # Use modern API only
         if self.credentials:
-            return self._send_modern_notification(tokens, title, body, data)
+            return self._send_modern_notification(valid_tokens, title, body, data)
         else:
             return {'success': False, 'error': 'No FCM credentials available - service account not configured'}
     
@@ -135,6 +151,8 @@ class FCMServiceFallback:
         }
         
         results = []
+        invalid_tokens = []
+        
         for i, token in enumerate(tokens):
             try:
                 message = {
@@ -172,12 +190,23 @@ class FCMServiceFallback:
                     results.append({'success': True, 'response': response.json()})
                     print(f'📱 [Modern API] Message {i+1} sent successfully')
                 else:
-                    print(f'📱 [Modern API] Message {i+1} failed: {response.status_code} - {response.text}')
-                    results.append({'success': False, 'error': f'HTTP {response.status_code}: {response.text}'})
+                    error_text = response.text
+                    print(f'📱 [Modern API] Message {i+1} failed: {response.status_code} - {error_text}')
+                    
+                    # Check if token is invalid (UNREGISTERED error)
+                    if 'UNREGISTERED' in error_text or '404' in error_text:
+                        print(f'📱 [Modern API] Token {i+1} is invalid, will be cleaned up')
+                        invalid_tokens.append(token)
+                    
+                    results.append({'success': False, 'error': f'HTTP {response.status_code}: {error_text}'})
                     
             except Exception as e:
                 print(f'📱 [Modern API] Message {i+1} failed: {e}')
                 results.append({'success': False, 'error': str(e)})
+        
+        # Clean up invalid tokens if any were detected
+        if invalid_tokens:
+            self._cleanup_invalid_tokens(invalid_tokens)
         
         success_count = sum(1 for r in results if r['success'])
         return {
@@ -186,7 +215,8 @@ class FCMServiceFallback:
             'success_count': success_count,
             'failure_count': len(results) - success_count,
             'total_sent': len(tokens),
-            'api_used': 'modern'
+            'api_used': 'modern',
+            'invalid_tokens_cleaned': len(invalid_tokens)
         }
     
     def _send_modern_topic_notification(self, topic: str, title: str, body: str, data: Dict = None) -> Dict:
@@ -251,6 +281,39 @@ class FCMServiceFallback:
             return self._send_modern_topic_notification(topic, title, body, data)
         else:
             return {'success': False, 'error': 'No FCM credentials available for topic notifications'}
+
+    def _cleanup_invalid_tokens(self, invalid_tokens: List[str]):
+        """Clean up invalid FCM tokens from database"""
+        try:
+            import psycopg2
+            import os
+            
+            # Get database connection
+            conn = psycopg2.connect(
+                host=os.getenv('DB_HOST'),
+                database=os.getenv('DB_NAME'),
+                user=os.getenv('DB_USER'),
+                password=os.getenv('DB_PASSWORD'),
+                port=os.getenv('DB_PORT', '5432')
+            )
+            cur = conn.cursor()
+            
+            # Mark invalid tokens as inactive
+            for token in invalid_tokens:
+                cur.execute(
+                    "UPDATE fcm_tokens SET is_active = FALSE WHERE token = %s",
+                    (token,)
+                )
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            print(f"🧹 Cleaned up {len(invalid_tokens)} invalid FCM tokens")
+            
+        except Exception as e:
+            print(f"❌ Error cleaning up invalid tokens: {e}")
+            # Don't fail the notification if cleanup fails
 
 # Create global instance
 fcm_service_fallback = FCMServiceFallback() 

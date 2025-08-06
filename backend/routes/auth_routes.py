@@ -190,7 +190,7 @@ def login():
         #     logging.info(f"[Geetest] Validate raw response: {resp.text}")
         #     try:
         #         resp_json = resp.json()
-        #         print("Geetest validate API response:", resp_json)
+        #         print("Geetest v4 validate API response:", resp_json)
         #         return resp_json.get("result") == "success"
         #     except Exception as e:
         #         print("Geetest v4 validate error (JSON parse):", e)

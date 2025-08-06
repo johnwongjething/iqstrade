@@ -1,0 +1,97 @@
+{
+  "report_generated": "2025-08-06T18:30:51.622594",
+  "server_info": {
+    "public_ip": "101.115.148.233",
+    "hostname": "DESKTOP-GPFRV30",
+    "timestamp": "2025-08-06T18:30:46.022215"
+  },
+  "endpoint_tests": {
+    "https://gcaptcha4.geetest.com/register": {
+      "status_code": 403,
+      "headers": {
+        "Date": "Wed, 06 Aug 2025 10:30:47 GMT",
+        "Content-Type": "text/html; charset=UTF-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "keep-alive",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "same-origin",
+        "Cache-Control": "private, max-age=0, no-store, no-cache, must-revalidate, post-check=0, pre-check=0",
+        "Expires": "Thu, 01 Jan 1970 00:00:01 GMT",
+        "Vary": "Accept-Encoding",
+        "Server": "cloudflare",
+        "CF-RAY": "96addc605cbbf0d5-MEL",
+        "Content-Encoding": "gzip"
+      },
+      "content_length": 4516,
+      "is_html": true,
+      "is_json": false,
+      "response_data": "Cloudflare Blocking"
+    },
+    "https://api.geetest.com/register": {
+      "status_code": 567,
+      "headers": {
+        "Connection": "close",
+        "Server": "EdgeOne_L7S_OC",
+        "Date": "Wed, 06 Aug 2025 10:30:49 GMT",
+        "EO-LOG-UUID": "13638325687079709015",
+        "content-type": "text/html; charset=UTF-8",
+        "Content-Length": "1225"
+      },
+      "content_length": 1225,
+      "is_html": true,
+      "is_json": false,
+      "response_data": "<!DOCTYPE html><html><meta charset=\"UTF-8\"><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><title>AccessDeny</title><style>html{font-size:30px;font-family:PingFangSC-Regular}.conten..."
+    },
+    "https://gcaptcha4.geetest.com/api/register": {
+      "status_code": 403,
+      "headers": {
+        "Date": "Wed, 06 Aug 2025 10:30:50 GMT",
+        "Content-Type": "text/html; charset=UTF-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "keep-alive",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "same-origin",
+        "Cache-Control": "private, max-age=0, no-store, no-cache, must-revalidate, post-check=0, pre-check=0",
+        "Expires": "Thu, 01 Jan 1970 00:00:01 GMT",
+        "Vary": "Accept-Encoding",
+        "Server": "cloudflare",
+        "CF-RAY": "96addc746fbabceb-MEL",
+        "Content-Encoding": "gzip"
+      },
+      "content_length": 4516,
+      "is_html": true,
+      "is_json": false,
+      "response_data": "Cloudflare Blocking"
+    },
+    "https://gcaptcha4.geetest.com/validate": {
+      "status_code": 200,
+      "headers": {
+        "Date": "Wed, 06 Aug 2025 10:30:51 GMT",
+        "Content-Type": "text/javascript;charset=UTF-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "keep-alive",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Expires": "0",
+        "Pragma": "no-cache",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH,OPTIONS",
+        "Access-Control-Allow-Headers": "DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,token,GeeToken",
+        "cf-cache-status": "DYNAMIC",
+        "Server": "cloudflare",
+        "CF-RAY": "96addc79de8910cf-MEL",
+        "Content-Encoding": "gzip"
+      },
+      "content_length": 89,
+      "is_html": false,
+      "is_json": false,
+      "response_data": "HTML Response"
+    }
+  },
+  "summary": {
+    "cloudflare_blocked": true,
+    "working_endpoints": [],
+    "blocked_endpoints": [
+      "https://gcaptcha4.geetest.com/register",
+      "https://gcaptcha4.geetest.com/api/register"
+    ]
+  }
+}
