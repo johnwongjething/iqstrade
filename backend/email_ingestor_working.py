@@ -655,6 +655,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                         continue
             
             # Final fallback: if we have a total amount and multiple BLs, distribute evenly
+            # Note: BL validation will be done later in the main processing loop
             if not bl_payments and paid_amount is not None and len(bl_numbers) > 1:
                 amount_per_bl = paid_amount / len(bl_numbers)
                 for bl in bl_numbers:
@@ -696,7 +697,8 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     # More flexible BL regex: matches various BL formats but excludes bank references
     # Excludes patterns like TEST987, REF123, RAY6330088, etc. that are common bank reference formats
     # Bank reference patterns to exclude: RAY, TEST, REF, BANK, PAY, TRANS, TXN followed by numbers
-    bank_ref_patterns = ['RAY', 'TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN']
+    # Also exclude EST, which is commonly found in reference numbers like TEST987
+    bank_ref_patterns = ['RAY', 'TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN', 'EST']
     bank_ref_regex = '|'.join(bank_ref_patterns)
     expanded_bl_pattern = re.compile(r'(?:提单号[:：]?\s*)?(BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|(?!' + bank_ref_regex + r')[A-Z]{2,4}\d{2,})', re.IGNORECASE)
     logger.info(f"\033[92m[BL Processing] BL regex pattern: {expanded_bl_pattern.pattern}\033[0m")
@@ -861,7 +863,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{body[:200]}...' if body else 'Empty'\033[0m")
     
     # Filter out common bank reference patterns
-    bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN', 'RAY']
+    bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN', 'RAY', 'EST']
     filtered_bls = set()
     logger.info(f"\033[92m[BL Processing] Filtering BLs: {merged_bls}\033[0m")
     logger.info(f"\033[92m[BL Processing] Bank reference patterns: {bank_ref_patterns}\033[0m")
@@ -874,6 +876,13 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                 logger.info(f"\033[93m[BL Processing] Excluding bank reference: {bl} (matches prefix: {prefix})\033[0m")
                 excluded = True
                 break
+        # Also check if BL contains bank reference patterns anywhere in the string
+        if not excluded:
+            for pattern in bank_ref_patterns:
+                if pattern in bl_upper:
+                    logger.info(f"\033[93m[BL Processing] Excluding bank reference: {bl} (contains pattern: {pattern})\033[0m")
+                    excluded = True
+                    break
         if excluded:
             continue
         filtered_bls.add(bl)
