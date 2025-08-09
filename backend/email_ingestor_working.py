@@ -1042,11 +1042,18 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
 
     # --- Extract payment amounts from CLEANED email body ---
     # Now that translated_body has been cleaned, extract payment amounts
-    if fallback_paid_amount is None:
-        fallback_paid_amount = extract_all_payment_amounts(translated_body)
-        logger.info(f"[Payment Extraction] Extracted payment amount from CLEANED body: {fallback_paid_amount}")
-        logger.info(f"[PAYMENT EXTRACTION] Extracted payment amount from CLEANED body: {fallback_paid_amount}")
-    paid_amount = fallback_paid_amount
+    # Always extract from cleaned body, regardless of fallback_paid_amount
+    cleaned_paid_amount = extract_all_payment_amounts(translated_body)
+    logger.info(f"[Payment Extraction] Extracted payment amount from CLEANED body: {cleaned_paid_amount}")
+    logger.info(f"[PAYMENT EXTRACTION] Extracted payment amount from CLEANED body: {cleaned_paid_amount}")
+    
+    # Use cleaned payment amount if available, otherwise fall back to PDF amount
+    if cleaned_paid_amount is not None:
+        paid_amount = cleaned_paid_amount
+        logger.info(f"[PAYMENT EXTRACTION] Using payment amount from CLEANED body: {paid_amount}")
+    else:
+        paid_amount = fallback_paid_amount
+        logger.info(f"[PAYMENT EXTRACTION] Using fallback payment amount from PDF: {paid_amount}")
 
     # --- Pre-Parse Request Types with more flexible patterns ---
     patterns = [
