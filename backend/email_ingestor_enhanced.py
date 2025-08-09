@@ -1064,29 +1064,42 @@ def process_inbox(user_id=None):
                 # Store attachment_urls as JSONB array
                 attachment_json = json.dumps(attachment_urls) if attachment_urls else None
                 
+                # Extract CC, BCC, and Reply-To headers
+                cc_header = msg.get('Cc', '')
+                bcc_header = msg.get('Bcc', '')
+                reply_to_header = msg.get('Reply-To', '')
+                
+                # Parse email addresses from headers
+                def parse_email_list(header_value):
+                    if not header_value:
+                        return []
+                    # Split by comma and clean up each email
+                    emails = []
+                    for email in header_value.split(','):
+                        email = email.strip()
+                        if email and '@' in email:
+                            # Extract just the email part if it's in "Name <email>" format
+                            if '<' in email and '>' in email:
+                                email = email.split('<')[1].split('>')[0]
+                            emails.append(email)
+                    return emails
+                
+                cc_emails = parse_email_list(cc_header)
+                bcc_emails = parse_email_list(bcc_header)
+                reply_to_emails = parse_email_list(reply_to_header)
+                
                 # AI Processing
                 ai_result = handle_email_via_openai(subject, body, attachments, from_addr)
                 
-                # Insert email into database with AI results
+                # Store email with CC, BCC, Reply-To
                 cursor.execute(
                     """
-                    INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, bl_numbers, classification, openai_processed) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, bl_numbers, classification, openai_processed, cc, bcc, reply_to) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (message_id) DO NOTHING
                     RETURNING id;
                     """,
-                    (
-                        from_addr, 
-                        subject, 
-                        body, 
-                        get_hk_now(), 
-                        False, 
-                        message_id, 
-                        attachment_json, 
-                        ai_result.get('bl_numbers', []),
-                        ai_result.get('classification', 'general'),
-                        True
-                    )
+                    (from_addr, subject, body, get_hk_now(), False, message_id, attachment_json, ai_result.get('bl_numbers', []), ai_result.get('classification', 'general_enquiry'), True, cc_emails, bcc_emails, reply_to_emails)
                 )
                 
                 result = cursor.fetchone()

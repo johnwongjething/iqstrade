@@ -1,7 +1,7 @@
 
 import smtplib
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, parseaddr
 import os
 
 from config import EmailConfig
@@ -69,7 +69,19 @@ def send_email(to, subject, body):
         server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
         server.send_message(msg)
 
-def send_email_with_attachment(to, subject, body, attachments):
+def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None, reply_to=None):
+    """
+    Send email with attachments and support for CC, BCC, and Reply-To
+    
+    Args:
+        to: Primary recipient email address
+        subject: Email subject
+        body: Email body text
+        attachments: List of file paths to attach
+        cc: List of CC email addresses (optional)
+        bcc: List of BCC email addresses (optional)
+        reply_to: List of Reply-To email addresses (optional)
+    """
     if not all([
         EmailConfig.SMTP_SERVER,
         EmailConfig.SMTP_PORT,
@@ -86,6 +98,19 @@ def send_email_with_attachment(to, subject, body, attachments):
         msg['To'] = to
         msg.set_content(body)
         
+        # Add CC if provided
+        if cc and isinstance(cc, list) and len(cc) > 0:
+            cc_emails = [email.strip() for email in cc if email.strip()]
+            if cc_emails:
+                msg['Cc'] = ', '.join(cc_emails)
+        
+        # Add Reply-To if provided
+        if reply_to and isinstance(reply_to, list) and len(reply_to) > 0:
+            reply_to_emails = [email.strip() for email in reply_to if email.strip()]
+            if reply_to_emails:
+                msg['Reply-To'] = ', '.join(reply_to_emails)
+        
+        # Add attachments
         for file_path in attachments:
             with open(file_path, 'rb') as f:
                 file_data = f.read()
@@ -96,10 +121,23 @@ def send_email_with_attachment(to, subject, body, attachments):
                 subtype = 'pdf'
             msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
         
+        # Prepare recipients list (To + CC + BCC)
+        recipients = [to]
+        if cc and isinstance(cc, list):
+            recipients.extend([email.strip() for email in cc if email.strip()])
+        if bcc and isinstance(bcc, list):
+            recipients.extend([email.strip() for email in bcc if email.strip()])
+        
+        # Remove duplicates while preserving order
+        unique_recipients = []
+        for recipient in recipients:
+            if recipient not in unique_recipients:
+                unique_recipients.append(recipient)
+        
         with smtplib.SMTP(str(EmailConfig.SMTP_SERVER), int(EmailConfig.SMTP_PORT)) as server:
             server.starttls()
             server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
-            server.send_message(msg)
+            server.send_message(msg, to_addrs=unique_recipients)
         return True
     except Exception as e:
         print(f"Failed to send email with attachment: {str(e)}")

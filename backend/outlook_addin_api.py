@@ -43,8 +43,8 @@ def process_email_outlook():
         
         cursor.execute("""
             INSERT INTO customer_emails 
-            (subject, body, from_addr, outlook_message_id, outlook_user_id, attachments, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (subject, body, from_addr, outlook_message_id, outlook_user_id, attachments, created_at, cc, bcc, reply_to)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             email_data['subject'],
@@ -53,7 +53,10 @@ def process_email_outlook():
             email_data['outlook_message_id'],
             email_data['outlook_user_id'],
             json.dumps(email_data['attachments']),
-            get_hk_now()
+            get_hk_now(),
+            [],  # CC - empty for now, can be enhanced later
+            [],  # BCC - empty for now, can be enhanced later
+            []   # Reply-To - empty for now, can be enhanced later
         ))
         
         email_id = cursor.fetchone()[0]

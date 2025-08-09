@@ -76,6 +76,30 @@ def parse_email(mail, email_id):
     # Extract Message-ID
     message_id = msg.get('Message-ID')
     
+    # Extract CC, BCC, and Reply-To headers
+    cc_header = msg.get('Cc', '')
+    bcc_header = msg.get('Bcc', '')
+    reply_to_header = msg.get('Reply-To', '')
+    
+    # Parse email addresses from headers
+    def parse_email_list(header_value):
+        if not header_value:
+            return []
+        # Split by comma and clean up each email
+        emails = []
+        for email in header_value.split(','):
+            email = email.strip()
+            if email and '@' in email:
+                # Extract just the email part if it's in "Name <email>" format
+                if '<' in email and '>' in email:
+                    email = email.split('<')[1].split('>')[0]
+                emails.append(email)
+        return emails
+    
+    cc_emails = parse_email_list(cc_header)
+    bcc_emails = parse_email_list(bcc_header)
+    reply_to_emails = parse_email_list(reply_to_header)
+    
     # Extract actual email date
     date_header = msg.get('Date')
     if date_header:
@@ -113,7 +137,7 @@ def parse_email(mail, email_id):
             debug("Email body text detected")
     # Mark email as read
     mail.store(email_id, '+FLAGS', '\\Seen')
-    return body_text, attachments, message_id, email_date
+    return body_text, attachments, message_id, email_date, cc_emails, bcc_emails, reply_to_emails
 
 # Detect type and extract text
 def extract_text_from_file(filepath):
@@ -329,7 +353,7 @@ def ingest_emails():
     cursor = db_conn.cursor()
 
     for eid in email_ids:
-        body_text, attachments, message_id, email_date = parse_email(mail, eid)
+        body_text, attachments, message_id, email_date, cc_emails, bcc_emails, reply_to_emails = parse_email(mail, eid)
 
         # Extract sender and subject from email headers
         msg = email.message_from_bytes(mail.fetch(eid, '(RFC822)')[1][0][1])
@@ -340,162 +364,45 @@ def ingest_emails():
 
         # --- Prevent Duplicate Emails ---
         try:
-            # First, try to insert new email
-            # Handle duplicate detection with better logic
-            if message_id:
-                # Try to insert with message_id
-                cursor.execute(
-                    """
-                    INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (message_id) DO NOTHING
-                    RETURNING id;
-                    """,
-                    (from_addr, subject, body_text, email_date, False, message_id)
-                )
-                result = cursor.fetchone()
-                
-                if result:
-                    # New email inserted successfully
-                    email_id = result[0]
-                    debug(f"✅ New email inserted with ID: {email_id}")
-                else:
-                    # Duplicate detected - get existing email
-                    debug(f"🔄 Duplicate email detected with Message-ID: {message_id}")
-                    
-                    cursor.execute(
-                        "SELECT id FROM customer_emails WHERE message_id = %s",
-                        (message_id,)
-                    )
-                    existing_email = cursor.fetchone()
-                    
-                    if existing_email:
-                        email_id = existing_email[0]
-                        debug(f"✅ Using existing email ID: {email_id}")
-                    else:
-                        debug(f"❌ Duplicate detected but existing email not found for Message-ID: {message_id}")
-                        continue
-            else:
-                # No message_id - use subject + sender + timestamp for duplicate detection
-                debug(f"⚠️ No Message-ID found, using subject-based duplicate detection")
-                
-                # Check for recent duplicate by subject and sender
-                cursor.execute(
-                    """
-                    SELECT id FROM customer_emails 
-                    WHERE sender = %s AND subject = %s 
-                    AND created_at >= %s
-                    ORDER BY created_at DESC LIMIT 1
-                    """,
-                    (from_addr, subject, email_date - timedelta(minutes=5))
-                )
-                recent_duplicate = cursor.fetchone()
-                
-                if recent_duplicate:
-                    debug(f"🔄 Recent duplicate detected by subject: {subject}")
-                    email_id = recent_duplicate[0]
-                else:
-                    # Insert new email without message_id
-                    cursor.execute(
-                        """
-                        INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id) 
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                        RETURNING id;
-                        """,
-                        (from_addr, subject, body_text, email_date, False, None)
-                    )
-                    result = cursor.fetchone()
-                    email_id = result[0]
-                    debug(f"✅ New email inserted without Message-ID, ID: {email_id}")
-
+            # Store attachment_urls as JSONB array
+            attachment_json = json.dumps(attachments) if attachments else None
             
-            db_conn.commit()
+            # First, try to insert new email with CC, BCC, Reply-To
+            cursor.execute(
+                """
+                INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, cc, bcc, reply_to) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (message_id) DO NOTHING
+                RETURNING id;
+                """,
+                (from_addr, subject, body_text, email_date, False, message_id, attachment_json, cc_emails, bcc_emails, reply_to_emails)
+            )
+            result = cursor.fetchone()
+            
+            if result:
+                email_id = result[0]
+                debug(f"✅ Inserted new email: {email_id} - {subject}")
+                results.append({
+                    'id': email_id,
+                    'subject': subject,
+                    'from': from_addr,
+                    'cc': cc_emails,
+                    'bcc': bcc_emails,
+                    'reply_to': reply_to_emails
+                })
+            else:
+                debug(f"⏭️ Skipped duplicate email: {subject}")
+                
         except Exception as e:
-            db_conn.rollback()
-            warn(f"[ERROR] Failed to insert email {message_id}: {e}")
+            error(f"❌ Failed to insert email: {e}")
             continue
 
-        # === Save Attachments to Database ===
-        if attachments:
-            debug(f"📎 Processing {len(attachments)} attachments for email {email_id}")
-            
-            # Upload attachments to Cloudinary and save URLs
-            attachment_urls = []
-            for attachment_path in attachments:
-                try:
-                    from cloudinary_utils import upload_filepath_to_cloudinary
-                    cloudinary_url = upload_filepath_to_cloudinary(attachment_path, folder="email_attachments")
-                    attachment_urls.append(cloudinary_url)
-                    debug(f"✅ Uploaded to Cloudinary: {cloudinary_url}")
-                except Exception as e:
-                    warn(f"❌ Failed to upload attachment {attachment_path}: {e}")
-                    # Fallback to local file path
-                    attachment_urls.append(attachment_path)
-            
-            # Update email with attachments
-            if attachment_urls:
-                import json
-                attachment_json = json.dumps(attachment_urls)
-                cursor.execute(
-                    "UPDATE customer_emails SET attachments = %s::jsonb WHERE id = %s",
-                    (attachment_json, email_id)
-                )
-                db_conn.commit()
-                debug(f"✅ Saved {len(attachment_urls)} attachments to database")
-        
-        # === OpenAI classification and routing ===
-        # Add rate limiting to prevent 429 errors
-        try:
-            from openai_rate_limiter import email_rate_limiter
-            
-            # Wait for processing slot if needed
-            if not email_rate_limiter.can_process_email():
-                debug(f"Rate limit: Waiting for email processing slot...")
-                email_rate_limiter.wait_for_slot()
-            
-            action = validate_email_with_openai(subject, body_text, attachments, from_addr, handle_email_via_openai)
-            
-            # Record that email was processed
-            email_rate_limiter.record_email_processed()
-            
-        except Exception as e:
-            warn(f"OpenAI processing error: {e}")
-            # Fallback to basic processing
-            action = {
-                'classification': 'error',
-                'reply': f"Error processing email: {str(e)}",
-                'confidence_score': 0.0,
-                'validation_result': {}
-            }
-
-        # Log validation results
-        if action.get('validation_result', {}).get('needs_reclassification'):
-            debug(f"🚨 Validation issues for email {email_id}: {action['validation_result']}")
-            debug(f"   Missed requests: {action['validation_result'].get('missed_request_types', [])}")
-            debug(f"   Amount issues: {len(action['validation_result'].get('amount_validation_issues', []))}")
-
-        classification = action.get('classification')
-        bl_payment_map = action.get('bl_payment_map', {})
-        request_types = action.get("request_types", [])
-        reply_text = action.get('reply', '')
-
-        request_types_lower = [r.lower() for r in request_types]
-        is_payment_related = any(r in request_types_lower for r in ["payment_receipt", "payment_status", "combined_request"])
-
-        if is_payment_related and bl_payment_map:
-            debug("[ROUTING] Detected payment receipt intent — processing receipt upload + DB update.")
-            process_payment_receipt_email(
-                email_id=email_id,
-                from_addr=from_addr,
-                subject=subject,
-                body_text=body_text,
-                attachments=attachments,
-                bl_payment_map=bl_payment_map,
-                conn=db_conn,
-            )
-
-        results.append({"email_id": email_id, "classification": classification})
-
+    db_conn.commit()
+    cursor.close()
+    db_conn.close()
+    mail.logout()
+    
+    debug(f"✅ Email ingestion complete. Processed {len(results)} new emails.")
     return results
 
         # Note: Draft saving is now handled inside handle_email_via_openai

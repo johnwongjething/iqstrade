@@ -354,7 +354,10 @@ def get_customer_emails():
 def get_email_detail(email_id):
     conn = get_db_conn()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, sender, subject, body, attachments, bl_numbers, created_at FROM customer_emails WHERE id = %s", (email_id,))
+    cursor.execute("""
+        SELECT id, sender, subject, body, attachments, bl_numbers, created_at, cc, bcc, reply_to 
+        FROM customer_emails WHERE id = %s
+    """, (email_id,))
     email_row = cursor.fetchone()
     if not email_row:
         cursor.close()
@@ -386,7 +389,10 @@ def get_email_detail(email_id):
             # Convert to string and treat as single attachment
             attachments = [str(attachments_raw)]
     
-
+    # Process CC, BCC, Reply-To arrays
+    cc = email_row[7] if email_row[7] else []
+    bcc = email_row[8] if email_row[8] else []
+    reply_to = email_row[9] if email_row[9] else []
     
     cursor.execute("SELECT id, sender, body, created_at FROM customer_email_replies WHERE customer_email_id = %s ORDER BY created_at ASC", (email_id,))
     replies = [
@@ -405,6 +411,9 @@ def get_email_detail(email_id):
         'attachments': attachments,
         'bl_numbers': email_row[5],
         'created_at': email_row[6],
+        'cc': cc,
+        'bcc': bcc,
+        'reply_to': reply_to,
         'replies': replies
     }
 
@@ -420,6 +429,9 @@ def reply_to_email(email_id):
         data = request.get_json()
         reply_body = data.get('body', '').strip()
         attachments = data.get('attachments', [])  # List of file URLs
+        cc = data.get('cc', [])  # List of CC email addresses
+        bcc = data.get('bcc', [])  # List of BCC email addresses
+        reply_to = data.get('reply_to', [])  # List of Reply-To email addresses
         
         if not reply_body:
             return jsonify({'error': 'Reply body is required'}), 400
@@ -481,7 +493,10 @@ def reply_to_email(email_id):
                 to=sender,
                 subject=f"Re: {subject}",
                 body=reply_body,
-                attachments=temp_attachments
+                attachments=temp_attachments,
+                cc=cc,
+                bcc=bcc,
+                reply_to=reply_to
             )
             
             # Clean up temporary files
