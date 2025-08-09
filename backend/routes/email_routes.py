@@ -355,7 +355,7 @@ def get_email_detail(email_id):
     conn = get_db_conn()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, sender, subject, body, attachments, bl_numbers, created_at, cc, bcc, reply_to 
+        SELECT id, sender, subject, body, attachments, bl_numbers, created_at, "to", cc, bcc, reply_to 
         FROM customer_emails WHERE id = %s
     """, (email_id,))
     email_row = cursor.fetchone()
@@ -389,10 +389,11 @@ def get_email_detail(email_id):
             # Convert to string and treat as single attachment
             attachments = [str(attachments_raw)]
     
-    # Process CC, BCC, Reply-To arrays
-    cc = email_row[7] if email_row[7] else []
-    bcc = email_row[8] if email_row[8] else []
-    reply_to = email_row[9] if email_row[9] else []
+    # Process To, CC, BCC, Reply-To arrays
+    to_emails = email_row[7] if email_row[7] else []
+    cc = email_row[8] if email_row[8] else []
+    bcc = email_row[9] if email_row[9] else []
+    reply_to = email_row[10] if email_row[10] else []
     
     cursor.execute("SELECT id, sender, body, created_at FROM customer_email_replies WHERE customer_email_id = %s ORDER BY created_at ASC", (email_id,))
     replies = [
@@ -411,6 +412,7 @@ def get_email_detail(email_id):
         'attachments': attachments,
         'bl_numbers': email_row[5],
         'created_at': email_row[6],
+        'to': to_emails,
         'cc': cc,
         'bcc': bcc,
         'reply_to': reply_to,
@@ -429,6 +431,7 @@ def reply_to_email(email_id):
         data = request.get_json()
         reply_body = data.get('body', '').strip()
         attachments = data.get('attachments', [])  # List of file URLs
+        to = data.get('to', [])  # List of To email addresses
         cc = data.get('cc', [])  # List of CC email addresses
         bcc = data.get('bcc', [])  # List of BCC email addresses
         reply_to = data.get('reply_to', [])  # List of Reply-To email addresses
@@ -456,15 +459,15 @@ def reply_to_email(email_id):
         
         email_id, sender, subject, body, reply_count, last_reply_time = email_data
         
-        # Check if this is a duplicate reply (within 5 minutes)
-        if last_reply_time:
-            from datetime import datetime, timedelta
-            time_diff = datetime.now() - last_reply_time
-            if time_diff < timedelta(minutes=5):
-                return jsonify({
-                    'error': 'This email has been replied to recently. Please refresh to see the latest status.',
-                    'last_reply_time': last_reply_time.isoformat()
-                }), 409
+        # Check if this is a duplicate reply (within 5 minutes) - DISABLED
+        # if last_reply_time:
+        #     from datetime import datetime, timedelta
+        #     time_diff = datetime.now() - last_reply_time
+        #     if time_diff < timedelta(minutes=5):
+        #         return jsonify({
+        #             'error': 'This email has been replied to recently. Please refresh to see the latest status.',
+        #             'last_reply_time': last_reply_time.isoformat()
+        #         }), 409
         
         # Send the email
         try:
@@ -494,6 +497,7 @@ def reply_to_email(email_id):
                 subject=f"Re: {subject}",
                 body=reply_body,
                 attachments=temp_attachments,
+                to_recipients=to,
                 cc=cc,
                 bcc=bcc,
                 reply_to=reply_to

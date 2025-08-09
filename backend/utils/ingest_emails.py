@@ -76,7 +76,8 @@ def parse_email(mail, email_id):
     # Extract Message-ID
     message_id = msg.get('Message-ID')
     
-    # Extract CC, BCC, and Reply-To headers
+    # Extract To, CC, BCC, and Reply-To headers
+    to_header = msg.get('To', '')
     cc_header = msg.get('Cc', '')
     bcc_header = msg.get('Bcc', '')
     reply_to_header = msg.get('Reply-To', '')
@@ -96,6 +97,7 @@ def parse_email(mail, email_id):
                 emails.append(email)
         return emails
     
+    to_emails = parse_email_list(to_header)
     cc_emails = parse_email_list(cc_header)
     bcc_emails = parse_email_list(bcc_header)
     reply_to_emails = parse_email_list(reply_to_header)
@@ -137,7 +139,7 @@ def parse_email(mail, email_id):
             debug("Email body text detected")
     # Mark email as read
     mail.store(email_id, '+FLAGS', '\\Seen')
-    return body_text, attachments, message_id, email_date, cc_emails, bcc_emails, reply_to_emails
+    return body_text, attachments, message_id, email_date, to_emails, cc_emails, bcc_emails, reply_to_emails
 
 # Detect type and extract text
 def extract_text_from_file(filepath):
@@ -353,7 +355,7 @@ def ingest_emails():
     cursor = db_conn.cursor()
 
     for eid in email_ids:
-        body_text, attachments, message_id, email_date, cc_emails, bcc_emails, reply_to_emails = parse_email(mail, eid)
+        body_text, attachments, message_id, email_date, to_emails, cc_emails, bcc_emails, reply_to_emails = parse_email(mail, eid)
 
         # Extract sender and subject from email headers
         msg = email.message_from_bytes(mail.fetch(eid, '(RFC822)')[1][0][1])
@@ -370,12 +372,12 @@ def ingest_emails():
             # First, try to insert new email with CC, BCC, Reply-To
             cursor.execute(
                 """
-                INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, cc, bcc, reply_to) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, "to", cc, bcc, reply_to) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (message_id) DO NOTHING
                 RETURNING id;
                 """,
-                (from_addr, subject, body_text, email_date, False, message_id, attachment_json, cc_emails, bcc_emails, reply_to_emails)
+                (from_addr, subject, body_text, email_date, False, message_id, attachment_json, to_emails, cc_emails, bcc_emails, reply_to_emails)
             )
             result = cursor.fetchone()
             

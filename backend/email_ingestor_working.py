@@ -1508,7 +1508,7 @@ def save_draft_reply(to_addr, subject, reply, confidence_result=None):
     if row:
         customer_email_id = row[0]
     else:
-        cur.execute("INSERT INTO customer_emails (sender, subject, body, created_at, cc, bcc, reply_to) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id", (to_addr, subject, '', get_hk_now(), [], [], []))
+        cur.execute("INSERT INTO customer_emails (sender, subject, body, created_at, \"to\", cc, bcc, reply_to) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id", (to_addr, subject, '', get_hk_now(), [], [], [], []))
         customer_email_id = cur.fetchone()[0]
         conn.commit()
     
@@ -1594,7 +1594,8 @@ def process_inbox(user_id=None):
                     subject = subject.decode(encoding or 'utf-8')
                 from_addr = msg.get('From')
                 
-                # Extract CC, BCC, and Reply-To headers
+                # Extract To, CC, BCC, and Reply-To headers
+                to_header = msg.get('To', '')
                 cc_header = msg.get('Cc', '')
                 bcc_header = msg.get('Bcc', '')
                 reply_to_header = msg.get('Reply-To', '')
@@ -1614,10 +1615,12 @@ def process_inbox(user_id=None):
                             emails.append(email)
                     return emails
                 
+                to_emails = parse_email_list(to_header)
                 cc_emails = parse_email_list(cc_header)
                 bcc_emails = parse_email_list(bcc_header)
                 reply_to_emails = parse_email_list(reply_to_header)
                 
+                logger.info(f"[Email Processing] To: {to_emails}")
                 logger.info(f"[Email Processing] CC: {cc_emails}")
                 logger.info(f"[Email Processing] BCC: {bcc_emails}")
                 logger.info(f"[Email Processing] Reply-To: {reply_to_emails}")
@@ -1681,15 +1684,15 @@ def process_inbox(user_id=None):
                     # Store attachment_urls as JSONB array
                     attachment_json = json.dumps(attachment_urls) if attachment_urls else None
                     
-                    # First, try to insert new email with CC, BCC, Reply-To
+                    # First, try to insert new email with To, CC, BCC, Reply-To
                     cursor.execute(
                         """
-                        INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, bl_numbers, cc, bcc, reply_to) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO customer_emails (sender, subject, body, created_at, processed_for_payments, message_id, attachments, bl_numbers, "to", cc, bcc, reply_to) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (message_id) DO NOTHING
                         RETURNING id;
                         """,
-                        (from_addr, subject, body, get_hk_now(), False, message_id, attachment_json, [], cc_emails, bcc_emails, reply_to_emails)
+                        (from_addr, subject, body, get_hk_now(), False, message_id, attachment_json, [], to_emails, cc_emails, bcc_emails, reply_to_emails)
                     )
                     result = cursor.fetchone()
                     

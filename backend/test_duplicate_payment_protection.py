@@ -75,10 +75,10 @@ def test_email_duplicate_protection():
         
         # Insert test email
         cur.execute("""
-            INSERT INTO customer_emails (from_addr, subject, body_text, processed_for_payments, cc, bcc, reply_to)
-            VALUES (%s, %s, %s, FALSE, %s, %s, %s)
+            INSERT INTO customer_emails (from_addr, subject, body_text, processed_for_payments, "to", cc, bcc, reply_to)
+            VALUES (%s, %s, %s, FALSE, %s, %s, %s, %s)
             RETURNING id
-        """, (test_email_data["from_addr"], test_email_data["subject"], test_email_data["body_text"], [], [], []))
+        """, (test_email_data["from_addr"], test_email_data["subject"], test_email_data["body_text"], [], [], [], []))
         
         email_id = cur.fetchone()[0]
         conn.commit()

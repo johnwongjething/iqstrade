@@ -69,9 +69,9 @@ def send_email(to, subject, body):
         server.login(str(EmailConfig.SMTP_USERNAME), str(EmailConfig.SMTP_PASSWORD))
         server.send_message(msg)
 
-def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None, reply_to=None):
+def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None, reply_to=None, to_recipients=None):
     """
-    Send email with attachments and support for CC, BCC, and Reply-To
+    Send email with attachments and support for To, CC, BCC, and Reply-To
     
     Args:
         to: Primary recipient email address
@@ -81,6 +81,7 @@ def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None
         cc: List of CC email addresses (optional)
         bcc: List of BCC email addresses (optional)
         reply_to: List of Reply-To email addresses (optional)
+        to_recipients: List of additional To email addresses (optional)
     """
     if not all([
         EmailConfig.SMTP_SERVER,
@@ -95,7 +96,18 @@ def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))
-        msg['To'] = to
+        # Combine primary recipient with additional to recipients
+        all_to_recipients = [to]
+        if to_recipients and isinstance(to_recipients, list) and len(to_recipients) > 0:
+            all_to_recipients.extend([email.strip() for email in to_recipients if email.strip()])
+        
+        # Remove duplicates while preserving order
+        unique_to_recipients = []
+        for recipient in all_to_recipients:
+            if recipient not in unique_to_recipients:
+                unique_to_recipients.append(recipient)
+        
+        msg['To'] = ', '.join(unique_to_recipients)
         msg.set_content(body)
         
         # Add CC if provided
@@ -122,7 +134,7 @@ def send_email_with_attachment(to, subject, body, attachments, cc=None, bcc=None
             msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
         
         # Prepare recipients list (To + CC + BCC)
-        recipients = [to]
+        recipients = unique_to_recipients.copy()
         if cc and isinstance(cc, list):
             recipients.extend([email.strip() for email in cc if email.strip()])
         if bcc and isinstance(bcc, list):
