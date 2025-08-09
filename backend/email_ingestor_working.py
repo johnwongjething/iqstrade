@@ -869,7 +869,7 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
             ]
             
             logger.info(f"[Email Content Extraction] Using AI to extract new content from {len(email_body)} character email")
-            print(f"\033[93m[AI EXTRACTION] Starting AI extraction for {len(email_body)} character email\033[0m")
+            logger.info(f"[AI EXTRACTION] Starting AI extraction for {len(email_body)} character email")
             
             # Call OpenAI to extract new content
             extracted_content = openai_call_with_fallback(messages, temperature=0, max_retries=1)
@@ -882,18 +882,18 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
                 
                 logger.info(f"[Email Content Extraction] AI extraction successful - Original: {original_length}, New: {new_length}, Removed: {removed_length} characters")
                 logger.info(f"[Email Content Extraction] AI extracted content: '{extracted_content[:200]}...'")
-                print(f"\033[92m[AI EXTRACTION] ✅ SUCCESS - Original: {original_length}, New: {new_length}, Removed: {removed_length} characters\033[0m")
-                print(f"\033[92m[AI EXTRACTION] Extracted content: '{extracted_content[:200]}...'\033[0m")
+                logger.info(f"[AI EXTRACTION] SUCCESS - Original: {original_length}, New: {new_length}, Removed: {removed_length} characters")
+                logger.info(f"[AI EXTRACTION] Extracted content: '{extracted_content[:200]}...'")
                 
                 return extracted_content.strip()
             else:
                 logger.warning(f"[Email Content Extraction] AI returned empty content, falling back to original")
-                print(f"\033[91m[AI EXTRACTION] ⚠️  WARNING - AI returned empty content, falling back to original\033[0m")
+                logger.warning(f"[AI EXTRACTION] WARNING - AI returned empty content, falling back to original")
                 return email_body
                 
         except Exception as e:
             logger.error(f"[Email Content Extraction] AI extraction failed: {e}, falling back to regex method")
-            print(f"\033[91m[AI EXTRACTION] ❌ FAILED - AI extraction failed: {e}, falling back to regex method\033[0m")
+            logger.error(f"[AI EXTRACTION] FAILED - AI extraction failed: {e}, falling back to regex method")
             
             # Fallback to regex method if AI fails
             return extract_new_content_from_reply_regex(email_body)
@@ -1010,27 +1010,42 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
         translated_body = body
     
     original_body_for_extraction = translated_body
-    print(f"\033[93m[CONTENT EXTRACTION] Starting content extraction...\033[0m")
-    print(f"\033[93m[CONTENT EXTRACTION] Original body length: {len(translated_body)} characters\033[0m")
-    print(f"\033[93m[CONTENT EXTRACTION] Original body preview: '{translated_body[:200]}...'\033[0m")
+    logger.info(f"[CONTENT EXTRACTION] Starting content extraction...")
+    logger.info(f"[CONTENT EXTRACTION] Original body length: {len(translated_body)} characters")
+    logger.info(f"[CONTENT EXTRACTION] Original body preview: '{translated_body[:200]}...'")
+    
+    # Check if the email contains quoted content (lines starting with >)
+    quoted_lines = [line for line in translated_body.split('\n') if line.strip().startswith('>')]
+    logger.info(f"[CONTENT EXTRACTION] Found {len(quoted_lines)} quoted lines in original content")
+    if quoted_lines:
+        logger.info(f"[CONTENT EXTRACTION] Sample quoted line: '{quoted_lines[0][:100]}...'")
     
     translated_body = extract_new_content_from_reply(translated_body)
     
     # If we removed too much content (more than 80%), revert to original
     if len(translated_body) < len(original_body_for_extraction) * 0.2:
         logger.warning(f"[Email Content Extraction] Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original")
-        print(f"\033[91m[CONTENT EXTRACTION] ⚠️  WARNING - Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original\033[0m")
+        logger.warning(f"[CONTENT EXTRACTION] WARNING - Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original")
         translated_body = original_body_for_extraction
     
-    print(f"\033[92m[CONTENT EXTRACTION] ✅ FINAL - Cleaned body length: {len(translated_body)} characters\033[0m")
-    print(f"\033[92m[CONTENT EXTRACTION] Final cleaned body preview: '{translated_body[:200]}...'\033[0m")
+    logger.info(f"[CONTENT EXTRACTION] FINAL - Cleaned body length: {len(translated_body)} characters")
+    logger.info(f"[CONTENT EXTRACTION] Final cleaned body preview: '{translated_body[:200]}...'")
+    
+    # Check if quoted content was removed
+    final_quoted_lines = [line for line in translated_body.split('\n') if line.strip().startswith('>')]
+    logger.info(f"[CONTENT EXTRACTION] Found {len(final_quoted_lines)} quoted lines in FINAL content")
+    if final_quoted_lines:
+        logger.warning(f"[CONTENT EXTRACTION] WARNING - Quoted content still present in final content!")
+        logger.warning(f"[CONTENT EXTRACTION] Sample quoted line: '{final_quoted_lines[0][:100]}...'")
+    else:
+        logger.info(f"[CONTENT EXTRACTION] SUCCESS - All quoted content removed!")
 
     # --- Extract payment amounts from CLEANED email body ---
     # Now that translated_body has been cleaned, extract payment amounts
     if fallback_paid_amount is None:
         fallback_paid_amount = extract_all_payment_amounts(translated_body)
         logger.info(f"[Payment Extraction] Extracted payment amount from CLEANED body: {fallback_paid_amount}")
-        print(f"\033[94m[PAYMENT EXTRACTION] Extracted payment amount from CLEANED body: {fallback_paid_amount}\033[0m")
+        logger.info(f"[PAYMENT EXTRACTION] Extracted payment amount from CLEANED body: {fallback_paid_amount}")
     paid_amount = fallback_paid_amount
 
     # --- Pre-Parse Request Types with more flexible patterns ---
