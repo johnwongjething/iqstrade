@@ -493,14 +493,14 @@ def reply_to_email(email_id):
                     continue
             
             success = send_email_with_attachment(
-                to=sender,
+                to=to[0] if to else sender,  # Use first To recipient or fallback to sender
                 subject=f"Re: {subject}",
                 body=reply_body,
                 attachments=temp_attachments,
-                to_recipients=to,
+                to_recipients=to[1:] if len(to) > 1 else [],  # Additional To recipients
                 cc=cc,
                 bcc=bcc,
-                reply_to=reply_to
+                reply_to=[]  # Don't set Reply-To for replies to avoid routing issues
             )
             
             # Clean up temporary files
