@@ -784,9 +784,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     logger.info(f"\033[92m[PDF Processing] Final BLs from PDFs: {bls_from_pdfs}\033[0m")
     logger.info(f"\033[92m[PDF Processing] Number of BLs from PDFs: {len(bls_from_pdfs)}\033[0m")
     
-    # Fallback to email body extraction
-    if fallback_paid_amount is None:
-        fallback_paid_amount = extract_all_payment_amounts(translated_body)
+    # Fallback to email body extraction - will be done after translation initialization
     paid_amount = fallback_paid_amount
 
     # --- Translation for Chinese emails ---
@@ -808,13 +806,26 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
             logger.error(f"[OpenAI Translate] Failed: {e}")
             return text
 
-    incoming_is_chinese = is_chinese(body)
-    translated_body = body
-    translation_used = False
-    if incoming_is_chinese:
-        translated_body = openai_translate(body, 'Chinese', 'English')
-        translation_used = True
-        logger.info(f"[OpenAI Email] Translated body: {translated_body[:100]}...")
+    # Ensure translated_body is always initialized
+    try:
+        incoming_is_chinese = is_chinese(body)
+        translated_body = body
+        translation_used = False
+        if incoming_is_chinese:
+            translated_body = openai_translate(body, 'Chinese', 'English')
+            translation_used = True
+            logger.info(f"[OpenAI Email] Translated body: {translated_body[:100]}...")
+    except Exception as e:
+        logger.error(f"[Translation Error] Failed to initialize translation: {e}")
+        # Fallback to original body
+        incoming_is_chinese = False
+        translated_body = body
+        translation_used = False
+    
+    # Fallback to email body extraction (now that translated_body is initialized)
+    if fallback_paid_amount is None:
+        fallback_paid_amount = extract_all_payment_amounts(translated_body)
+    paid_amount = fallback_paid_amount
 
     # --- Extract only new content from email replies ---
     def extract_new_content_from_reply(email_body):
@@ -893,6 +904,11 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
         return new_content
     
     # Extract only new content from the email body
+    # Ensure translated_body is defined
+    if 'translated_body' not in locals():
+        logger.error("[Content Extraction Error] translated_body not defined, using original body")
+        translated_body = body
+    
     original_body_for_extraction = translated_body
     translated_body = extract_new_content_from_reply(translated_body)
     
@@ -915,6 +931,11 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     
     request_types = []
     # Always use the cleaned and potentially translated body for parsing
+    # Ensure translated_body is defined
+    if 'translated_body' not in locals():
+        logger.error("[Text Parsing Error] translated_body not defined, using original body")
+        translated_body = body
+    
     text_to_parse = [translated_body]
     if incoming_is_chinese and original_body_for_extraction != translated_body:
         # If original was Chinese and content was cleaned, also add the cleaned Chinese body for pattern matching
