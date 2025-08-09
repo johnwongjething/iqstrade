@@ -786,7 +786,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     
     # Fallback to email body extraction
     if fallback_paid_amount is None:
-        fallback_paid_amount = extract_all_payment_amounts(body)
+        fallback_paid_amount = extract_all_payment_amounts(translated_body)
     paid_amount = fallback_paid_amount
 
     # --- Translation for Chinese emails ---
@@ -816,6 +816,91 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
         translation_used = True
         logger.info(f"[OpenAI Email] Translated body: {translated_body[:100]}...")
 
+    # --- Extract only new content from email replies ---
+    def extract_new_content_from_reply(email_body):
+        """
+        Extract only the new content from email replies, removing quoted/forwarded content.
+        This prevents the AI from processing old email content when generating replies.
+        """
+        if not email_body:
+            return email_body
+        
+        # Common patterns that indicate quoted/forwarded content
+        quote_patterns = [
+            # Gmail-style quotes
+            r'On .* wrote:.*',
+            r'On .* wrote:\s*\n.*',
+            r'On .* wrote:\s*\r\n.*',
+            # Outlook-style quotes (individual patterns for better matching)
+            r'^From:.*$',
+            r'^Sent:.*$',
+            r'^To:.*$',
+            r'^Subject:.*$',
+            # Generic quote patterns
+            r'^>.*$',  # Lines starting with >
+            r'^\|.*$',  # Lines starting with |
+            r'^.* wrote:$',  # "Someone wrote:"
+            r'^.* 写道:$',  # Chinese "Someone wrote:"
+            r'^.* 寫道:$',  # Traditional Chinese "Someone wrote:"
+            # Forward patterns
+            r'^Forwarded message.*$',
+            r'^转发的邮件.*$',
+            r'^轉發的郵件.*$',
+            # Date patterns that often indicate quoted content
+            r'^\d{4}年\d{1,2}月\d{1,2}日.*$',  # Chinese date format
+            r'^\d{1,2}/\d{1,2}/\d{4}.*$',  # US date format
+            r'^\d{1,2}-\d{1,2}-\d{4}.*$',  # US date format with dashes
+            r'^\w{3}, \d{1,2} \w{3} \d{4}.*$',  # RFC date format
+        ]
+        
+        lines = email_body.split('\n')
+        new_content_lines = []
+        in_quoted_section = False
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            # Check if this line starts a quoted section
+            for pattern in quote_patterns:
+                if re.match(pattern, line_stripped, re.IGNORECASE):
+                    in_quoted_section = True
+                    logger.info(f"[Email Content Extraction] Found quote pattern: '{line_stripped[:50]}...'")
+                    break
+            
+            # If we're in a quoted section, skip this line
+            if in_quoted_section:
+                continue
+            
+            # Check if this line is a quote indicator
+            if line_stripped.startswith('>') or line_stripped.startswith('|'):
+                in_quoted_section = True
+                logger.info(f"[Email Content Extraction] Found quote indicator: '{line_stripped[:50]}...'")
+                continue
+            
+            # If we reach here, this is new content
+            new_content_lines.append(line)
+        
+        new_content = '\n'.join(new_content_lines).strip()
+        
+        # Log the extraction results
+        original_length = len(email_body)
+        new_length = len(new_content)
+        removed_length = original_length - new_length
+        
+        logger.info(f"[Email Content Extraction] Original length: {original_length}, New content length: {new_length}, Removed: {removed_length} characters")
+        logger.info(f"[Email Content Extraction] New content: '{new_content[:200]}...'")
+        
+        return new_content
+    
+    # Extract only new content from the email body
+    original_body_for_extraction = translated_body
+    translated_body = extract_new_content_from_reply(translated_body)
+    
+    # If we removed too much content (more than 80%), revert to original
+    if len(translated_body) < len(original_body_for_extraction) * 0.2:
+        logger.warning(f"[Email Content Extraction] Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original")
+        translated_body = original_body_for_extraction
+
     # --- Pre-Parse Request Types with more flexible patterns ---
     patterns = [
         ('payment_receipt', r'\b(payment\s+receipt|paid\s+receipt|payment\s+confirmation|付款确认|收据|payment|paid|amount[:：]?\s*\$?[0-9]+)\b'),
@@ -829,9 +914,11 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     ]
     
     request_types = []
-    text_to_parse = [translated_body] if translation_used else [body]
-    if incoming_is_chinese:
-        text_to_parse.append(body)  # Parse original Chinese body for Chinese terms
+    # Always use the cleaned and potentially translated body for parsing
+    text_to_parse = [translated_body]
+    if incoming_is_chinese and original_body_for_extraction != translated_body:
+        # If original was Chinese and content was cleaned, also add the cleaned Chinese body for pattern matching
+        text_to_parse.append(original_body_for_extraction)
     
     print(f"\033[94m[DEBUG] Text to parse: {text_to_parse}\033[0m")
     
@@ -855,7 +942,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
         request_types.append('general_enquiry')
     
     print(f"\033[94m[DEBUG] Final request types: {request_types}\033[0m")
-    logger.info(f"\033[92m[Pre-Parsing] Request types: {request_types} | Email body: {body}\033[0m")
+    logger.info(f"\033[92m[Pre-Parsing] Request types: {request_types} | Email body: {translated_body}\033[0m")
 
     # --- Extract and Merge BLs from all sources ---
     # Refined BL pattern that excludes common bank reference formats
@@ -876,7 +963,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     print(f"\033[94m[DEBUG] BLs from PDFs: {bls_from_pdfs}\033[0m")
     print(f"\033[94m[DEBUG] Merged BLs: {merged_bls}\033[0m")
     logger.info(f"\033[92m[BL Processing] BLs from body: {bls_from_body}, BLs from PDFs: {bls_from_pdfs}, Merged: {merged_bls}\033[0m")
-    logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{body[:200]}...' if body else 'Empty'\033[0m")
+    logger.info(f"\033[92m[BL Processing] Body text for BL extraction: '{translated_body[:200]}...' if translated_body else 'Empty'\033[0m")
     
     # Filter out common bank reference patterns
     bank_ref_patterns = ['TEST', 'REF', 'BANK', 'PAY', 'TRANS', 'TXN', 'RAY', 'EST']
@@ -921,7 +1008,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
             else:
                 logger.warning("[Heuristic Override] Found payment amount but no BLs — still forcing payment_receipt.")
             request_types.insert(0, 'payment_receipt')
-        elif not body.strip() and attachments:
+        elif not translated_body.strip() and attachments:
             logger.warning("[Heuristic Override] No body text but has attachment — treating as payment_receipt.")
             request_types.insert(0, 'payment_receipt')
         elif attachments and bls_from_pdfs:
@@ -987,7 +1074,7 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
             r"已?附上|附件|请查收附件|请见附件|请参见附件|请参考附件|请见附档|请查收附档|请见附加文件|请查收附加文件|附件见下|请查附件|请见下方附件|请见随信附件"
         ]
         pattern = re.compile(r"|".join(attachment_phrases), re.IGNORECASE)
-        if pattern.search(body):
+        if pattern.search(translated_body):
             missing_attachment_flag = True
 
     # --- Load Canned Responses ---
@@ -1414,7 +1501,7 @@ Return a JSON object:
     
     # First try to extract BL-specific payments
     valid_bl_numbers = list(valid_bls.keys())  # Only use valid BLs for payment processing
-    bl_specific_payments = extract_bl_specific_payments(body, valid_bl_numbers)
+    bl_specific_payments = extract_bl_specific_payments(translated_body, valid_bl_numbers)
     logger.info(f"\033[92m[Payment Mapping] BL-specific payments: {bl_specific_payments}\033[0m")
     
     # If no BL-specific payments found but we have multiple valid BLs and a total paid amount, distribute proportionally
