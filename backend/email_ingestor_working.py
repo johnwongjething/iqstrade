@@ -1025,11 +1025,28 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
     
     translated_body = extract_new_content_from_reply(translated_body)
     
-    # If we removed too much content (more than 80%), revert to original
-    if len(translated_body) < len(original_body_for_extraction) * 0.2:
-        logger.warning(f"[Email Content Extraction] Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original")
-        logger.warning(f"[CONTENT EXTRACTION] WARNING - Removed too much content ({len(translated_body)} vs {len(original_body_for_extraction)}), reverting to original")
+    # Check if AI extraction was successful and meaningful
+    original_length = len(original_body_for_extraction)
+    cleaned_length = len(translated_body)
+    removed_chars = original_length - cleaned_length
+    
+    logger.info(f"[Email Content Extraction] AI extraction result - Original: {original_length}, Cleaned: {cleaned_length}, Removed: {removed_chars} characters")
+    
+    # Only revert if the cleaned content is completely empty or just whitespace
+    if not translated_body or translated_body.strip() == "":
+        logger.warning(f"[Email Content Extraction] AI returned empty content, reverting to original")
+        logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
         translated_body = original_body_for_extraction
+        logger.info(f"[Email Content Extraction] Final decision: Using original message (empty AI output)")
+    else:
+        logger.info(f"[Email Content Extraction] AI cleaned content is meaningful, keeping cleaned version")
+        logger.info(f"[Email Content Extraction] Final decision: Using cleaned reply")
+    
+    # Log content previews for debugging
+    logger.info(f"[Email Content Extraction] Cleaned content preview: '{translated_body[:200]}...'")
+    
+    # Final summary log
+    logger.info(f"[Email Content Extraction] FINAL DECISION: {'ORIGINAL' if translated_body == original_body_for_extraction else 'CLEANED'} - Length: {len(translated_body)} chars")
     
     logger.info(f"[CONTENT EXTRACTION] FINAL - Cleaned body length: {len(translated_body)} characters")
     logger.info(f"[CONTENT EXTRACTION] Final cleaned body preview: '{translated_body[:200]}...'")
