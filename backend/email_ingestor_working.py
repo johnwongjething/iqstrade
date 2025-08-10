@@ -478,6 +478,7 @@ This will help me give you a more detailed and helpful response.
 Alternatively, you can contact our customer service team directly for immediate assistance."""
 
 def handle_email_via_openai(subject, body, attachments, from_addr):
+    logger.info(f"[DEBUG] handle_email_via_openai called with subject: {subject}")
     # Initialize variables
     paid_amount = None
     custom_reply = "Hello,\n\nThank you for your email. Please provide more details or contact us for assistance."
@@ -1005,11 +1006,13 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
     
     # Extract only new content from the email body
     # Ensure translated_body is defined
+    logger.info(f"[DEBUG] About to start content extraction - translated_body exists: {'translated_body' in locals()}")
     if 'translated_body' not in locals():
         logger.error("[Content Extraction Error] translated_body not defined, using original body")
         translated_body = body
     
     original_body_for_extraction = translated_body
+    logger.info(f"[DEBUG] Content extraction section reached!")
     logger.info(f"[CONTENT EXTRACTION] Starting content extraction...")
     logger.info(f"[CONTENT EXTRACTION] Original body length: {len(translated_body)} characters")
     logger.info(f"[CONTENT EXTRACTION] Original body preview: '{translated_body[:200]}...'")
