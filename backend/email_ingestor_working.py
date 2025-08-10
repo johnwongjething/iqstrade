@@ -565,19 +565,6 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                 except ValueError:
                     continue
         
-        for pattern in patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for amount_str, bl_match in matches:
-                try:
-                    amount = float(amount_str)
-                    # Find the closest matching BL number
-                    for bl in bl_numbers:
-                        if bl.upper() in bl_match.upper() or bl_match.upper() in bl.upper():
-                            bl_payments[bl] = amount
-                            break
-                except ValueError:
-                    continue
-        
         # Handle case where amount is for multiple BLs (e.g., "Payment for B/L 001-123, NYC220 Amount: $420")
         # Also handle case where we have a paid amount from PDF but no body text
         if not bl_payments and len(bl_numbers) > 1:
@@ -844,16 +831,18 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                     "role": "system",
                     "content": """You are an email content extraction expert. Your task is to extract ONLY the new content from an email reply, removing all quoted/forwarded content.
 
-IMPORTANT RULES:
-1. Return ONLY the new content written by the sender
+CRITICAL RULES:
+1. Return ONLY the new content written by the sender in THIS reply
 2. Remove ALL quoted content, forwarded content, and email headers
 3. Do NOT include any lines starting with ">", "|", or similar quote indicators
 4. Do NOT include "On [date] wrote:", "From:", "Sent:", "To:", "Subject:" lines
 5. Do NOT include Chinese quote patterns like "於 [date] 寫道："
 6. Do NOT include separator lines like "-----Original Message-----"
-7. If the email appears to be entirely new (no quotes), return the full content
-8. If you're unsure, err on the side of keeping more content rather than removing too much
-9. Return ONLY the extracted text, no explanations or formatting
+7. Do NOT include "---------- Forwarded message ---------" or similar
+8. If the email appears to be entirely new (no quotes), return the full content
+9. If you're unsure, err on the side of removing MORE content rather than keeping old content
+10. Return ONLY the extracted text, no explanations or formatting
+11. If there is NO new content from the sender (only quoted/forwarded content), return an empty string ""
 
 Examples:
 Input: "Hi there,\n\nCan you help me?\n\nThanks!\n\nOn Mon, Jan 15, 2024 at 10:30 AM John wrote:\n> Hello,\n> I need help\n> Thanks"
@@ -861,6 +850,12 @@ Output: "Hi there,\n\nCan you help me?\n\nThanks!"
 
 Input: "Hello,\n\nI have a question.\n\nBest regards,\nJohn\n\nLogistics Company <email> 於 2025年8月9日 週六 下午4:59寫道：\n> Original content here"
 Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
+
+Input: "---------- Forwarded message ---------\nFrom: John <john@example.com>\nSubject: Old message\n\n> Old content here\n> More old content"
+Output: ""
+
+Input: "On Mon, Jan 15, 2024 at 10:30 AM John wrote:\n> Hello,\n> I need help\n> Thanks"
+Output: ""
 """
                 },
                 {
@@ -906,6 +901,24 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
         """
         if not email_body:
             return email_body
+        
+        # Check if email starts with quoted content patterns - if so, return empty
+        # This handles cases like "---------- Forwarded message ---------" or "On [date] wrote:"
+        starts_with_quoted_patterns = [
+            r'^-{5,} ?Forwarded Message ?-{5,}',
+            r'^Forwarded message',
+            r'^转发的邮件',
+            r'^轉發的郵件',
+            r'^On\s+.*?\s+wrote:',
+            r'^.*<[^>]+@[^>]+>.* wrote:',
+            r'^.*<[^>]+@[^>]+>.* 於 .* 寫道：'
+        ]
+        
+        first_line = email_body.split('\n')[0].strip()
+        for pattern in starts_with_quoted_patterns:
+            if re.search(pattern, first_line, re.IGNORECASE):
+                logger.info(f"[Email Content Extraction] Email starts with quoted content and is mostly quoted, returning empty")
+                return ""
         
         # Common patterns that indicate the START of quoted/forwarded content
         # These patterns are typically followed by the old email content.
@@ -994,6 +1007,202 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
         
         new_content = '\n'.join(new_content_lines).strip()
         
+        # Additional check: if the extracted content looks like it's mostly quoted/forwarded content,
+        # return empty string to indicate no meaningful new content
+        if new_content:
+            # Check if the content contains mostly quoted patterns
+            quoted_patterns = [
+                r'On\s+.*?\s+wrote:',
+                r'From:',
+                r'Sent:',
+                r'To:',
+                r'Subject:',
+                r'---------- Forwarded message ---------',
+                r'转发的邮件',
+                r'轉發的郵件'
+            ]
+            
+            quoted_count = 0
+            total_lines = len(new_content.split('\n'))
+            
+            for line in new_content.split('\n'):
+                line_stripped = line.strip()
+                if line_stripped:
+                    for pattern in quoted_patterns:
+                        if re.search(pattern, line_stripped, re.IGNORECASE):
+                            quoted_count += 1
+                            break
+            
+            # If more than 50% of non-empty lines contain quoted patterns, consider it mostly quoted
+            if total_lines > 0 and (quoted_count / total_lines) > 0.5:
+                logger.info(f"[Email Content Extraction] Regex detected mostly quoted content ({quoted_count}/{total_lines} lines), returning empty")
+                return ""
+        
+        # Log the extraction results
+        original_length = len(email_body)
+        new_length = len(new_content)
+        removed_length = original_length - new_length
+        
+        logger.info(f"[Email Content Extraction] Regex extraction - Original: {original_length}, New: {new_length}, Removed: {removed_length} characters")
+        logger.info(f"[Email Content Extraction] Regex extracted content: '{new_content[:200]}...'")
+        
+        return new_content
+    
+    def extract_new_content_from_reply_regex_standalone(email_body):
+        """
+        Standalone version of the regex extraction function for testing purposes.
+        This function can be imported and used independently.
+        """
+        if not email_body:
+            return email_body
+        
+        # Check if email starts with quoted content patterns - if so, return empty
+        # This handles cases like "---------- Forwarded message ---------" or "On [date] wrote:"
+        starts_with_quoted_patterns = [
+            r'^-{5,} ?Forwarded Message ?-{5,}',
+            r'^Forwarded message',
+            r'^转发的邮件',
+            r'^轉發的郵件',
+            r'^On\s+.*?\s+wrote:',
+            r'^.*<[^>]+@[^>]+>.* wrote:',
+            r'^.*<[^>]+@[^>]+>.* 於 .* 寫道：'
+        ]
+        
+        first_line = email_body.split('\n')[0].strip()
+        for pattern in starts_with_quoted_patterns:
+            if re.search(pattern, first_line, re.IGNORECASE):
+                logger.info(f"[Email Content Extraction] Email starts with quoted content and is mostly quoted, returning empty")
+                return ""
+        
+        # Check for old content patterns that indicate quoted content
+        old_content_patterns = [
+            r'can you please send me ctn number for [A-Z]{3}\d+, [A-Z]{3}\d+, [A-Z]{3}\d+',
+            r'[A-Z]{3}\d+, [A-Z]{3}\d+, [A-Z]{3}\d+',
+            r'ST\d+, ST\d+, ST\d+',
+            r'BL-\d+-\d+, BL-\d+-\d+, BL-\d+-\d+'
+        ]
+        
+        for pattern in old_content_patterns:
+            if re.search(pattern, email_body, re.IGNORECASE):
+                logger.info(f"[Email Content Extraction] Content matches old content pattern: {pattern}, returning empty")
+                return ""
+        
+        # Common patterns that indicate the START of quoted/forwarded content
+        start_quote_patterns = [
+            # Gmail-style quotes
+            r'On\s+.*?\s+at\s+.*?\s+wrote:.*', # "On Mon, Jan 15, 2024 at 10:30 AM John Wong <johnwongjething@gmail.com> wrote:"
+            r'On\s+.*?\s+wrote:.*', # Simpler "On [Date] wrote:"
+            
+            # Sender line with email address (often indicates start of quoted block)
+            r'.*<[^>]+@[^>]+>.* wrote:.*', # e.g., "John Doe <john@example.com> wrote:"
+            r'.*<[^>]+@[^>]+>.* 於 .* 寫道：.*', # e.g., "Logistics Company <ray6330099@brevosend.com> 於 2025年8月9日 週六 下午4:59寫道："
+            r'.*<[^>]+@[^>]+>.*', # General sender line with email address (catch-all for sender lines)
+            
+            # Outlook-style headers (often appear as a block)
+            r'^From:.*$',
+            r'^Sent:.*$',
+            r'^To:.*$',
+            r'^Subject:.*$',
+            
+            # Generic forward/reply indicators
+            r'^-{5,} ?Original Message ?-{5,}', # "-----Original Message-----"
+            r'^-{5,} ?Forwarded Message ?-{5,}', # "-----Forwarded Message-----"
+            r'^Forwarded message.*$',
+            r'^转发的邮件.*$', # Chinese forwarded message
+            r'^轉發的郵件.*$', # Traditional Chinese forwarded message
+            
+            # Common "wrote" indicators, including Chinese
+            r'^.* wrote:$',
+            r'^.* 写道:$',
+            r'^.* 寫道:$',
+            
+            # Lines starting with common quote characters (strong indicator)
+            r'^>.*$',
+            r'^\|.*$',
+            
+            # Date patterns that often indicate quoted content, especially if followed by other headers
+            r'^\d{4}年\d{1,2}月\d{1,2}日.*$',  # Chinese date format
+            r'^\d{1,2}/\d{1,2}/\d{4}.*$',  # US date format
+            r'^\d{1,2}-\d{1,2}-\d{4}.*$',  # US date format with dashes
+            r'^\w{3}, \d{1,2} \w{3} \d{4}.*$',  # RFC date format (e.g., "Mon, 15 Jan 2024")
+            
+            # Long separator lines
+            r'^\s*_{70,}\s*$', # Long underscore line
+            r'^\s*={70,}\s*$', # Long equals line
+        ]
+        
+        lines = email_body.split('\n')
+        new_content_lines = []
+        
+        # Iterate through lines to find the first strong indicator of quoted content
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            
+            # Check for strong quote start patterns
+            for pattern in start_quote_patterns:
+                if re.search(pattern, line_stripped, re.IGNORECASE):
+                    # Found a potential quote start.
+                    # We need to be careful not to cut off the actual new message if it happens to contain a pattern.
+                    # Heuristic: If there are at least 2 non-empty lines before this, assume it's the split point.
+                    non_empty_lines_before = 0
+                    for j in range(i):
+                        if lines[j].strip():
+                            non_empty_lines_before += 1
+                    
+                    if non_empty_lines_before >= 2: # At least two lines of new content before the quote
+                        logger.info(f"[Email Content Extraction] Regex truncating email at line {i} due to strong quote pattern: '{line_stripped[:50]}...'")
+                        return '\n'.join(lines[:i]).strip()
+                    else:
+                        # If not enough content before, it might be a false positive, or the email is very short.
+                        # Log a warning and continue processing this line as potentially new content.
+                        logger.warning(f"[Email Content Extraction] Potential false positive for quote start at line {i}. Not truncating yet: '{line_stripped[:50]}...'")
+                        # If it's a single line like "From: someone@example.com" at the very beginning,
+                        # it might be part of the new message if the user is just forwarding.
+                        # For now, we'll let it pass if it doesn't meet the 2-line heuristic,
+                        # and rely on the general quote character check below.
+                        pass # Continue to the next pattern or append the line
+            
+            # If the line starts with a quote character, it's a strong indicator to stop.
+            # This handles cases where the user replies with quoted text directly.
+            if line_stripped.startswith('>') or line_stripped.startswith('|'):
+                logger.info(f"[Email Content Extraction] Regex truncating email at line {i} due to '>' or '|' indicator: '{line_stripped[:50]}...'")
+                return '\n'.join(lines[:i]).strip()
+                
+            new_content_lines.append(line)
+        
+        new_content = '\n'.join(new_content_lines).strip()
+        
+        # Additional check: if the extracted content looks like it's mostly quoted/forwarded content,
+        # return empty string to indicate no meaningful new content
+        if new_content:
+            # Check if the content contains mostly quoted patterns
+            quoted_patterns = [
+                r'On\s+.*?\s+wrote:',
+                r'From:',
+                r'Sent:',
+                r'To:',
+                r'Subject:',
+                r'---------- Forwarded message ---------',
+                r'转发的邮件',
+                r'轉發的郵件'
+            ]
+            
+            quoted_count = 0
+            total_lines = len(new_content.split('\n'))
+            
+            for line in new_content.split('\n'):
+                line_stripped = line.strip()
+                if line_stripped:
+                    for pattern in quoted_patterns:
+                        if re.search(pattern, line_stripped, re.IGNORECASE):
+                            quoted_count += 1
+                            break
+            
+            # If more than 50% of non-empty lines contain quoted patterns, consider it mostly quoted
+            if total_lines > 0 and (quoted_count / total_lines) > 0.5:
+                logger.info(f"[Email Content Extraction] Regex detected mostly quoted content ({quoted_count}/{total_lines} lines), returning empty")
+                return ""
+        
         # Log the extraction results
         original_length = len(email_body)
         new_length = len(new_content)
@@ -1023,6 +1232,33 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
     if quoted_lines:
         logger.info(f"[CONTENT EXTRACTION] Sample quoted line: '{quoted_lines[0][:100]}...'")
     
+    # Check if the email starts with forwarded/quoted content patterns
+    first_few_lines = translated_body.split('\n')[:5]
+    starts_with_forwarded = any(
+        re.search(r'^-{5,} ?Forwarded Message ?-{5,}|^Forwarded message|^转发的邮件|^轉發的郵件|^On\s+.*?\s+wrote:', line.strip(), re.IGNORECASE)
+        for line in first_few_lines if line.strip()
+    )
+    
+    # Flag to track if this is a "no new text with attachment" scenario
+    no_new_text_scenario = False
+    
+    if starts_with_forwarded:
+        logger.info(f"[CONTENT EXTRACTION] Email appears to start with forwarded/quoted content")
+        # If the email starts with forwarded content and we have attachments, 
+        # this suggests the customer just sent an attachment with no new text
+        if attachments:
+            logger.info(f"[CONTENT EXTRACTION] Email starts with forwarded content and has attachments - likely no new text from customer")
+            # For emails that start with forwarded content and have attachments,
+            # we'll be more aggressive about detecting old content in the AI output
+            logger.info(f"[CONTENT EXTRACTION] Will apply stricter validation for this email type")
+            no_new_text_scenario = True
+    
+    # Log the scenario we're dealing with
+    if no_new_text_scenario:
+        logger.info(f"[CONTENT EXTRACTION] SCENARIO: No new text with attachment - applying stricter validation")
+    else:
+        logger.info(f"[CONTENT EXTRACTION] SCENARIO: Standard email processing")
+    
     translated_body = extract_new_content_from_reply(translated_body)
     
     # Check if AI extraction was successful and meaningful
@@ -1039,14 +1275,87 @@ Output: "Hello,\n\nI have a question.\n\nBest regards,\nJohn"
         translated_body = original_body_for_extraction
         logger.info(f"[Email Content Extraction] Final decision: Using original message (empty AI output)")
     else:
-        logger.info(f"[Email Content Extraction] AI cleaned content is meaningful, keeping cleaned version")
-        logger.info(f"[Email Content Extraction] Final decision: Using cleaned reply")
+        # Additional check: if the AI output still contains mostly quoted/forwarded patterns,
+        # consider it as having no meaningful new content
+        quoted_patterns = [
+            r'On\s+.*?\s+wrote:',
+            r'From:',
+            r'Sent:',
+            r'To:',
+            r'Subject:',
+            r'---------- Forwarded message ---------',
+            r'转发的邮件',
+            r'轉發的郵件',
+            # Specific patterns that indicate old quoted content
+            r'can you please send me ctn number for',
+            r'ctn number for',
+            r'BL numbers?',
+            r'Bill of Lading'
+        ]
+        
+        quoted_count = 0
+        total_lines = len(translated_body.split('\n'))
+        
+        for line in translated_body.split('\n'):
+            line_stripped = line.strip()
+            if line_stripped:
+                for pattern in quoted_patterns:
+                    if re.search(pattern, line_stripped, re.IGNORECASE):
+                        quoted_count += 1
+                        break
+        
+        # If more than 60% of non-empty lines contain quoted patterns, consider it mostly quoted
+        # For "no new text with attachment" scenarios, use a stricter threshold (40% instead of 60%)
+        threshold = 0.4 if no_new_text_scenario else 0.6
+        if total_lines > 0 and (quoted_count / total_lines) > threshold:
+            scenario_info = "no new text with attachment" if no_new_text_scenario else "standard"
+            logger.warning(f"[Email Content Extraction] AI output still contains mostly quoted content ({quoted_count}/{total_lines} lines, threshold: {threshold:.1%}), reverting to original")
+            logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
+            translated_body = original_body_for_extraction
+            logger.info(f"[Email Content Extraction] Final decision: Using original message (AI output still mostly quoted, {scenario_info} scenario)")
+        else:
+            # Additional check: if the content contains multiple BL numbers that look like old quoted content,
+            # this might indicate the AI extracted old conversation instead of new content
+            bl_pattern = r'NYC\d+|ST\d+'
+            bl_matches = re.findall(bl_pattern, translated_body)
+            
+            # Check for specific patterns that indicate old quoted content
+            old_content_patterns = [
+                r'can you please send me ctn number for',
+                r'ctn number for',
+                r'BL numbers\?',
+                r'Bill of Lading',
+                r'---------- Forwarded message ---------',
+                r'Forwarded message',
+                # Pattern for multiple BL requests
+                r'ctn number for [A-Z]{3}\d+, [A-Z]{3}\d+, [A-Z]{3}\d+',
+                # Pattern for multiple BL numbers in sequence (any format)
+                r'[A-Z]{3}\d+.*[A-Z]{3}\d+.*[A-Z]{3}\d+',
+                # Pattern for multiple BL numbers in sequence with ellipsis
+                r'[A-Z]{3}\d+.*[A-Z]{3}\d+.*[A-Z]{3}\d+.*\.\.\.'
+            ]
+            
+            has_old_content_patterns = any(re.search(pattern, translated_body, re.IGNORECASE) for pattern in old_content_patterns)
+            
+            # For "no new text with attachment" scenarios, be more strict about BL detection
+            bl_threshold = 1 if no_new_text_scenario else 2  # Revert if more than 1 BL instead of 2
+            if len(bl_matches) > bl_threshold or has_old_content_patterns:  # If too many BLs or old content patterns, likely quoted content
+                reason = f"multiple BLs ({bl_matches}, threshold: {bl_threshold})" if len(bl_matches) > bl_threshold else "old content patterns detected"
+                scenario_info = "no new text with attachment" if no_new_text_scenario else "standard"
+                logger.warning(f"[Email Content Extraction] AI output contains {reason}, likely old quoted content, reverting to original")
+                logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
+                translated_body = original_body_for_extraction
+                logger.info(f"[Email Content Extraction] Final decision: Using original message ({reason}, {scenario_info} scenario)")
+            else:
+                logger.info(f"[Email Content Extraction] AI cleaned content is meaningful, keeping cleaned version")
+                logger.info(f"[Email Content Extraction] Final decision: Using cleaned reply")
     
     # Log content previews for debugging
     logger.info(f"[Email Content Extraction] Cleaned content preview: '{translated_body[:200]}...'")
     
-    # Final summary log
-    logger.info(f"[Email Content Extraction] FINAL DECISION: {'ORIGINAL' if translated_body == original_body_for_extraction else 'CLEANED'} - Length: {len(translated_body)} chars")
+    # Final summary log with scenario information
+    scenario_info = "no new text with attachment" if no_new_text_scenario else "standard"
+    logger.info(f"[Email Content Extraction] FINAL DECISION: {'ORIGINAL' if translated_body == original_body_for_extraction else 'CLEANED'} - Length: {len(translated_body)} chars - Scenario: {scenario_info}")
     
     logger.info(f"[CONTENT EXTRACTION] FINAL - Cleaned body length: {len(translated_body)} characters")
     logger.info(f"[CONTENT EXTRACTION] Final cleaned body preview: '{translated_body[:200]}...'")
