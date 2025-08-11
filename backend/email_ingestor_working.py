@@ -1264,8 +1264,15 @@ Output: ""
     if final_quoted_lines:
         logger.warning(f"[CONTENT EXTRACTION] WARNING - Quoted content still present in final content!")
         logger.warning(f"[CONTENT EXTRACTION] Sample quoted line: '{final_quoted_lines[0][:100]}...'")
+        logger.warning(f"[CONTENT EXTRACTION] NOTE: AI will be instructed to ignore quoted content and focus on current message")
     else:
         logger.info(f"[CONTENT EXTRACTION] SUCCESS - All quoted content removed!")
+    
+    # Log the content extraction strategy for the AI
+    if final_quoted_lines:
+        logger.info(f"[CONTENT EXTRACTION] AI Strategy: Will focus on current content and ignore {len(final_quoted_lines)} quoted lines")
+    else:
+        logger.info(f"[CONTENT EXTRACTION] AI Strategy: Clean content, no quoted lines to ignore")
 
     # --- Extract payment amounts from CLEANED email body ---
     # Now that translated_body has been cleaned, extract payment amounts
@@ -1508,6 +1515,50 @@ Output: ""
         prompt_sections.append(f"Invalid BLs: {json.dumps(invalid_bls)}")
         print(f"\033[94m[DEBUG] Added invalid_bls section: {invalid_bls}\033[0m")
     
+    # === Check for duplicate payments BEFORE building the final prompt ===
+    duplicate_payment_detected = False
+    duplicate_bls = []
+    
+    if bl_numbers and bl_payment_map:
+        logger.info(f"[DUPLICATE CHECK] Checking for duplicate payments before AI prompt construction")
+        logger.info(f"[DUPLICATE CHECK] BL numbers: {bl_numbers}")
+        logger.info(f"[DUPLICATE CHECK] BL payment map: {bl_payment_map}")
+        
+        # Check each BL for duplicate payments
+        for bl in bl_numbers:
+            try:
+                # Import here to avoid circular imports
+                from utils.balance_utils import check_payment_processed
+                
+                # Get BL ID from database
+                cursor = get_db_conn().cursor()
+                cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
+                bl_result = cursor.fetchone()
+                cursor.close()
+                
+                if bl_result:
+                    bl_id = bl_result[0]
+                    if check_payment_processed(bl_id, 'email'):
+                        duplicate_bls.append(bl)
+                        duplicate_payment_detected = True
+                        logger.warning(f"[DUPLICATE CHECK] Duplicate payment detected for BL {bl}")
+                    else:
+                        logger.info(f"[DUPLICATE CHECK] No duplicate payment for BL {bl}")
+                else:
+                    logger.warning(f"[DUPLICATE CHECK] BL {bl} not found in database")
+            except Exception as e:
+                logger.error(f"[DUPLICATE CHECK] Error checking duplicate payment for BL {bl}: {e}")
+        
+        # If duplicates detected, add duplicate payment context to prompt
+        if duplicate_payment_detected:
+            logger.info(f"[DUPLICATE CHECK] Adding duplicate payment context to AI prompt")
+            prompt_sections.append(f"⚠️ DUPLICATE PAYMENT ALERT: The following BL numbers have already been processed as payments: {duplicate_bls}")
+            prompt_sections.append("Generate a duplicate payment notification response, NOT a regular payment response.")
+            prompt_sections.append("The customer should be informed that their payment has already been processed and no action is required.")
+            prompt_sections.append("Use the exact format: '⚠️ DUPLICATE PAYMENT DETECTED:' followed by appropriate duplicate payment message.")
+        else:
+            logger.info(f"[DUPLICATE CHECK] No duplicate payments detected")
+    
     print(f"\033[94m[DEBUG] Final prompt sections: {prompt_sections}\033[0m")
     
     prompt = f"""
@@ -1520,10 +1571,16 @@ CRITICAL REQUIREMENTS:
 4. If multiple BLs are mentioned, address each one individually and completely
 5. Use ONLY the provided data - do not make up information
 
+CONTENT ANALYSIS INSTRUCTIONS:
+- **FOCUS ON CURRENT CONTENT**: Analyze the current email message, not quoted/forwarded content
+- **PRIORITIZE PDF ATTACHMENTS**: If the email body is minimal/blank, focus on PDF content
+- **IGNORE HISTORICAL CONTENT**: Don't extract BL numbers from quoted conversations or forwarded emails
+- **VERIFY SOURCES**: Only use BL numbers that appear in the current message or PDF attachments
+
 Request types: {json.dumps(request_types)}
 {chr(10).join(prompt_sections)}
 
-Email: {full_text}{attachment_info}
+Email Content (pre-processed to focus on current message): {full_text}{attachment_info}
 
 Canned responses: {canned_responses_text}
 
@@ -1542,11 +1599,47 @@ Return a JSON object:
     # --- OpenAI Call ---
     try:
         messages = [
-            {"role": "system", "content": "You're a shipping email agent. You MUST address ALL Bill of Lading (BL) numbers mentioned in customer emails. Never skip or ignore any BL numbers. Provide complete information for each BL and each request type."},
+            {"role": "system", "content": """You're a professional shipping email agent. Your task is to analyze customer emails and provide accurate, helpful responses.
+
+CRITICAL CONTENT ANALYSIS RULES:
+1. **PRIORITIZE CURRENT CONTENT OVER HISTORICAL CONTENT**: 
+   - Focus on the CURRENT message content (usually at the top of the email)
+   - IGNORE quoted/forwarded content from previous conversations
+   - Look for patterns like "wrote:", "寫道：", "escribió:", "écrit:", "schrieb:", etc.
+
+2. **BL NUMBER EXTRACTION PRIORITY**:
+   - Extract BL numbers ONLY from the CURRENT message content
+   - If the current message is blank/minimal, check PDF attachments for BL numbers
+   - NEVER extract BL numbers from quoted/forwarded historical content
+   - If you see conflicting BL numbers between current and quoted content, use ONLY the current content
+
+3. **CONTENT SOURCE PRIORITY** (highest to lowest):
+   - PDF attachments (most reliable)
+   - Current email message content
+   - Subject line
+   - IGNORE: Quoted content, forwarded content, email headers
+
+4. **LANGUAGE AND FORMAT HANDLING**:
+   - Handle emails in any language (Chinese, Spanish, French, German, etc.)
+   - Recognize quote patterns in different languages and email systems
+   - Understand that customers may attach whatever they want or write in any format
+
+5. **RESPONSE GENERATION**:
+   - Address ALL valid BL numbers found in CURRENT content
+   - Provide complete information for each BL and each request type
+   - If no valid BL numbers found, clearly state this
+   - Never hallucinate or invent BL numbers not present in current content
+
+6. **QUALITY CONTROL**:
+   - If you're unsure about content, err on the side of caution
+   - Don't assume information not explicitly provided
+   - Always verify BL numbers against the provided data
+
+Remember: You're dealing with global customers who may use any email system, write in any language, and attach whatever they want. Focus on the CURRENT request, not the email thread history."""},
             {"role": "user", "content": prompt}
         ]
         print(f"\033[94m[DEBUG] ===== OPENAI CALL =====\033[0m")
-        print(f"\033[94m[DEBUG] System message: You're a shipping email agent. You MUST address ALL Bill of Lading (BL) numbers mentioned in customer emails. Never skip or ignore any BL numbers. Provide complete information for each BL and each request type.\033[0m")
+        print(f"\033[94m[DEBUG] System message: Professional shipping email agent with smart content analysis rules\033[0m")
         print(f"\033[94m[DEBUG] User message length: {len(prompt)} characters\033[0m")
         print(f"\033[94m[DEBUG] Complete prompt sent to OpenAI:\033[0m")
         print(f"\033[94m{prompt}\033[0m")
@@ -1948,6 +2041,8 @@ Return a JSON object:
         'confidence_score': confidence_score,
         'auto_send': auto_send,
         "request_types": request_types,
+        'duplicate_payment_detected': duplicate_payment_detected,
+        'duplicate_bls': duplicate_bls,
     }
 
 def extract_contact_info(text):
@@ -2218,10 +2313,13 @@ def process_inbox(user_id=None):
                 bl_numbers = action.get('bl_numbers', [])
                 
                 # === Check for duplicate payments AFTER AI processing ===
-                duplicate_payment_detected = False
-                duplicate_bls = []
+                # Use the duplicate detection result from the AI processing if available
+                duplicate_payment_detected = action.get('duplicate_payment_detected', False)
+                duplicate_bls = action.get('duplicate_bls', [])
                 
-                if bl_numbers and bl_payment_map:
+                # If AI didn't detect duplicates, check manually (fallback)
+                if not duplicate_payment_detected and bl_numbers and bl_payment_map:
+                    logger.info(f"[DUPLICATE CHECK] AI didn't detect duplicates, checking manually as fallback")
                     # Check each BL for duplicate payments
                     for bl in bl_numbers:
                         cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
@@ -2232,15 +2330,22 @@ def process_inbox(user_id=None):
                             if check_payment_processed(bl_id, 'email'):
                                 duplicate_bls.append(bl)
                                 duplicate_payment_detected = True
-                                logger.warning(f"Duplicate payment detected for BL {bl}")
+                                logger.warning(f"[DUPLICATE CHECK] Manual fallback detected duplicate payment for BL {bl}")
                     
-                    # If duplicates detected, override the AI reply
+                    # If duplicates detected manually, override the AI reply
                     if duplicate_payment_detected:
                         duplicate_reply = generate_duplicate_payment_reply(duplicate_bls, bl_payment_map)
                         action['reply'] = duplicate_reply
                         action['duplicate_payment'] = True
                         reply_text = duplicate_reply
-                        logger.info("Generated duplicate payment reply instead of AI reply")
+                        logger.info("[DUPLICATE CHECK] Manual fallback generated duplicate payment reply instead of AI reply")
+                elif duplicate_payment_detected:
+                    logger.info(f"[DUPLICATE CHECK] Using duplicate payment detection from AI processing: {duplicate_bls}")
+                    # AI already detected duplicates, no need to override the reply
+                    action['duplicate_payment'] = True
+                    reply_text = action.get('reply', '')
+                else:
+                    logger.info("[DUPLICATE CHECK] No duplicate payments detected by AI or manual check")
                 
                 # Validate and filter BL numbers before saving
                 if bl_numbers:
@@ -2293,7 +2398,8 @@ def process_inbox(user_id=None):
                         conn=conn,
                     )
                 elif action.get('duplicate_payment', False):
-                    logger.info("[ROUTING] Duplicate payment detected — skipping payment processing, sending notifications only.")
+                    logger.info("[ROUTING] Duplicate payment detected by AI — skipping payment processing, sending notifications only.")
+                    logger.info(f"[ROUTING] AI already generated duplicate payment response: {reply_text[:100]}...")
                     # Send duplicate payment notifications without processing
                     for bl in duplicate_bls:
                         cursor.execute("SELECT id FROM bill_of_lading WHERE bl_number = %s", (bl,))
