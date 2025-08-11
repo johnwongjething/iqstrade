@@ -479,11 +479,23 @@ Alternatively, you can contact our customer service team directly for immediate 
 
 def handle_email_via_openai(subject, body, attachments, from_addr):
     logger.info(f"[DEBUG] handle_email_via_openai called with subject: {subject}")
-    # Initialize variables
+    # Initialize ALL variables at the start to prevent scope issues
     paid_amount = None
     custom_reply = "Hello,\n\nThank you for your email. Please provide more details or contact us for assistance."
     confidence_score = 0.0
     auto_send = False
+    classification = "general_enquiry"
+    request_types = []
+    bl_numbers = []
+    bl_payment_map = {}
+    duplicate_payment_detected = False
+    duplicate_bls = []
+    confidence_result = None
+    valid_bls = {}
+    invalid_bls = []
+    missing_attachment_flag = False
+    translated_body = body
+    bl_specific_payments = {}
 
     # --- Pre-Processing: Extract payment and BLs from PDFs ---
     def extract_payment_amount(text):
@@ -1976,7 +1988,7 @@ Remember: You're dealing with global customers who may use any email system, wri
     logger.info(f"[OpenAI Email] Final customized reply saved for email from {from_addr}")
 
     # --- Build BL-to-paid_amount mapping ---
-    bl_payment_map = {}
+    # bl_payment_map is already initialized at the top of the function
     
     # First try to extract BL-specific payments
     valid_bl_numbers = list(valid_bls.keys())  # Only use valid BLs for payment processing
