@@ -620,10 +620,15 @@ def test_email_notification():
     try:
         print('🧪 Testing email notification...')
         
-        # Get all FCM tokens
+        # Get FCM tokens - ONE PER USER to prevent duplicates
         conn = get_db_conn()
         cur = conn.cursor()
-        cur.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+        cur.execute("""
+            SELECT DISTINCT ON (user_id) token 
+            FROM fcm_tokens 
+            WHERE is_active = TRUE 
+            ORDER BY user_id, updated_at DESC
+        """)
         tokens = [row[0] for row in cur.fetchall()]
         cur.close()
         return_db_conn(conn)

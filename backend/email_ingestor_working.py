@@ -405,8 +405,13 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
             logger.info(f"Payment FCM notification already sent for email {email_id}, skipping")
         else:
             from fcm_service_fallback import fcm_service_fallback
-            # Get all FCM tokens for notifications
-            cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+            # Get FCM tokens for notifications - ONE PER USER to prevent duplicates
+            cursor.execute("""
+                SELECT DISTINCT ON (user_id) token 
+                FROM fcm_tokens 
+                WHERE is_active = TRUE 
+                ORDER BY user_id, updated_at DESC
+            """)
             tokens = [row[0] for row in cursor.fetchall()]
             
             if tokens and bl_payment_map:
@@ -1600,6 +1605,16 @@ CRITICAL REQUIREMENTS:
 4. If multiple BLs are mentioned, address each one individually and completely
 5. Use ONLY the provided data - do not make up information
 
+FORMATTING REQUIREMENTS (CRITICAL FOR CONSISTENCY):
+- **STRUCTURE**: Use clear, professional email structure with proper spacing
+- **HEADERS**: Use clear section headers for each BL number (e.g., "**BL Number: NYC230**")
+- **LISTS**: Use bullet points (•) for multiple items under each BL
+- **SPACING**: Maintain consistent spacing between sections (2-3 line breaks)
+- **ORGANIZATION**: Group related information together under each BL number
+- **PROFESSIONAL TONE**: Use business-appropriate language and formatting
+- **CONSISTENCY**: Apply the same formatting style to all BL numbers and sections
+- **READABILITY**: Ensure the email is easy to read with clear visual separation
+
 CONTENT ANALYSIS INSTRUCTIONS:
 - **FOCUS ON CURRENT CONTENT**: Analyze the current email message, not quoted/forwarded content
 - **PRIORITIZE PDF ATTACHMENTS**: If the email body is minimal/blank, focus on PDF content
@@ -1616,7 +1631,7 @@ Canned responses: {canned_responses_text}
 Return a JSON object:
 {{
   "classification": "{"combined_request" if len(request_types) > 1 else request_types[0] if request_types else "general_enquiry"}",
-  "reply": "Reply addressing ALL BLs and ALL detected requests completely."
+  "reply": "Reply addressing ALL BLs and ALL detected requests completely with consistent, professional formatting."
 }}
 """
     print(f"\033[94m[DEBUG] Final prompt sent to OpenAI:\033[0m")
@@ -1664,7 +1679,37 @@ CRITICAL CONTENT ANALYSIS RULES:
    - Don't assume information not explicitly provided
    - Always verify BL numbers against the provided data
 
-Remember: You're dealing with global customers who may use any email system, write in any language, and attach whatever they want. Focus on the CURRENT request, not the email thread history."""},
+7. **EMAIL FORMATTING REQUIREMENTS** (CRITICAL FOR CONSISTENCY):
+   - **STRUCTURE**: Use clear, professional email structure with proper spacing
+   - **HEADERS**: Use clear section headers for each BL number (e.g., "**BL Number: NYC230**")
+   - **LISTS**: Use bullet points (•) or numbered lists for multiple items
+   - **SPACING**: Maintain consistent spacing between sections (2-3 line breaks)
+   - **ORGANIZATION**: Group related information together under each BL number
+   - **PROFESSIONAL TONE**: Use business-appropriate language and formatting
+   - **CONSISTENCY**: Apply the same formatting style to all BL numbers and sections
+   - **READABILITY**: Ensure the email is easy to read with clear visual separation
+
+8. **FORMATTING TEMPLATE**:
+   ```
+   Dear Customer,
+
+   [Clear introduction addressing their request]
+
+   **BL Number: [BL_NUMBER]**
+   • CTN Number: [CTN_NUMBER]
+   • Invoice: [INVOICE_LINK]
+   • Payment Status: [STATUS]
+   • Arrival at Port: [ARRIVAL_INFO]
+   • Reserve Amount: [RESERVE_AMOUNT]
+
+   [Repeat for each BL number with consistent formatting]
+
+   [Professional closing]
+   Best regards,
+   IQS Trade Team
+   ```
+
+Remember: You're dealing with global customers who may use any email system, write in any language, and attach whatever they want. Focus on the CURRENT request, not the email thread history. ALWAYS maintain consistent, professional formatting for a polished appearance."""},
             {"role": "user", "content": prompt}
         ]
         print(f"\033[94m[DEBUG] ===== OPENAI CALL =====\033[0m")
@@ -2663,8 +2708,13 @@ def send_fcm_notification_for_new_email(email_id, subject, from_addr):
         # Send the notification
         from fcm_service_fallback import fcm_service_fallback
         
-        # Get all FCM tokens for notifications
-        cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+        # Get FCM tokens for notifications - ONE PER USER to prevent duplicates
+        cursor.execute("""
+            SELECT DISTINCT ON (user_id) token 
+            FROM fcm_tokens 
+            WHERE is_active = TRUE 
+            ORDER BY user_id, updated_at DESC
+        """)
         tokens = [row[0] for row in cursor.fetchall()]
         
         if tokens:

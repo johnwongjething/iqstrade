@@ -482,18 +482,33 @@ def upload_file():
             conn = get_db_conn()
             cur = conn.cursor()
             
-            # Try different possible column names for the token
+            # Try different possible column names for the token - ONE PER USER to prevent duplicates
             try:
-                cur.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+                cur.execute("""
+                    SELECT DISTINCT ON (user_id) token 
+                    FROM fcm_tokens 
+                    WHERE is_active = TRUE 
+                    ORDER BY user_id, updated_at DESC
+                """)
             except:
                 try:
-                    cur.execute('SELECT fcm_token FROM fcm_tokens WHERE is_active = TRUE')
+                    cur.execute("""
+                        SELECT DISTINCT ON (user_id) fcm_token 
+                        FROM fcm_tokens 
+                        WHERE is_active = TRUE 
+                        ORDER BY user_id, updated_at DESC
+                    """)
                 except:
                     try:
                         cur.execute('SELECT * FROM fcm_tokens LIMIT 1')
                         columns = [desc[0] for desc in cur.description]
                         token_column = next((col for col in columns if 'token' in col.lower()), 'token')
-                        cur.execute(f'SELECT {token_column} FROM fcm_tokens')
+                        cur.execute(f"""
+                            SELECT DISTINCT ON (user_id) {token_column} 
+                            FROM fcm_tokens 
+                            WHERE is_active = TRUE 
+                            ORDER BY user_id, updated_at DESC
+                        """)
                     except Exception as e:
                         print(f"Could not query fcm_tokens table: {e}")
                         tokens = []
