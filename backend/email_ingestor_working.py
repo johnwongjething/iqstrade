@@ -730,6 +730,10 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
     logger.info(f"\033[92m[PDF Processing] Starting with {len(attachments) if attachments else 0} attachments\033[0m")
     
     if attachments:
+        # Initialize variables to accumulate payment amounts from all PDFs
+        all_payment_amounts = []  # Store all payment amounts found
+        fallback_paid_amount = None  # Will be the sum of all amounts
+        
         for att_path in attachments:
             if att_path.lower().endswith('.pdf'):
                 try:
@@ -739,20 +743,28 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                     if pdf_fields and isinstance(pdf_fields, dict):
                         # Try structured paid_amount first
                         paid_amt_struct = pdf_fields.get('paid_amount')
+                        current_pdf_amount = None
+                        
                         if paid_amt_struct is not None:
                             try:
-                                fallback_paid_amount = float(re.sub(r'[^0-9.]+', '', str(paid_amt_struct)))
-                                logger.info(f"[PDF Processing] Parsed paid_amount from PDF: {fallback_paid_amount}")
+                                current_pdf_amount = float(re.sub(r'[^0-9.]+', '', str(paid_amt_struct)))
+                                logger.info(f"[PDF Processing] Parsed paid_amount from PDF: {current_pdf_amount}")
                             except Exception as ex:
                                 logger.error(f"[PDF Processing] Error parsing paid_amount from PDF: {ex}")
                         
                         # Fallback to raw_text extraction for payment amount
-                        if fallback_paid_amount is None:
+                        if current_pdf_amount is None:
                             raw_text = pdf_fields.get('raw_text')
                             if raw_text:
                                 amt = extract_payment_amount(raw_text)
                                 if amt is not None:
-                                    fallback_paid_amount = amt
+                                    current_pdf_amount = amt
+                                    logger.info(f"[PDF Processing] Extracted amount from raw text: {current_pdf_amount}")
+                        
+                        # Accumulate the payment amount from this PDF
+                        if current_pdf_amount is not None:
+                            all_payment_amounts.append(current_pdf_amount)
+                            logger.info(f"[PDF Processing] Added payment amount {current_pdf_amount} to accumulation list. Total amounts found: {len(all_payment_amounts)}")
                         
                         # Extract BLs from both structured field and raw text
                         bl_val = pdf_fields.get('bl_number')
@@ -802,12 +814,25 @@ def handle_email_via_openai(subject, body, attachments, from_addr):
                             
                 except Exception as e:
                     logger.error(f"[PDF Processing] Failed for {att_path}: {e}")
+        
+        # Calculate the total payment amount from all PDFs
+        if all_payment_amounts:
+            fallback_paid_amount = sum(all_payment_amounts)
+            logger.info(f"\033[92m[PDF Processing] SUCCESS: Accumulated payment amounts from {len(all_payment_amounts)} PDF(s): {all_payment_amounts} = Total: ${fallback_paid_amount:.2f}\033[0m")
+        else:
+            logger.info(f"\033[93m[PDF Processing] No payment amounts found in any PDF attachments\033[0m")
     
     logger.info(f"\033[92m[PDF Processing] Final BLs from PDFs: {bls_from_pdfs}\033[0m")
     logger.info(f"\033[92m[PDF Processing] Number of BLs from PDFs: {len(bls_from_pdfs)}\033[0m")
     
     # Fallback to email body extraction - will be done after translation initialization
     paid_amount = fallback_paid_amount
+    
+    # Log the final payment amount for debugging
+    if paid_amount is not None:
+        logger.info(f"\033[92m[PDF Processing] FINAL RESULT: Total payment amount from all PDFs: ${paid_amount:.2f}\033[0m")
+    else:
+        logger.info(f"\033[93m[PDF Processing] FINAL RESULT: No payment amount found in any PDFs\033[0m")
 
     # --- Translation for Chinese emails ---
     def is_chinese(text):
