@@ -2622,6 +2622,11 @@ def process_all_emails_without_replies():
 
 def send_fcm_notification_for_new_email(email_id, subject, from_addr):
     """Send FCM notification for new email with duplicate prevention"""
+    # Add call tracking
+    import traceback
+    caller_info = traceback.extract_stack()[-2]  # Get caller info
+    logger.info(f"🔍 FCM function called for email {email_id} from {caller_info.filename}:{caller_info.lineno}")
+    
     try:
         # Check if notification was already sent for this email
         conn = get_db_conn()
@@ -2635,10 +2640,25 @@ def send_fcm_notification_for_new_email(email_id, subject, from_addr):
         notification_count = cursor.fetchone()[0]
         
         if notification_count > 0:
-            logger.info(f"FCM notification already sent for email {email_id}, skipping")
+            logger.info(f"🔒 FCM notification already sent for email {email_id}, skipping")
             cursor.close()
             conn.close()
             return True
+        
+        # Additional safety: check if we're in the middle of sending
+        # This prevents race conditions where multiple calls happen simultaneously
+        import threading
+        if not hasattr(send_fcm_notification_for_new_email, '_processing_emails'):
+            send_fcm_notification_for_new_email._processing_emails = set()
+        
+        if email_id in send_fcm_notification_for_new_email._processing_emails:
+            logger.warning(f"⚠️ FCM notification already being processed for email {email_id}, skipping duplicate call")
+            cursor.close()
+            conn.close()
+            return True
+        
+        # Mark this email as being processed
+        send_fcm_notification_for_new_email._processing_emails.add(email_id)
         
         # Send the notification
         from fcm_service_fallback import fcm_service_fallback
@@ -2684,10 +2704,20 @@ def send_fcm_notification_for_new_email(email_id, subject, from_addr):
         
         cursor.close()
         conn.close()
+        
+        # Clean up processing set
+        if hasattr(send_fcm_notification_for_new_email, '_processing_emails'):
+            send_fcm_notification_for_new_email._processing_emails.discard(email_id)
+        
         return success
         
     except Exception as e:
         logger.error(f"❌ Failed to send FCM notification for new email: {e}")
+        
+        # Clean up processing set even on error
+        if hasattr(send_fcm_notification_for_new_email, '_processing_emails'):
+            send_fcm_notification_for_new_email._processing_emails.discard(email_id)
+        
         return False
 
 if __name__ == "__main__":
