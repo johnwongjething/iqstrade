@@ -391,36 +391,53 @@ def process_payment_receipt_email(email_id, from_addr, subject, body_text, attac
     cursor.execute("UPDATE customer_emails SET processed_for_payments=TRUE WHERE id=%s", (email_id,))
     conn.commit()
     
-    # Send FCM push notification for payment receipt processing
+    # Send FCM push notification for payment receipt processing (with duplicate prevention)
     try:
-        from fcm_service_fallback import fcm_service_fallback
-        # Get all FCM tokens for notifications
-        cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
-        tokens = [row[0] for row in cursor.fetchall()]
+        # Check if payment FCM notification was already sent for this email
+        cursor.execute("""
+            SELECT COUNT(*) FROM fcm_notifications 
+            WHERE email_id = %s AND notification_type = 'payment_receipt'
+        """, (email_id,))
         
-        if tokens and bl_payment_map:
-            bl_list = list(bl_payment_map.keys())
-            total_paid = sum(bl_payment_map.values())
-            result = fcm_service_fallback.send_notification(
-                tokens=tokens,
-                title='💰 Payment Receipt Processed',
-                body=f'Payment processed for BL(s): {", ".join(bl_list)} - Total: ${total_paid}',
-                data={
-                    'type': 'payment_receipt',
-                    'sender': from_addr,
-                    'bl_numbers': ','.join(bl_list),  # Convert list to string
-                    'total_amount': str(total_paid),  # Convert to string
-                    'email_id': str(email_id),  # Convert to string
-                    'receipt_url': receipt_url or '',
-                    'timestamp': datetime.datetime.now().isoformat()
-                }
-            )
-            if result.get('success'):
-                logger.info(f"✅ FCM notification sent for payment receipt: {bl_list} from {from_addr}")
-            else:
-                logger.error(f"❌ FCM notification failed: {result.get('error', 'Unknown error')}")
+        notification_count = cursor.fetchone()[0]
+        
+        if notification_count > 0:
+            logger.info(f"Payment FCM notification already sent for email {email_id}, skipping")
         else:
-            logger.info("ℹ️ No FCM tokens found for payment notifications")
+            from fcm_service_fallback import fcm_service_fallback
+            # Get all FCM tokens for notifications
+            cursor.execute('SELECT token FROM fcm_tokens WHERE is_active = TRUE')
+            tokens = [row[0] for row in cursor.fetchall()]
+            
+            if tokens and bl_payment_map:
+                bl_list = list(bl_payment_map.keys())
+                total_paid = sum(bl_payment_map.values())
+                result = fcm_service_fallback.send_notification(
+                    tokens=tokens,
+                    title='💰 Payment Receipt Processed',
+                    body=f'Payment processed for BL(s): {", ".join(bl_list)} - Total: ${total_paid}',
+                    data={
+                        'type': 'payment_receipt',
+                        'sender': from_addr,
+                        'bl_numbers': ','.join(bl_list),  # Convert list to string
+                        'total_amount': str(total_paid),  # Convert to string
+                        'email_id': str(email_id),  # Convert to string
+                        'receipt_url': receipt_url or '',
+                        'timestamp': datetime.datetime.now().isoformat()
+                    }
+                )
+                if result.get('success'):
+                    # Record that payment notification was sent
+                    cursor.execute("""
+                        INSERT INTO fcm_notifications (email_id, notification_type, sent_at)
+                        VALUES (%s, %s, %s)
+                    """, (email_id, 'payment_receipt', datetime.datetime.now()))
+                    conn.commit()
+                    logger.info(f"✅ FCM notification sent for payment receipt: {bl_list} from {email_id}")
+                else:
+                    logger.error(f"❌ FCM notification failed: {result.get('error', 'Unknown error')}")
+            else:
+                logger.info("ℹ️ No FCM tokens found for payment notifications")
     except Exception as e:
         logger.error(f"Failed to send FCM notification for payment: {str(e)}")
     
@@ -2450,8 +2467,15 @@ def process_inbox(user_id=None):
                 mail.store(num, '+FLAGS', '\\Seen')
                 logger.info(f"Marked email as read: {subject}")
                 
-                # Send FCM notification with duplicate prevention
-                send_fcm_notification_for_new_email(email_id, subject, from_addr)
+                # Send FCM notification ONLY for non-payment emails
+                # Payment emails and duplicate payment emails will get their own FCM notifications
+                if not is_actual_payment and not action.get('duplicate_payment', False):
+                    send_fcm_notification_for_new_email(email_id, subject, from_addr)
+                    logger.info(f"📱 Sent 'new email' FCM notification for non-payment email: {subject}")
+                elif is_actual_payment:
+                    logger.info(f"⏭️ Skipping 'new email' FCM notification for payment email: {subject} (will get payment FCM instead)")
+                elif action.get('duplicate_payment', False):
+                    logger.info(f"⏭️ Skipping 'new email' FCM notification for duplicate payment email: {subject} (will get duplicate payment FCM instead)")
                 
                 results.append({"email_id": email_id, "classification": classification})
                 
