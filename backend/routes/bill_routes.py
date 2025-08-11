@@ -987,7 +987,7 @@ def account_bills():
                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
                completed_at, allinpay_85_received_at,
                customer_username, customer_invoice, customer_packing_list,
-               payment_method, payment_status, reserve_status
+               payment_method, payment_status, reserve_status, balance_applied
         FROM bill_of_lading
         WHERE status = 'Paid and CTN Valid'
     '''
@@ -1023,6 +1023,7 @@ def account_bills():
     total_allinpay_85_service = 0
     total_reserve_ctn = 0
     total_reserve_service = 0
+    total_credit_debit = 0
 
     for row in rows:
         bill = dict(zip(columns, row))
@@ -1036,9 +1037,14 @@ def account_bills():
         try:
             ctn_fee = float(bill.get('ctn_fee') or 0)
             service_fee = float(bill.get('service_fee') or 0)
+            balance_applied = float(bill.get('balance_applied') or 0)
         except (TypeError, ValueError):
             ctn_fee = 0
             service_fee = 0
+            balance_applied = 0
+
+        # Accumulate credit/debit total
+        total_credit_debit += balance_applied
 
         # Default: show original values
         bill['display_ctn_fee'] = ctn_fee
@@ -1100,7 +1106,8 @@ def account_bills():
         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
+        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2),
+        'totalCreditDebit': round(total_credit_debit, 2)
     }
 
     cur.close()
@@ -1155,7 +1162,7 @@ def account_bills_monthly():
                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
                completed_at, allinpay_85_received_at,
                customer_username, customer_invoice, customer_packing_list,
-               payment_method, payment_status, reserve_status
+               payment_method, payment_status, reserve_status, balance_applied
         FROM bill_of_lading
         WHERE status = 'Paid and CTN Valid'
     '''
@@ -1197,6 +1204,7 @@ def account_bills_monthly():
     total_allinpay_85_service = 0
     total_reserve_ctn = 0
     total_reserve_service = 0
+    total_credit_debit = 0
     from dateutil import parser
     for row in rows:
         bill = dict(zip(columns, row))
@@ -1208,9 +1216,14 @@ def account_bills_monthly():
         try:
             ctn_fee = float(bill.get('ctn_fee') or 0)
             service_fee = float(bill.get('service_fee') or 0)
+            balance_applied = float(bill.get('balance_applied') or 0)
         except (TypeError, ValueError):
             ctn_fee = 0
             service_fee = 0
+            balance_applied = 0
+        
+        # Accumulate credit/debit total
+        total_credit_debit += balance_applied
         if bill.get('payment_method') == 'Allinpay':
             # 85% entry
             allinpay_85_dt = bill.get('allinpay_85_received_at')
@@ -1318,7 +1331,8 @@ def account_bills_monthly():
         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
+        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2),
+        'totalCreditDebit': round(total_credit_debit, 2)
     }
     cur.close()
     conn.close()

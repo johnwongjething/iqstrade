@@ -62,19 +62,19 @@ def management_overview():
         sum_invoice_amount = sum((b.get("ctn_fee") or 0) + (b.get("service_fee") or 0) for b in bills)
 
         # Use SQL queries for payment calculations (same as Staff Stats)
-        cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee), 0) FROM bill_of_lading")
-        total_invoice_amount = float(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee - COALESCE(balance_applied, 0)), 0) FROM bill_of_lading")
+        sum_invoice_amount = float(cur.fetchone()[0] or 0)
         
         # Payment received calculation (same as Staff Stats)
         cur.execute("""
             SELECT COALESCE(SUM(
                 CASE
                     WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid'
-                        THEN ctn_fee + service_fee
+                        THEN ctn_fee + service_fee - COALESCE(balance_applied, 0)
                     WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled'
-                        THEN ctn_fee + service_fee
+                        THEN ctn_fee + service_fee - COALESCE(balance_applied, 0)
                     WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled'
-                        THEN (ctn_fee * 0.85) + (service_fee * 0.85)
+                        THEN (ctn_fee * 0.85) + (service_fee * 0.85) - COALESCE(balance_applied, 0)
                     ELSE 0
                 END
             ), 0)
@@ -84,7 +84,7 @@ def management_overview():
         
         # Payment outstanding calculation (same as Staff Stats)
         cur.execute("""
-            SELECT COALESCE(SUM(service_fee + ctn_fee), 0)
+            SELECT COALESCE(SUM(service_fee + ctn_fee - COALESCE(balance_applied, 0)), 0)
             FROM bill_of_lading
             WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
         """)
