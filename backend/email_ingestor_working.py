@@ -2469,13 +2469,41 @@ def process_inbox(user_id=None):
                 
                 # Send FCM notification ONLY for non-payment emails
                 # Payment emails and duplicate payment emails will get their own FCM notifications
-                if not is_actual_payment and not action.get('duplicate_payment', False):
+                # Also check database state to be extra safe
+                is_payment_in_db = False
+                try:
+                    cursor.execute("SELECT processed_for_payments FROM customer_emails WHERE id = %s", (email_id,))
+                    result = cursor.fetchone()
+                    if result:
+                        is_payment_in_db = result[0] or False
+                except Exception as e:
+                    logger.warning(f"Could not check payment status in DB for email {email_id}: {e}")
+                
+                # More robust payment detection
+                is_definitely_payment = (is_actual_payment or is_payment_in_db or action.get('duplicate_payment', False))
+                
+                # Additional safety check: don't send new_email notification if payment notification already exists
+                payment_notification_exists = False
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM fcm_notifications WHERE email_id = %s AND notification_type = 'payment_receipt'", (email_id,))
+                    result = cursor.fetchone()
+                    if result and result[0] > 0:
+                        payment_notification_exists = True
+                        logger.info(f"🔒 Payment FCM notification already exists for email {email_id}, skipping new_email notification")
+                except Exception as e:
+                    logger.warning(f"Could not check existing payment notifications for email {email_id}: {e}")
+                
+                if not is_definitely_payment and not payment_notification_exists:
                     send_fcm_notification_for_new_email(email_id, subject, from_addr)
                     logger.info(f"📱 Sent 'new email' FCM notification for non-payment email: {subject}")
                 elif is_actual_payment:
                     logger.info(f"⏭️ Skipping 'new email' FCM notification for payment email: {subject} (will get payment FCM instead)")
+                elif is_payment_in_db:
+                    logger.info(f"⏭️ Skipping 'new email' FCM notification for DB-marked payment email: {subject} (will get payment FCM instead)")
                 elif action.get('duplicate_payment', False):
                     logger.info(f"⏭️ Skipping 'new email' FCM notification for duplicate payment email: {subject} (will get duplicate payment FCM instead)")
+                else:
+                    logger.info(f"⏭️ Skipping 'new email' FCM notification for email: {subject} (payment status unclear)")
                 
                 results.append({"email_id": email_id, "classification": classification})
                 
