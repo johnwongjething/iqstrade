@@ -1223,157 +1223,37 @@ Output: ""
     original_body_for_extraction = translated_body
     logger.info(f"[DEBUG] Content extraction section reached!")
     logger.info(f"[CONTENT EXTRACTION] Starting content extraction...")
+    logger.info(f"[CONTENT EXTRACTION] Subject: {subject}")
     logger.info(f"[CONTENT EXTRACTION] Original body length: {len(translated_body)} characters")
     logger.info(f"[CONTENT EXTRACTION] Original body preview: '{translated_body[:200]}...'")
     
-    # Check if the email contains quoted content (lines starting with >)
-    quoted_lines = [line for line in translated_body.split('\n') if line.strip().startswith('>')]
-    logger.info(f"[CONTENT EXTRACTION] Found {len(quoted_lines)} quoted lines in original content")
-    if quoted_lines:
-        logger.info(f"[CONTENT EXTRACTION] Sample quoted line: '{quoted_lines[0][:100]}...'")
+    # Let AI handle all content extraction - trust its judgment
+    logger.info(f"[CONTENT EXTRACTION] Using AI to extract new content from email")
+    logger.info(f"[CONTENT EXTRACTION] Attachments detected: {attachments}")
     
-    # Check if the email starts with forwarded/quoted content patterns
-    first_few_lines = translated_body.split('\n')[:5]
-    starts_with_forwarded = any(
-        re.search(r'^-{5,} ?Forwarded Message ?-{5,}|^Forwarded message|^转发的邮件|^轉發的郵件|^On\s+.*?\s+wrote:', line.strip(), re.IGNORECASE)
-        for line in first_few_lines if line.strip()
-    )
-    
-    # Flag to track if this is a "no new text with attachment" scenario
-    no_new_text_scenario = False
-    
-    if starts_with_forwarded:
-        logger.info(f"[CONTENT EXTRACTION] Email appears to start with forwarded/quoted content")
-        # If the email starts with forwarded content and we have attachments, 
-        # this suggests the customer just sent an attachment with no new text
-        if attachments:
-            logger.info(f"[CONTENT EXTRACTION] Email starts with forwarded content and has attachments - likely no new text from customer")
-            # For emails that start with forwarded content and have attachments,
-            # we'll be more aggressive about detecting old content in the AI output
-            logger.info(f"[CONTENT EXTRACTION] Will apply stricter validation for this email type")
-            no_new_text_scenario = True
-    
-    # Log the scenario we're dealing with
-    if no_new_text_scenario:
-        logger.info(f"[CONTENT EXTRACTION] SCENARIO: No new text with attachment - applying stricter validation")
-    else:
-        logger.info(f"[CONTENT EXTRACTION] SCENARIO: Standard email processing")
-    
+    # Use AI to extract new content - this handles all languages and formats
     translated_body = extract_new_content_from_reply(translated_body)
     
-    # Check if AI extraction was successful and meaningful
+    # Log the AI extraction results
     original_length = len(original_body_for_extraction)
     cleaned_length = len(translated_body)
     removed_chars = original_length - cleaned_length
     
     logger.info(f"[Email Content Extraction] AI extraction result - Original: {original_length}, Cleaned: {cleaned_length}, Removed: {removed_chars} characters")
     
-    # Only revert if the cleaned content is completely empty or just whitespace
+    # Trust the AI's output - if it returns empty content, that's what we want
     if not translated_body or translated_body.strip() == "":
-        if no_new_text_scenario and attachments:
-            # For "no new text with attachment" scenarios, empty content is expected and acceptable
-            # This allows processing to continue with attachment extraction
-            logger.info(f"[Email Content Extraction] No new text with attachment scenario - AI returned empty content (expected), allowing processing to continue for attachment extraction")
-            logger.info(f"[Email Content Extraction] Final decision: Using empty content for attachment processing")
-        else:
-            # For standard scenarios, revert to original if AI returns empty content
-            logger.warning(f"[Email Content Extraction] AI returned empty content, reverting to original")
-            logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
-            translated_body = original_body_for_extraction
-            logger.info(f"[Email Content Extraction] Final decision: Using original message (empty AI output)")
+        logger.info(f"[Email Content Extraction] AI returned empty content - this is correct for emails with no new text")
+        logger.info(f"[Email Content Extraction] Final decision: Using empty content (AI determined no new text)")
     else:
-        # Additional check: if the AI output still contains mostly quoted/forwarded patterns,
-        # consider it as having no meaningful new content
-        quoted_patterns = [
-            r'On\s+.*?\s+wrote:',
-            r'From:',
-            r'Sent:',
-            r'To:',
-            r'Subject:',
-            r'---------- Forwarded message ---------',
-            r'转发的邮件',
-            r'轉發的郵件',
-            # Specific patterns that indicate old quoted content
-            r'can you please send me ctn number for',
-            r'ctn number for',
-            r'BL numbers?',
-            r'Bill of Lading'
-        ]
-        
-        quoted_count = 0
-        total_lines = len(translated_body.split('\n'))
-        
-        for line in translated_body.split('\n'):
-            line_stripped = line.strip()
-            if line_stripped:
-                for pattern in quoted_patterns:
-                    if re.search(pattern, line_stripped, re.IGNORECASE):
-                        quoted_count += 1
-                        break
-        
-        # If more than 60% of non-empty lines contain quoted patterns, consider it mostly quoted
-        # For "no new text with attachment" scenarios, be more lenient and allow processing to continue
-        threshold = 0.6  # Use standard threshold for all scenarios
-        if total_lines > 0 and (quoted_count / total_lines) > threshold:
-            scenario_info = "standard"
-            logger.warning(f"[Email Content Extraction] AI output still contains mostly quoted content ({quoted_count}/{total_lines} lines, threshold: {threshold:.1%}), reverting to original")
-            logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
-            translated_body = original_body_for_extraction
-            logger.info(f"[Email Content Extraction] Final decision: Using original message (AI output still mostly quoted, {scenario_info} scenario)")
-        elif no_new_text_scenario and total_lines > 0 and (quoted_count / total_lines) > 0.4:
-            # For "no new text with attachment" scenarios, log the quoted content but don't revert
-            # This allows processing to continue with attachments
-            logger.info(f"[Email Content Extraction] No new text with attachment scenario - AI output contains some quoted content ({quoted_count}/{total_lines} lines), but allowing processing to continue for attachment extraction")
-            logger.info(f"[Email Content Extraction] Final decision: Using cleaned content for attachment processing")
-        else:
-            # Additional check: if the content contains multiple BL numbers that look like old quoted content,
-            # this might indicate the AI extracted old conversation instead of new content
-            bl_pattern = r'NYC\d+|ST\d+'
-            bl_matches = re.findall(bl_pattern, translated_body)
-            
-            # Check for specific patterns that indicate old quoted content
-            old_content_patterns = [
-                r'can you please send me ctn number for',
-                r'ctn number for',
-                r'BL numbers\?',
-                r'Bill of Lading',
-                r'---------- Forwarded message ---------',
-                r'Forwarded message',
-                # Pattern for multiple BL requests
-                r'ctn number for [A-Z]{3}\d+, [A-Z]{3}\d+, [A-Z]{3}\d+',
-                # Pattern for multiple BL numbers in sequence (any format)
-                r'[A-Z]{3}\d+.*[A-Z]{3}\d+.*[A-Z]{3}\d+',
-                # Pattern for multiple BL numbers in sequence with ellipsis
-                r'[A-Z]{3}\d+.*[A-Z]{3}\d+.*[A-Z]{3}\d+.*\.\.\.'
-            ]
-            
-            has_old_content_patterns = any(re.search(pattern, translated_body, re.IGNORECASE) for pattern in old_content_patterns)
-            
-            # For "no new text with attachment" scenarios, be more lenient about BL detection
-            # This allows processing to continue with attachments even if some old content is detected
-            bl_threshold = 3 if no_new_text_scenario else 2  # Allow more BLs for attachment scenarios
-            if len(bl_matches) > bl_threshold or has_old_content_patterns:  # If too many BLs or old content patterns, likely quoted content
-                reason = f"multiple BLs ({bl_matches}, threshold: {bl_threshold})" if len(bl_matches) > bl_threshold else "old content patterns detected"
-                scenario_info = "standard"
-                logger.warning(f"[Email Content Extraction] AI output contains {reason}, likely old quoted content, reverting to original")
-                logger.info(f"[Email Content Extraction] Original content preview: '{original_body_for_extraction[:200]}...'")
-                translated_body = original_body_for_extraction
-                logger.info(f"[Email Content Extraction] Final decision: Using original message ({reason}, {scenario_info} scenario)")
-            elif no_new_text_scenario and (len(bl_matches) > 1 or has_old_content_patterns):
-                # For "no new text with attachment" scenarios, log the old content but don't revert
-                # This allows processing to continue with attachments
-                logger.info(f"[Email Content Extraction] No new text with attachment scenario - AI output contains some old content (BLs: {bl_matches}, old patterns: {has_old_content_patterns}), but allowing processing to continue for attachment extraction")
-                logger.info(f"[Email Content Extraction] Final decision: Using cleaned content for attachment processing")
-            else:
-                logger.info(f"[Email Content Extraction] AI cleaned content is meaningful, keeping cleaned version")
-                logger.info(f"[Email Content Extraction] Final decision: Using cleaned reply")
+        logger.info(f"[Email Content Extraction] AI extracted meaningful content, keeping it")
+        logger.info(f"[Email Content Extraction] Final decision: Using AI-extracted content")
     
     # Log content previews for debugging
     logger.info(f"[Email Content Extraction] Cleaned content preview: '{translated_body[:200]}...'")
     
-    # Final summary log with scenario information
-    scenario_info = "no new text with attachment" if no_new_text_scenario else "standard"
-    logger.info(f"[Email Content Extraction] FINAL DECISION: {'ORIGINAL' if translated_body == original_body_for_extraction else 'CLEANED'} - Length: {len(translated_body)} chars - Scenario: {scenario_info}")
+    # Final summary log
+    logger.info(f"[Email Content Extraction] FINAL DECISION: {'ORIGINAL' if translated_body == original_body_for_extraction else 'CLEANED'} - Length: {len(translated_body)} chars")
     
     logger.info(f"[CONTENT EXTRACTION] FINAL - Cleaned body length: {len(translated_body)} characters")
     logger.info(f"[CONTENT EXTRACTION] Final cleaned body preview: '{translated_body[:200]}...'")
