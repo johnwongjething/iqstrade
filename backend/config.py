@@ -53,7 +53,6 @@ class DatabaseConfig:
     def port():
         return os.getenv('DB_PORT', '5432')
 
-# Neon and other cloud Postgres require SSL; localhost typically does not.
 def _db_connect_kwargs():
     kwargs = {
         'dbname': DatabaseConfig.dbname(),
@@ -67,7 +66,9 @@ def _db_connect_kwargs():
     host = DatabaseConfig.host() or ''
     if host and host not in ('localhost', '127.0.0.1'):
         kwargs['sslmode'] = 'require'
+        kwargs['channel_binding'] = 'require'   # ← Add this line! Critical for Neon
     return kwargs
+# Neon and other cloud Postgres require SSL; localhost typically does not.
 
 # Database connection pool for better concurrent user handling
 try:
