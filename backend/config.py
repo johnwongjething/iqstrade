@@ -2,34 +2,35 @@
 import os
 import psycopg2
 import time
+import logging
 from datetime import timedelta
 from dotenv import load_dotenv
+
+# Setup basic logging (visible in Render logs)
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 
 # Load .env.local for local development
 env_file = os.path.join(os.path.dirname(__file__), '.env.local')
 if os.path.exists(env_file):
     load_dotenv(env_file)
-    pass  # Loaded .env.local from: {env_file}
+    logging.info(f"Loaded .env.local from: {env_file}")
 else:
-    pass  # .env.local not found, using system environment variables
+    logging.info(".env.local not found, using system environment variables")
 
 # Environment Detection
 def get_environment():
     """Detect if we're running locally or in production"""
-    # Check for explicit environment variable
     env = os.getenv('FLASK_ENV', '').lower()
     if env in ['production', 'development', 'local']:
         return env
     
-    # Auto-detect based on common production indicators
     if os.getenv('PORT') or os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RENDER'):
         return 'production'
     
-    # Default to local if running on localhost
     return 'local'
 
 CURRENT_ENV = get_environment()
-# Running in environment: {CURRENT_ENV}
+logging.info(f"Running in environment: {CURRENT_ENV}")
 
 # Database Configuration
 class DatabaseConfig:
@@ -61,75 +62,86 @@ def _db_connect_kwargs():
         'host': DatabaseConfig.host(),
         'port': DatabaseConfig.port(),
         'connect_timeout': 10,
-        'options': '-c statement_timeout=30000 -c search_path=public'
+        # Temporarily removed 'options' - Neon/PgBouncer may reject custom -c params
+        # 'options': '-c statement_timeout=30000 -c search_path=public'
     }
     host = DatabaseConfig.host() or ''
     if host and host not in ('localhost', '127.0.0.1'):
         kwargs['sslmode'] = 'require'
-        kwargs['channel_binding'] = 'require'   # ← Add this line! Critical for Neon
+        kwargs['channel_binding'] = 'require'
+        logging.info("Added Neon-required SSL params: sslmode=require, channel_binding=require")
+    
+    logging.debug(f"DB connect kwargs: {kwargs}")
     return kwargs
-# Neon and other cloud Postgres require SSL; localhost typically does not.
 
-# Database connection pool for better concurrent user handling
+# Try to use connection pool
 try:
     from psycopg2_pool import SimpleConnectionPool
     
     _conn_kwargs = _db_connect_kwargs()
+    logging.info("Attempting to initialize SimpleConnectionPool...")
+    
     db_pool = SimpleConnectionPool(
-        1, 20,  # minconn, maxconn
+        minconn=1,
+        maxconn=20,
         **_conn_kwargs
     )
-    pass  # Database connection pool created successfully
+    logging.info("Database connection pool created successfully")
     
     def get_db_conn(max_retries=3, retry_delay=2):
-        """Get database connection from pool"""
+        """Get database connection from pool with retries and logging"""
         for attempt in range(max_retries):
             try:
+                logging.debug(f"Pool getconn attempt {attempt + 1}")
                 conn = db_pool.getconn()
                 if conn:
+                    logging.debug("Successfully got connection from pool")
                     return conn
                 else:
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                    else:
-                        pass  # Failed to get connection from pool
-                        return None
+                    logging.warning("Pool returned None connection")
             except Exception as e:
+                logging.error(f"Pool getconn failed (attempt {attempt + 1}): {str(e)}", exc_info=True)
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
-                else:
-                    pass  # Database pool error: {e}
-                    return None
+        logging.error("Failed to get connection from pool after all retries")
+        return None
     
     def return_db_conn(conn):
-        """Return database connection to pool"""
-        try:
-            if conn:
+        """Return connection to pool"""
+        if conn:
+            try:
                 db_pool.putconn(conn)
-        except Exception as e:
-            pass  # Error returning connection to pool: {e}
-    
-except ImportError:
-    pass  # psycopg2-pool not available, using direct connections
+                logging.debug("Connection returned to pool")
+            except Exception as e:
+                logging.error(f"Error returning connection to pool: {str(e)}")
+
+except Exception as pool_error:  # Catch ALL errors during pool init (not just ImportError)
+    logging.error(f"Failed to initialize connection pool: {str(pool_error)}", exc_info=True)
+    logging.warning("Falling back to direct connections (no pooling)")
     
     def get_db_conn(max_retries=3, retry_delay=2):
+        """Fallback: direct psycopg2.connect with retries"""
         for attempt in range(max_retries):
             try:
+                logging.info(f"Direct connect attempt {attempt + 1}")
                 conn = psycopg2.connect(**_db_connect_kwargs())
+                logging.info("Direct connection established successfully")
                 return conn
             except Exception as e:
+                logging.error(f"Direct connect failed (attempt {attempt + 1}): {str(e)}", exc_info=True)
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
-                else:
-                    return None
+        logging.error("All direct connect attempts failed")
+        return None
     
     def return_db_conn(conn):
-        """Dummy function for direct connections"""
-        try:
-            if conn:
+        """Close direct connection"""
+        if conn:
+            try:
                 conn.close()
-        except:
-            pass
+                logging.debug("Direct connection closed")
+            except Exception as e:
+                logging.error(f"Error closing direct connection: {str(e)}")
 
 # Email Configuration
 class EmailConfig:
@@ -151,10 +163,9 @@ CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME')
 CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY')
 CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET')
 
-
-# OCR Configuration
+# OCR Configuration (kept for compatibility)
 class OCRConfig:
-    pass  # No longer needed, but kept for compatibility
+    pass
 
 # File Paths
 class PathConfig:
