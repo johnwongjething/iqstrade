@@ -53,21 +53,30 @@ class DatabaseConfig:
     def port():
         return os.getenv('DB_PORT', '5432')
 
+# Neon and other cloud Postgres require SSL; localhost typically does not.
+def _db_connect_kwargs():
+    kwargs = {
+        'dbname': DatabaseConfig.dbname(),
+        'user': DatabaseConfig.user(),
+        'password': DatabaseConfig.password(),
+        'host': DatabaseConfig.host(),
+        'port': DatabaseConfig.port(),
+        'connect_timeout': 10,
+        'options': '-c statement_timeout=30000 -c search_path=public'
+    }
+    host = DatabaseConfig.host() or ''
+    if host and host not in ('localhost', '127.0.0.1'):
+        kwargs['sslmode'] = 'require'
+    return kwargs
+
 # Database connection pool for better concurrent user handling
 try:
     from psycopg2_pool import SimpleConnectionPool
     
-    # Create connection pool (min=1, max=20 connections)
-    # This allows up to 20 concurrent database operations
+    _conn_kwargs = _db_connect_kwargs()
     db_pool = SimpleConnectionPool(
         1, 20,  # minconn, maxconn
-        dbname=DatabaseConfig.dbname(),
-        user=DatabaseConfig.user(),
-        password=DatabaseConfig.password(),
-        host=DatabaseConfig.host(),
-        port=DatabaseConfig.port(),
-        connect_timeout=10,
-        options='-c statement_timeout=30000'
+        **_conn_kwargs
     )
     pass  # Database connection pool created successfully
     
@@ -105,15 +114,7 @@ except ImportError:
     def get_db_conn(max_retries=3, retry_delay=2):
         for attempt in range(max_retries):
             try:
-                conn = psycopg2.connect(
-                    dbname=DatabaseConfig.dbname(),
-                    user=DatabaseConfig.user(),
-                    password=DatabaseConfig.password(),
-                    host=DatabaseConfig.host(),
-                    port=DatabaseConfig.port(),
-                    connect_timeout=10,  # 10 second connection timeout
-                    options='-c statement_timeout=30000'  # 30 second query timeout
-                )
+                conn = psycopg2.connect(**_db_connect_kwargs())
                 return conn
             except Exception as e:
                 if attempt < max_retries - 1:
