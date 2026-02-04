@@ -293,19 +293,19 @@ def serve_assets(filename):
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-
-
 def serve_react(path):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    
+    # All logging lines must have the SAME indentation (4 spaces)
     app.logger.info(f"Backend build_dir set to: {build_dir}")
-app.logger.info(f"Does backend/build exist? {os.path.exists(build_dir)}")
-app.logger.info(f"Does backend/build/assets/service.jpg exist? {os.path.exists(os.path.join(build_dir, 'assets', 'service.jpg'))}")
-    ##build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build'))
-    ##build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    app.logger.info(f"Does backend/build exist? {os.path.exists(build_dir)}")
+    app.logger.info(f"Does backend/build/assets/service.jpg exist? {os.path.exists(os.path.join(build_dir, 'assets', 'service.jpg'))}")
+    
     app.logger.info(f"serve_react called with path: {path}")
     app.logger.info(f"Calculated build_dir: {build_dir}")
     requested_file = os.path.join(build_dir, path)
     app.logger.info(f"Checking if exists: {requested_file} → {os.path.exists(requested_file)}")
+    
     # Check if build directory exists
     if not os.path.exists(build_dir):
         print(f"[ERROR] Build directory not found: {build_dir}")
@@ -339,13 +339,12 @@ app.logger.info(f"Does backend/build/assets/service.jpg exist? {os.path.exists(o
     if path != "" and os.path.exists(full_path):
         return send_from_directory(build_dir, path)
     
-    # For all other routes (including /reset-password/:token), serve index.html
+    # For all other routes, serve index.html
     try:
         return send_from_directory(build_dir, 'index.html')
     except Exception as e:
         print(f"[ERROR] Failed to serve index.html: {e}")
         return jsonify({'error': f'Failed to serve index.html: {str(e)}'}), 500
-
 
 # @app.route('/', defaults={'path': ''})
 # @app.route('/<path:path>')
