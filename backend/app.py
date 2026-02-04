@@ -293,9 +293,14 @@ def serve_assets(filename):
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
+
+
 def serve_react(path):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
-    
+    app.logger.info(f"serve_react called with path: {path}")
+    app.logger.info(f"Calculated build_dir: {build_dir}")
+    requested_file = os.path.join(build_dir, path)
+    app.logger.info(f"Checking if exists: {requested_file} → {os.path.exists(requested_file)}")
     # Check if build directory exists
     if not os.path.exists(build_dir):
         print(f"[ERROR] Build directory not found: {build_dir}")
