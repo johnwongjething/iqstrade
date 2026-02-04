@@ -296,7 +296,8 @@ def serve_assets(filename):
 
 
 def serve_react(path):
-    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build'))
+    ##build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
     app.logger.info(f"serve_react called with path: {path}")
     app.logger.info(f"Calculated build_dir: {build_dir}")
     requested_file = os.path.join(build_dir, path)
