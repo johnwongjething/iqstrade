@@ -296,7 +296,11 @@ def serve_assets(filename):
 
 
 def serve_react(path):
-    build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build'))
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    app.logger.info(f"Backend build_dir set to: {build_dir}")
+app.logger.info(f"Does backend/build exist? {os.path.exists(build_dir)}")
+app.logger.info(f"Does backend/build/assets/service.jpg exist? {os.path.exists(os.path.join(build_dir, 'assets', 'service.jpg'))}")
+    ##build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build'))
     ##build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
     app.logger.info(f"serve_react called with path: {path}")
     app.logger.info(f"Calculated build_dir: {build_dir}")
