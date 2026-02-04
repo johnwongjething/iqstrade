@@ -313,20 +313,28 @@ def serve_react(path):
 
     # Check if the path refers to a static file in images or assets
     # This handles cases like /service/images/logo.png -> serves build/images/logo.png
-    if path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.ico', '.svg')):
+    lower_path = path.lower()
+    if lower_path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.ico', '.svg')):
         # Try to find the file in build/images or build/assets
         filename = os.path.basename(path)
         
         # Check images folder
         images_path = os.path.join(build_dir, 'images', filename)
         if os.path.exists(images_path):
+            print(f"[STATIC] Serving {filename} from images folder for path: {path}")
             return send_from_directory(os.path.join(build_dir, 'images'), filename)
             
         # Check assets folder
         assets_path = os.path.join(build_dir, 'assets', filename)
         if os.path.exists(assets_path):
+            print(f"[STATIC] Serving {filename} from assets folder for path: {path}")
             return send_from_directory(os.path.join(build_dir, 'assets'), filename)
-    
+            
+        # Also check if it's in the root of build (e.g. favicon.ico)
+        if os.path.exists(os.path.join(build_dir, filename)):
+            print(f"[STATIC] Serving {filename} from build root for path: {path}")
+            return send_from_directory(build_dir, filename)
+
     if path != "" and os.path.exists(os.path.join(build_dir, path)):
         return send_from_directory(build_dir, path)
     
