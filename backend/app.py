@@ -295,32 +295,11 @@ def serve_assets(filename):
 @app.route('/<path:path>')
 def serve_react(path):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
-    
-    # All logging lines must have the SAME indentation (4 spaces)
-    app.logger.info(f"Backend build_dir set to: {build_dir}")
-    app.logger.info(f"Does backend/build exist? {os.path.exists(build_dir)}")
-    app.logger.info(f"Does backend/build/assets/service.jpg exist? {os.path.exists(os.path.join(build_dir, 'assets', 'service.jpg'))}")
-    
-    app.logger.info(f"serve_react called with path: {path}")
-    app.logger.info(f"Calculated build_dir: {build_dir}")
-    requested_file = os.path.join(build_dir, path)
-    app.logger.info(f"Checking if exists: {requested_file} → {os.path.exists(requested_file)}")
-    
-    # Check if build directory exists
-    if not os.path.exists(build_dir):
-        print(f"[ERROR] Build directory not found: {build_dir}")
-        return jsonify({'error': 'Frontend not built', 'build_dir': build_dir}), 500
-    
-    # Check if index.html exists
-    index_path = os.path.join(build_dir, 'index.html')
-    if not os.path.exists(index_path):
-        print(f"[ERROR] index.html not found: {index_path}")
-        return jsonify({'error': 'Frontend index.html not found', 'index_path': index_path}), 500
 
     # For API routes, return 404 instead of serving index.html
     if path.startswith('api/') or path.startswith('admin/'):
         return jsonify({'error': 'API endpoint not found'}), 404
-    
+
     # Handle static file requests that might have wrong paths
     if path.startswith('reset-password/static/') or path.startswith('static/'):
         # Extract the actual static file path
@@ -331,12 +310,24 @@ def serve_react(path):
             
             if os.path.exists(static_file_path):
                 return send_from_directory(os.path.join(build_dir, 'static'), static_file)
-            else:
-                print(f"[ERROR] Static file not found in catch-all: {static_file_path}")
+
+    # Check if the path refers to a static file in images or assets
+    # This handles cases like /service/images/logo.png -> serves build/images/logo.png
+    if path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.ico', '.svg')):
+        # Try to find the file in build/images or build/assets
+        filename = os.path.basename(path)
+        
+        # Check images folder
+        images_path = os.path.join(build_dir, 'images', filename)
+        if os.path.exists(images_path):
+            return send_from_directory(os.path.join(build_dir, 'images'), filename)
+            
+        # Check assets folder
+        assets_path = os.path.join(build_dir, 'assets', filename)
+        if os.path.exists(assets_path):
+            return send_from_directory(os.path.join(build_dir, 'assets'), filename)
     
-    # For static files, serve them directly
-    full_path = os.path.join(build_dir, path)
-    if path != "" and os.path.exists(full_path):
+    if path != "" and os.path.exists(os.path.join(build_dir, path)):
         return send_from_directory(build_dir, path)
     
     # For all other routes, serve index.html
