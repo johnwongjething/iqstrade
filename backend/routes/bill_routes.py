@@ -16,6 +16,9 @@ import tempfile
 from ocr_processor import extract_fields_openai
 from extract_fields import extract_fields as extract_fields_legacy
 from ocr_processor_enhanced_v5 import extract_fields_openai_enhanced_v5
+import logging
+
+logger = logging.getLogger(__name__)
 
 bill_routes = Blueprint('bill_routes', __name__)
 # Migration: Removed UPLOAD_FOLDER, switching to Cloudinary for all file storage
@@ -334,6 +337,7 @@ def upload_file():
                             fields = extract_fields_legacy(local_path)
                             ocr_status = "success" if fields else "failed"
                     except Exception as e:
+                        print(f"[ERROR] OCR failed for user {username}: {str(e)}")
                         # Fallback to legacy extraction
                         try:
                             if username == 'ray40':
@@ -344,6 +348,7 @@ def upload_file():
                                 fields = extract_fields_legacy(local_path)
                             ocr_status = "success" if fields else "failed"
                         except Exception as e2:
+                            logger.error(f"OCR Fallback failed for user {username}: {str(e2)}")
                             fields = {}
                             ocr_status = "failed"
                 

@@ -321,14 +321,16 @@ def serve_react(path):
         # Check images folder
         images_path = os.path.join(build_dir, 'images', filename)
         if os.path.exists(images_path):
-            print(f"[STATIC] Serving {filename} from images folder for path: {path}")
-            return send_from_directory(os.path.join(build_dir, 'images'), filename)
+            size = os.path.getsize(images_path)
+            print(f"[STATIC] Serving {filename} from images folder. Size: {size} bytes")
+            return send_file(images_path)
             
         # Check assets folder
         assets_path = os.path.join(build_dir, 'assets', filename)
         if os.path.exists(assets_path):
-            print(f"[STATIC] Serving {filename} from assets folder for path: {path}")
-            return send_from_directory(os.path.join(build_dir, 'assets'), filename)
+            size = os.path.getsize(assets_path)
+            print(f"[STATIC] Serving {filename} from assets folder. Size: {size} bytes")
+            return send_file(assets_path)
             
         # Also check if it's in the root of build (e.g. favicon.ico)
         if os.path.exists(os.path.join(build_dir, filename)):

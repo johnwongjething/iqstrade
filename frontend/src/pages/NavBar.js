@@ -75,7 +75,16 @@ const NavBar = ({ lang, setLang, t }) => {
         ) : (
           <>
             {navLinks.map(link => (
-              <Button color="inherit" component={Link} to={link.to} key={link.to}>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to={link.to} 
+                key={link.to}
+                sx={{ 
+                  borderBottom: location.pathname === link.to ? '2px solid white' : 'none',
+                  borderRadius: 0
+                }}
+              >
                 {link.label}
               </Button>
             ))}
