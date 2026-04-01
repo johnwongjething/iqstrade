@@ -8,7 +8,7 @@ function Home({ t = x => x }) {
   return (
     <Box
       sx={{
-        backgroundImage: 'url(/images/seaport.jpg)',
+        backgroundImage: 'url(/assets/seaport.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         height: '100vh',
