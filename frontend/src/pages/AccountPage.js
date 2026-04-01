@@ -23,7 +23,8 @@ const AccountPage = ({ t = x => x }) => {
     totalServiceFee: 0,
     bankTotal: 0,
     allinpay85Total: 0,
-    reserveTotal: 0
+    reserveTotal: 0,
+    totalCreditDebit: 0
   });
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
@@ -76,10 +77,16 @@ const AccountPage = ({ t = x => x }) => {
       render: (value) => `$${value}`,
     },
     {
+      title: 'Balance Applied',
+      dataIndex: 'balance_applied',
+      key: 'balance_applied',
+      render: (value) => `$${Number(value || 0).toFixed(2)}`,
+    },
+    {
       title: t('total'),
       key: 'total',
       render: (_, record) =>
-        `$${(Number(record.display_ctn_fee) + Number(record.display_service_fee)).toFixed(2)}`,
+        `$${(Number(record.display_ctn_fee) + Number(record.display_service_fee) - Number(record.balance_applied || 0)).toFixed(2)}`,
     },
     {
       title: t('customerName'),
@@ -121,10 +128,11 @@ const AccountPage = ({ t = x => x }) => {
         if (!summaryData) {
           // Calculate summary from bills
           let totalEntries = (data.bills || []).length;
-          let totalCtnFee = 0, totalServiceFee = 0, bankTotal = 0, allinpay85Total = 0, reserveTotal = 0;
+          let totalCtnFee = 0, totalServiceFee = 0, bankTotal = 0, allinpay85Total = 0, reserveTotal = 0, totalCreditDebit = 0;
           (data.bills || []).forEach(bill => {
             totalCtnFee += Number(bill.display_ctn_fee || bill.ctn_fee || 0);
             totalServiceFee += Number(bill.display_service_fee || bill.service_fee || 0);
+            totalCreditDebit += Number(bill.balance_applied || 0);
             if (bill.payment_method === 'Allinpay') {
               allinpay85Total += Number(bill.display_service_fee || bill.service_fee || 0);
               reserveTotal += Number(bill.display_ctn_fee || bill.ctn_fee || 0);
@@ -138,7 +146,8 @@ const AccountPage = ({ t = x => x }) => {
             totalServiceFee,
             bankTotal,
             allinpay85Total,
-            reserveTotal
+            reserveTotal,
+            totalCreditDebit
           };
         }
         setSummary({
@@ -147,7 +156,8 @@ const AccountPage = ({ t = x => x }) => {
           totalServiceFee: summaryData.totalServiceFee || 0,
           bankTotal: summaryData.bankTotal || 0,
           allinpay85Total: summaryData.allinpay85Total || 0,
-          reserveTotal: summaryData.reserveTotal || 0
+          reserveTotal: summaryData.reserveTotal || 0,
+          totalCreditDebit: summaryData.totalCreditDebit || 0
         });
       }
     } catch (error) {
@@ -158,7 +168,8 @@ const AccountPage = ({ t = x => x }) => {
         totalServiceFee: 0,
         bankTotal: 0,
         allinpay85Total: 0,
-        reserveTotal: 0
+        reserveTotal: 0,
+        totalCreditDebit: 0
       });
     } finally {
       setLoading(false);
@@ -199,14 +210,16 @@ const AccountPage = ({ t = x => x }) => {
     doc.text(`${t('totalEntries')}: ${summary.totalEntries}`, 20, 35);
     doc.text(`${t('totalCtnFees')}: $${summary.totalCtnFee}`, 20, 45);
     doc.text(`${t('totalServiceFee')}: $${summary.totalServiceFee}`, 20, 55);
-    doc.text(`${t('bankTransfer')}: $${summary.bankTotal}`, 20, 65);
-    doc.text(`${t('allinpay85')}: $${summary.allinpay85Total}`, 20, 75);
-    doc.text(`${t('allinpayReserve')}: $${summary.reserveTotal}`, 20, 85);
+    doc.text(`Credit/Debit: $${(summary.totalCreditDebit || 0).toFixed(2)}`, 20, 65);
+    doc.text(`${t('bankTransfer')}: $${summary.bankTotal}`, 20, 75);
+    doc.text(`${t('allinpay85')}: $${summary.allinpay85Total}`, 20, 85);
+    doc.text(`${t('allinpayReserve')}: $${summary.reserveTotal}`, 20, 95);
 
     const tableColumn = [
       t('blNumber'),
       t('ctnFee'),
       t('serviceFee'),
+      'Balance Applied',
       t('total'),
       t('customerName'),
       t('paymentType'),
@@ -217,7 +230,8 @@ const AccountPage = ({ t = x => x }) => {
       bill.bl_number || '',
       `$${bill.display_ctn_fee || 0}`,
       `$${bill.display_service_fee || 0}`,
-      `$${(parseFloat(bill.display_ctn_fee || 0) + parseFloat(bill.display_service_fee || 0)).toFixed(2)}`,
+      `$${Number(bill.balance_applied || 0).toFixed(2)}`,
+      `$${(parseFloat(bill.display_ctn_fee || 0) + parseFloat(bill.display_service_fee || 0) - parseFloat(bill.balance_applied || 0)).toFixed(2)}`,
       bill.customer_name || '',
       bill.payment_method === 'Allinpay' ? t('allinpay') : t('bankTransfer'),
       bill.completed_at ? new Date(bill.completed_at).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
@@ -301,6 +315,7 @@ const AccountPage = ({ t = x => x }) => {
         <div style={{ textAlign: 'center' }}><h3>{t('totalEntries')}</h3><div style={{ fontSize: 24 }}>{summary.totalEntries}</div></div>
         <div style={{ textAlign: 'center' }}><h3>{t('totalCtnFees')}</h3><div style={{ fontSize: 24 }}>${summary.totalCtnFee}</div></div>
         <div style={{ textAlign: 'center' }}><h3>{t('totalServiceFee')}</h3><div style={{ fontSize: 24 }}>${summary.totalServiceFee}</div></div>
+        <div style={{ textAlign: 'center' }}><h3>Credit/Debit</h3><div style={{ fontSize: 24 }}>${(summary.totalCreditDebit || 0).toFixed(2)}</div></div>
         <div style={{ textAlign: 'center' }}><h3>{t('bankTransfer')}</h3><div style={{ fontSize: 24 }}>${summary.bankTotal}</div></div>
         <div style={{ textAlign: 'center' }}><h3>{t('allinpay85')}</h3><div style={{ fontSize: 24 }}>${summary.allinpay85Total}</div></div>
         <div style={{ textAlign: 'center' }}><h3>{t('allinpayReserve')}</h3><div style={{ fontSize: 24 }}>${summary.reserveTotal}</div></div>

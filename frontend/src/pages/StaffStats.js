@@ -161,6 +161,7 @@ function StaffStats({ t = x => x }) {
                     <TableCell>{t('blNumber')}</TableCell>
                     <TableCell>{t('ctnFee')}</TableCell>
                     <TableCell>{t('serviceFee')}</TableCell>
+                    <TableCell>Balance Applied</TableCell>
                     <TableCell>{t('total')}</TableCell>
                     <TableCell>{t('outstanding')}</TableCell>
                     <TableCell>{t('invoicePDF')}</TableCell>
@@ -180,11 +181,16 @@ function StaffStats({ t = x => x }) {
                       <TableCell>
                         ${row.service_fee ? Number(row.service_fee).toFixed(2) : '0.00'}
                       </TableCell>
-                      {/* Total Invoice Amount (Full amount: CTN + Service) */}
+                      {/* Balance Applied */}
+                      <TableCell>
+                        ${row.balance_applied ? Number(row.balance_applied).toFixed(2) : '0.00'}
+                      </TableCell>
+                      {/* Total Invoice Amount (Adjusted: CTN + Service - Balance Applied) */}
                       <TableCell>
                         ${(
                           (Number(row.ctn_fee) || 0) +
-                          (Number(row.service_fee) || 0)
+                          (Number(row.service_fee) || 0) -
+                          (Number(row.balance_applied) || 0)
                         ).toFixed(2)}
                       </TableCell>
                       {/* Outstanding Amount (Adjusted: 15% if Allinpay Unsettled) */}
@@ -193,7 +199,8 @@ function StaffStats({ t = x => x }) {
                           ? Number(row.outstanding_amount).toFixed(2)
                           : (
                               (Number(row.ctn_fee) || 0) +
-                              (Number(row.service_fee) || 0)
+                              (Number(row.service_fee) || 0) -
+                              (Number(row.balance_applied) || 0)
                             ).toFixed(2)
                         }
                       </TableCell>

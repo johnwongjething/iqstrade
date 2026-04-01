@@ -1,0 +1,222 @@
+WHATSAPP TEST QUESTIONS
+========================
+
+Valid BL Numbers: NYC220 to NYC247
+
+SIMPLE QUESTIONS (5)
+===================
+
+1. Simple Payment:
+I paid $200 for NYC220
+
+2. CTN Request:
+What is the CTN number for NYC221?
+
+3. Invoice Request:
+Can you send me the invoice for NYC222?
+
+4. Payment Status:
+What is the payment status for NYC223?
+
+5. General Question:
+Hello, how are you today?
+
+
+COMPLEX QUESTIONS (10)
+=====================
+
+6. Multiple BLs:
+I need info for NYC224, NYC225, and NYC226
+
+7. Mixed Languages:
+请问NYC227的CTN号码是多少？Can you also send invoice?
+
+8. Irrelevant + Valid:
+The weather is nice! What's the status of NYC228?
+
+9. Complex Request:
+I paid $150 for NYC229, need CTN, invoice, and arrival date
+
+10. Invalid BL:
+What's the status of NYC999?
+
+11. Multiple Requests:
+I need CTN for NYC230, invoice for NYC231, and payment status for NYC232
+
+12. Reserve Question:
+What is the reserve amount for NYC233?
+
+13. Arrival Date:
+When will NYC234 arrive at the port?
+
+14. Tracking Request:
+Can you track NYC235 for me?
+
+15. Pricing Question:
+What is the total cost for NYC236?
+
+
+EMAIL TEST EMAILS
+================
+
+Simple Email Tests (5)
+---------------------
+
+1. Simple Payment:
+Subject: Payment for NYC220
+Body:
+Dear IQS Trade,
+
+I have paid $200 for NYC220. Please confirm receipt.
+
+Thanks,
+Client
+
+2. CTN Request:
+Subject: CTN number for NYC221
+Body:
+Hello IQS Trade,
+
+请问NYC221的CTN号码是多少？
+
+Thanks,
+Client
+
+3. Invoice Request:
+Subject: Invoice for NYC222
+Body:
+Hi IQS Trade,
+
+Can you send me the invoice for NYC222?
+
+Best regards,
+Client
+
+4. Payment Status:
+Subject: Payment status NYC223
+Body:
+Dear Team,
+
+What is the payment status for NYC223?
+
+Regards,
+Client
+
+5. General Enquiry:
+Subject: General question
+Body:
+Hello IQS Trade,
+
+I have a general question about shipping procedures.
+
+Thanks,
+Client
+
+
+Complex Email Tests (5)
+----------------------
+
+6. Multiple BLs:
+Subject: Multiple shipments - NYC224, NYC225, NYC226
+Body:
+Dear IQS Trade,
+
+I need information for multiple shipments:
+
+1. NYC224: Payment status and CTN number
+2. NYC225: Invoice and tracking details
+3. NYC226: Reserve settlement amount
+
+Please provide updates for all three shipments.
+
+Best regards,
+Client
+
+7. Mixed Languages:
+Subject: Mixed language request - NYC227
+Body:
+Hello IQS Trade,
+
+请问NYC227的CTN号码是多少？
+Can you also send me the invoice for this shipment?
+
+另外，什么时候可以安排提货？
+When will the container be available for pickup?
+
+Thanks,
+谢谢,
+Client
+
+8. Irrelevant + Valid:
+Subject: Weather and shipment - NYC228
+Body:
+Hi IQS Trade,
+
+The weather is really nice today! 
+I hope you're having a good day.
+
+By the way, I need the CTN number for NYC228.
+Also, what's the current status of this shipment?
+
+Have a great day!
+Client
+
+9. Complex Payment:
+Subject: Partial payment and reserve - NYC229
+Body:
+Dear IQS Trade,
+
+I have made a partial payment of $150 for NYC229.
+The total amount is $200, so I still owe $50.
+
+Can you confirm the payment receipt?
+Also, what is the reserve amount for this shipment?
+
+I will settle the remaining amount next week.
+
+Thanks,
+Client
+
+10. Multiple Requests:
+Subject: Various requests - NYC230
+Body:
+Hello IQS Trade,
+
+I have several questions about NYC230:
+
+1. What is the CTN number?
+2. Can you send the invoice?
+3. What is the payment status?
+4. When will it arrive at the port?
+5. How much is the reserve amount?
+
+Please provide all this information.
+
+Also, I need to know about NYC231 and NYC232 as well.
+
+Thanks,
+Client
+
+
+TESTING INSTRUCTIONS
+===================
+
+WhatsApp Testing:
+1. Copy each question from the "SIMPLE QUESTIONS" or "COMPLEX QUESTIONS" section
+2. Paste it into your WhatsApp chat with the bot
+3. Wait for the response
+4. Check if the bot correctly identifies BL numbers and responds appropriately
+
+Email Testing:
+1. Copy each email (subject + body) from the "EMAIL TEST EMAILS" section
+2. Send it to your monitored email address
+3. Wait for email processing
+4. Check the customer_emails table in your database
+5. Verify that emails are classified correctly and draft replies are generated
+
+Expected Results:
+- Valid BL numbers (NYC220-NYC247) should be recognized
+- Invalid BL numbers (NYC999) should be handled gracefully
+- Mixed language content should be processed
+- Multiple requests should be handled appropriately
+- Irrelevant content should not interfere with valid requests 

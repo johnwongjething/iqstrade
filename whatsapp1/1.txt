@@ -1,0 +1,1271 @@
+// Debug: Check if this file is being run directly
+if (require.main === module) {
+    console.error('[FATAL] chatHandler.js is being run directly as a script. This file should only be imported, not executed.');
+    process.exit(1);
+}
+
+const { OpenAI } = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { getInvoiceLink, getUniqueNumber, getValidBLs, getInvoiceInfo } = require('./db');
+const { logMessage } = require('./logger');
+const SYSTEM_PROMPT = `You are a logistics assistant. For every user message, respond in this JSON format:
+{
+  "intent": "request_invoice|ask_ctn_number|ask_payment_methods|ask_pricing|general_question|other",
+  "bl_number": "<BL number if present, else null>",
+  "answer": "<Short, helpful answer for general questions or if intent is unclear>"
+}
+If the user asks for an invoice, CTN, or payment, extract the BL number if present.`;
+
+const conversationHistory = {};
+const HISTORY_LENGTH = 4;
+const fetch = require('node-fetch');
+
+async function verifySensitiveAccess({ email, bl_number, invoice_number, ctn_number, ctn }) {
+    try {
+        const res = await fetch('http://localhost:5000/api/verify_sensitive_access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, bl_number, invoice_number, ctn_number, ctn })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) return { ok: true };
+        return { ok: false, error: data.error || 'Verification failed' };
+    } catch (e) {
+        return { ok: false, error: 'Verification error' };
+    }
+}
+
+async function chatHandler(message, sender, context = {}, client = null) {
+    // --- Early exit: Prevent duplicate email prompt at the very start ---
+    const promptMsg = 'For security, please provide your registered email to access this information.';
+    if (
+        conversationHistory[sender] &&
+        conversationHistory[sender].lastSentMsg === promptMsg &&
+        conversationHistory[sender].session &&
+        conversationHistory[sender].session._emailPrompted
+    ) {
+        console.debug('[EARLY EXIT] Duplicate email prompt blocked at handler entry.');
+        return promptMsg;
+    }
+    if (!conversationHistory[sender]) {
+        conversationHistory[sender] = { history: [], session: {} };
+    }
+    if (!conversationHistory[sender].session) {
+        conversationHistory[sender].session = {};
+    }
+    if (!conversationHistory[sender].history) {
+        conversationHistory[sender].history = [];
+    }
+
+    function isEmail(str) {
+        return typeof str === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str.trim());
+    }
+    function isChinese(text) {
+        if (!text) return false;
+        const chineseChars = Array.from(text).filter(c => /[\u4e00-\u9fff]/.test(c)).length;
+        return chineseChars > 0 && chineseChars / Math.max(1, text.length) > 0.2;
+    }
+    async function openaiTranslate(text, sourceLang, targetLang) {
+        try {
+            const translationPrompt = `Translate the following ${sourceLang} text to ${targetLang}. Only return the translated text, no explanation.\n\n${text}`;
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: 'You are a professional translator.' },
+                    { role: 'user', content: translationPrompt }
+                ],
+                temperature: 0
+            });
+            return response.choices[0].message.content.trim();
+        } catch (e) {
+            console.error('[OpenAI Translate] Failed:', e);
+            return text;
+        }
+    }
+    const incomingIsChinese = isChinese(message);
+
+    // --- Payment amount extraction ---
+    function extractPaymentAmount(text) {
+        if (!text) return null;
+        const patterns = [
+            /\$\s?([0-9]+(?:\.[0-9]{1,2})?)/i,
+            /USD\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
+            /Amount[::]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)/i,
+            /Paid[::]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)/i
+        ];
+        for (const pat of patterns) {
+            const match = text.match(pat);
+            if (match) {
+                try {
+                    return parseFloat(match[1]);
+                } catch (e) { continue; }
+            }
+        }
+        return null;
+    }
+
+    // --- Enhanced BL extraction and merging (like email_ingestor.py) ---
+    let paidAmount = null;
+    let regexBLs = [];
+    let contextBLs = Array.isArray(context.bl_numbers) ? context.bl_numbers : [];
+    if (context && context.paid_amount !== undefined && context.paid_amount !== null) {
+        paidAmount = context.paid_amount;
+    }
+    // Regex BLs from message (improved: match codes like NAM20, BL-xxxx, 3+ digit numbers, and deduplicate)
+    const blPattern = /(?:???[::]?\s*)?([A-Z]{2,4}\d{2,}|BL-\d{4,}|\d{3,}-\d{3,}|\d{6,}|\d{4,})/gi;
+    let match;
+    while ((match = blPattern.exec(message)) !== null) {
+        if (match[1]) regexBLs.push(match[1]);
+    }
+    // Also match comma/space separated numbers (e.g. "NAM20, 6543")
+    const extraBLs = message.split(/[,\s]+/).filter(x => /^[A-Z]{2,4}\d{2,}$|^\d{4,}$/.test(x));
+    regexBLs = Array.from(new Set([...regexBLs, ...extraBLs]));
+    if (paidAmount === null) {
+        paidAmount = extractPaymentAmount(message);
+    }
+    let aiIntent = null;
+    let blNumber = null;
+    let aiAnswer = null;
+    let reply = null;
+    let blNumbers = [];
+    let aiReplyText = null;
+
+    // --- Pending sensitive request resume logic ---
+    let pendingSensitive = conversationHistory[sender].session.pendingSensitiveRequest;
+    let isEmailOnly = isEmail(message) && message.trim() === message;
+    if (isEmailOnly && pendingSensitive) {
+        // Resume previous sensitive request
+        aiIntent = pendingSensitive.aiIntent;
+        blNumbers = pendingSensitive.blNumbers;
+        paidAmount = pendingSensitive.paidAmount;
+        aiAnswer = pendingSensitive.aiAnswer;
+        // Don't run OpenAI again, skip to verification/business logic
+    } else {
+        const messages = [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...conversationHistory[sender].history
+        ];
+        try {
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages,
+                max_tokens: 300
+            });
+            const content = completion.choices[0]?.message?.content?.trim();
+            console.debug('[DEBUG] OpenAI raw response:', content);
+            let aiResult = {};
+            let aiResults = [];
+            try {
+                // Try to parse as a single JSON object first
+                aiResult = JSON.parse(content);
+                aiResults = [aiResult];
+            } catch (err) {
+                // Try to extract all JSON objects from the response
+                const matches = content.match(/\{[\s\S]*?\}/g);
+                if (matches && matches.length > 0) {
+                    aiResults = matches.map(j => {
+                        try { return JSON.parse(j); } catch { return null; }
+                    }).filter(Boolean);
+                } else {
+                    aiResults = [{ intent: 'general_question', bl_number: null, answer: content }];
+                }
+            }
+            // Merge all BLs and answers from multiple results
+            let aiIntents = aiResults.map(r => r.intent);
+            let blNumbersAI = aiResults.map(r => r.bl_number).filter(Boolean);
+            let aiAnswers = aiResults.map(r => r.answer).filter(Boolean);
+            // Use the first intent for routing, but collect all BLs
+            aiIntent = aiIntents[0];
+            blNumber = blNumbersAI.length === 1 ? blNumbersAI[0] : blNumbersAI;
+            aiAnswer = aiAnswers.join('\n');
+            console.debug('[DEBUG] Parsed OpenAI intent:', aiIntent, 'BL:', blNumber);
+            // Merge BLs from AI, regex, context, and AI reply text
+            // blNumbersAI is now handled above with multi-JSON parsing
+            // Fallback: extract BLs from AI reply text
+            let blsFromAIReply = [];
+            if (content) {
+                let m;
+                while ((m = blPattern.exec(content)) !== null) {
+                    if (m[1]) blsFromAIReply.push(m[1]);
+                }
+            }
+            // Merge all sources and deduplicate
+            blNumbers = Array.from(new Set([
+                ...(blNumbersAI || []),
+                ...(regexBLs || []),
+                ...(contextBLs || []),
+                ...(blsFromAIReply || [])
+            ]));
+            console.debug('[DEBUG] Extracted BL numbers (pre-DB):', blNumbers);
+            // Remove BLs that are part of an email address
+            if (isEmail(message)) {
+                const email = message.trim();
+                const emailUser = email.split('@')[0];
+                blNumbers = blNumbers.filter(
+                    bl => bl !== email && bl !== emailUser && !email.includes(bl)
+                );
+            }
+            // Fallback: If BLs found and intent is not set, try to infer intent from message
+            if (blNumbers.length > 0 && (!aiIntent || aiIntent === 'general_question' || aiIntent === 'other')) {
+                const msgLower = message.toLowerCase();
+                if (/ctn|container/.test(msgLower)) {
+                    aiIntent = 'ask_ctn_number';
+                    console.debug('[DEBUG] Fallback: Forcing intent to ask_ctn_number');
+                } else if (/invoice|??/.test(msgLower)) {
+                    aiIntent = 'request_invoice';
+                    console.debug('[DEBUG] Fallback: Forcing intent to request_invoice');
+                }
+            }
+            // Validate BLs in DB, but keep track of found and missing
+            let validBLs = [];
+            if (blNumbers.length > 0) {
+                console.debug('[DEBUG] Passing BL numbers to DB validation:', blNumbers);
+                validBLs = await getValidBLs(blNumbers);
+                console.debug('[DEBUG] Valid BL numbers from DB:', validBLs);
+            }
+            let paidAmountAI = aiResult.info_needed?.paid_amount || null;
+            if (paidAmount == null && paidAmountAI != null) {
+                try {
+                    paidAmount = parseFloat(String(paidAmountAI).replace(/[^0-9.]+/g, ''));
+                } catch (e) { paidAmount = null; }
+            }
+            // Partition BLs into found and missing
+            const foundBLs = validBLs;
+            const missingBLs = blNumbers.filter(bl => !validBLs.includes(bl));
+            blNumbers = foundBLs;
+            // If no BLs found, reply as before
+            if (blNumbers.length === 0 && missingBLs.length > 0) {
+                reply = `Sorry, the BL number(s) you provided (${missingBLs.join(', ')}) could not be found in our system. Please check and try again.`;
+                logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'bl_not_found', bl_numbers: missingBLs });
+                conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+                // Clear pending sensitive request if any
+                conversationHistory[sender].session.pendingSensitiveRequest = null;
+                return reply;
+            }
+            // If some BLs found and some missing, add a warning
+            if (blNumbers.length > 0 && missingBLs.length > 0) {
+                reply = `Note: The following BL number(s) could not be found in our system: ${missingBLs.join(', ')}. Proceeding with found BL(s): ${blNumbers.join(', ')}.`;
+                logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'bl_partial_found', bl_numbers: blNumbers, missing_bls: missingBLs });
+                conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+                // Continue with found BLs for business logic
+            }
+        } catch (err) {
+            console.error('OpenAI error:', err);
+            reply = 'Sorry, there was an error processing your request.';
+            logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'openai_error', bl_number: null });
+            conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+            // Clear pending sensitive request if any
+            conversationHistory[sender].session.pendingSensitiveRequest = null;
+            return reply;
+        }
+    }
+
+    // ...business logic for reply (invoice, ctn, payment, etc.) goes here...
+    // --- Fallback: If payment amount is detected and BLs are present, force intent to payment_receipt (covers PDF and plain text bank transfer details) ---
+    if (blNumbers.length > 0 && paidAmount !== null) {
+        if (aiIntent !== 'payment_receipt') {
+            console.debug('[DEBUG] Forcing aiIntent to payment_receipt due to detected paidAmount and BLs');
+        }
+        aiIntent = 'payment_receipt';
+    }
+    // --- Fallback: If user message contains 'ctn' or 'container' and we have valid BLs, force intent to ask_ctn_number ---
+    const msgLower = message.toLowerCase();
+    if (blNumbers.length > 0 && (/ctn|container/.test(msgLower))) {
+        if (aiIntent !== 'ask_ctn_number') {
+            console.debug('[DEBUG] Forcing aiIntent to ask_ctn_number due to message and valid BLs');
+        }
+        aiIntent = 'ask_ctn_number';
+    }
+    // --- Fallback: If user message contains 'invoice' or '??' and we have valid BLs, force intent to request_invoice ---
+    if (blNumbers.length > 0 && (/invoice|??/.test(msgLower))) {
+        if (aiIntent !== 'request_invoice') {
+            console.debug('[DEBUG] Forcing aiIntent to request_invoice due to message and valid BLs');
+        }
+        aiIntent = 'request_invoice';
+    }
+    // Route based on intent, now supporting multi-BL and payment amount
+    let replyIsChinese = false;
+    // --- Require email verification for all sensitive queries (invoice, CTN, payment, fallback BL) ---
+    const needsSensitiveVerification = (
+        (aiIntent === 'request_invoice' && blNumbers.length > 0) ||
+        (aiIntent === 'ask_ctn_number' && blNumbers.length > 0) ||
+        ((aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) && paidAmount !== null) ||
+        ((aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other')) && blNumbers.length > 0)
+    );
+    // If the message is an email, treat it as the candidate for verification
+    let userEmail = conversationHistory[sender].session.verifiedEmail || context.email;
+    let justProvidedEmail = null;
+    if (isEmail(message)) {
+        justProvidedEmail = message.trim();
+        userEmail = justProvidedEmail;
+    }
+    if (needsSensitiveVerification) {
+        // Prevent double prompt and double reply: only allow one sensitive flow at a time
+        if (conversationHistory[sender].session._sensitiveFlowActive && !isEmailOnly) {
+            // If a sensitive flow is already active and this is not the email reply, do nothing
+            return;
+        }
+        conversationHistory[sender].session._sensitiveFlowActive = true;
+        console.debug('[DEBUG] Sensitive verification triggered. aiIntent:', aiIntent, 'blNumbers:', blNumbers, 'paidAmount:', paidAmount, 'userEmail:', userEmail);
+        // If no email provided, prompt and return immediately
+        if (!userEmail && client) {
+            // Store pending sensitive request in session
+            conversationHistory[sender].session.pendingSensitiveRequest = {
+                aiIntent,
+                blNumbers,
+                paidAmount,
+                aiAnswer
+            };
+            if (!conversationHistory[sender].session._emailPrompted) {
+                const promptMsg = 'For security, please provide your registered email to access this information.';
+                const lastMsg = conversationHistory[sender].lastSentMsg;
+                console.debug(`[EMAIL PROMPT LOGIC] lastSentMsg: '${lastMsg}', promptMsg: '${promptMsg}', _emailPrompted:`, conversationHistory[sender].session._emailPrompted);
+                if (lastMsg !== promptMsg && !conversationHistory[sender].session._emailPrompted) {
+                    conversationHistory[sender].session._emailPrompted = true;
+                    conversationHistory[sender].lastSentMsg = promptMsg; // Set BEFORE sending to avoid race
+                    console.debug('[EMAIL PROMPT LOGIC] Sending email prompt to user.');
+                    await client.sendMessage(sender, { text: promptMsg });
+                } else {
+                    console.debug('[DUPLICATE BLOCKED] Not sending duplicate email prompt to user.');
+                }
+                return promptMsg;
+            } else {
+                // Already prompted, do not prompt again
+                return;
+            }
+        }
+        // If not already verified in session, verify now (or if just provided a new email)
+        if (!conversationHistory[sender].session.verifiedEmail || justProvidedEmail) {
+            let allVerified = true;
+            for (const bl of blNumbers) {
+                const verify = await verifySensitiveAccess({ email: userEmail, bl_number: bl });
+                if (!verify.ok) {
+                    allVerified = false;
+                    let failType = 'verification_failed';
+                    if (aiIntent === 'request_invoice' || (aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other'))) failType = 'invoice_verification_failed';
+                    else if (aiIntent === 'ask_ctn_number') failType = 'ctn_verification_failed';
+                    else if (aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) failType = 'payment_verification_failed';
+                    reply = `Cannot show info for BL ${bl}: ${verify.error}`;
+                    logMessage('AI_REPLY', { question: message, reply, user: sender, classification: failType, bl_numbers: [bl] });
+                    conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+                    // Clear pending sensitive request if any
+                    conversationHistory[sender].session.pendingSensitiveRequest = null;
+                    conversationHistory[sender].session._emailPrompted = false;
+                    conversationHistory[sender].session._sensitiveFlowActive = false;
+                    return reply;
+                }
+            }
+            if (allVerified) {
+                conversationHistory[sender].session.verifiedEmail = userEmail;
+            } else {
+                // If any failed, do not proceed to business logic
+                // Clear pending sensitive request if any
+                conversationHistory[sender].session.pendingSensitiveRequest = null;
+                conversationHistory[sender].session._emailPrompted = false;
+                conversationHistory[sender].session._sensitiveFlowActive = false;
+                return reply || 'Email verification failed.';
+            }
+        }
+        // If just provided an email, and it was verified, continue to the sensitive info flow
+        if (!conversationHistory[sender].session.verifiedEmail) {
+            if (!justProvidedEmail && !conversationHistory[sender].session._emailPrompted) {
+                conversationHistory[sender].session.pendingSensitiveRequest = {
+                    aiIntent,
+                    blNumbers,
+                    paidAmount,
+                    aiAnswer
+                };
+                conversationHistory[sender].session._emailPrompted = true;
+                const promptMsg = 'For security, please provide your registered email to access this information.';
+                const lastMsg = conversationHistory[sender].lastSentMsg;
+                if (lastMsg !== promptMsg) {
+                    await client.sendMessage(sender, { text: promptMsg });
+                    conversationHistory[sender].lastSentMsg = promptMsg;
+                } else {
+                    console.debug('[DUPLICATE BLOCKED] Not sending duplicate email prompt to user.');
+                }
+                return promptMsg;
+            } else {
+                conversationHistory[sender].session.pendingSensitiveRequest = null;
+                conversationHistory[sender].session._sensitiveFlowActive = false;
+                return reply || 'Email verification failed.';
+            }
+        } else {
+            // If just provided an email and it was verified, or already verified, clear pending and continue
+            conversationHistory[sender].session.pendingSensitiveRequest = null;
+            conversationHistory[sender].session._emailPrompted = false;
+            conversationHistory[sender].session._sensitiveFlowActive = false;
+        }
+    }
+
+    // --- Invoice info (after verification) ---
+    if (aiIntent === 'request_invoice' && blNumbers.length > 0) {
+        let replyLines = [];
+        // Process all BLs, just like email_ingestor.py
+        for (const bl of blNumbers) {
+            const result = await getInvoiceLink(bl.trim());
+            if (Array.isArray(result) && result.length > 0) {
+                const invoiceValue = result[0].invoice_filename;
+                if (invoiceValue) {
+                    replyLines.push(`For BL ${bl}: Here's your invoice: ${invoiceValue}`);
+                } else {
+                    replyLines.push(`For BL ${bl}: Invoice not yet issued. Please contact support.`);
+                }
+            } else {
+                replyLines.push(`For BL ${bl}: No invoice found.`);
+            }
+        }
+        reply = replyLines.join('\n');
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'invoice_request', bl_numbers: blNumbers });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        // Only send message once here, and avoid duplicate consecutive messages
+        if (typeof reply === 'string' && reply.trim() && client) {
+            const lastMsg = conversationHistory[sender].lastSentMsg;
+            if (lastMsg !== reply) {
+                await client.sendMessage(sender, { text: reply });
+                conversationHistory[sender].lastSentMsg = reply;
+            } else {
+                console.debug('[DUPLICATE BLOCKED] Not sending duplicate message to user.');
+            }
+        }
+        return reply;
+    }
+
+    if (aiIntent === 'ask_ctn_number' && blNumbers.length > 0) {
+        let replyLines = [];
+        for (const bl of blNumbers) {
+            const ctn = await getUniqueNumber(bl.trim());
+            if (ctn) {
+                replyLines.push(`For BL ${bl}: CTN number is ${ctn}.`);
+            } else {
+                replyLines.push(`For BL ${bl}: No CTN number found.`);
+            }
+        }
+        reply = replyLines.join('\n');
+        // If reply is empty, fallback to OpenAI answer or a default message
+        if (!reply || !reply.trim()) {
+            reply = aiAnswer || 'Sorry, I did not understand your request.';
+        }
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'ctn_request', bl_numbers: blNumbers });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        // Only send message once here, and avoid duplicate consecutive messages
+        if (typeof reply === 'string' && reply.trim() && client) {
+            const lastMsg = conversationHistory[sender].lastSentMsg;
+            if (lastMsg !== reply) {
+                await client.sendMessage(sender, { text: reply });
+                conversationHistory[sender].lastSentMsg = reply;
+            } else {
+                console.debug('[DUPLICATE BLOCKED] Not sending duplicate message to user.');
+            }
+        }
+        return reply || '';
+    }
+
+    if (blNumbers.length > 0 && paidAmount !== null) {
+        let invoiceSum = 0;
+        let invoiceDetails = [];
+        let allHaveAmount = true;
+        // For each BL, sum ctn_fee and service_fee from DB (getInvoiceInfo)
+        const invoiceInfos = await getInvoiceInfo(blNumbers);
+        for (const bl of blNumbers) {
+            const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+            let amount = null;
+            if (info && (info.ctn_fee !== undefined || info.service_fee !== undefined)) {
+                const ctnFee = Number(info.ctn_fee) || 0;
+                const serviceFee = Number(info.service_fee) || 0;
+                amount = ctnFee + serviceFee;
+                invoiceSum += amount;
+                invoiceDetails.push(`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`);
+            } else {
+                allHaveAmount = false;
+                invoiceDetails.push(`BL ${bl}: No fee data found in DB.`);
+            }
+        }
+        let diff = paidAmount - invoiceSum;
+        if (invoiceSum > 0 && allHaveAmount) {
+            const { generateReceiptPDF, uploadReceiptToCloudinary, updateBLStatusAndReceipt } = require('./receipt_utils');
+            if (Math.abs(diff) < 0.01 || diff > 0) {
+                reply = `We received your payment of $${paidAmount}, which matches the total invoice amount for BL(s):\n${invoiceDetails.join('\n')}`;
+                if (diff > 0) {
+                    reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have overpaid by $${diff.toFixed(2)}. Please contact support for a refund or to allocate the excess.`;
+                }
+                reply += '\nA receipt will be generated and sent to you shortly.';
+                try {
+                    // For each BL, generate/upload receipt and update DB
+                    const fs = require('fs');
+                    for (const bl of blNumbers) {
+                        // Find invoice details for this BL
+                        const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+                        if (!info) {
+                            console.error(`[ERROR] No invoice info found for BL ${bl}`);
+                            continue;
+                        }
+                        const ctnFee = Number(info.ctn_fee) || 0;
+                        const serviceFee = Number(info.service_fee) || 0;
+                        const amount = ctnFee + serviceFee;
+                        const details = [`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`];
+                        // Generate receipt for this BL
+                        const pdfPath = await generateReceiptPDF({ blNumbers: [bl], paidAmount: amount, invoiceDetails: details, customerName: '' });
+                        const receiptUrl = await uploadReceiptToCloudinary(pdfPath);
+                        await updateBLStatusAndReceipt([bl], receiptUrl);
+                        fs.unlink(pdfPath, () => {});
+                    }
+                } catch (e) {
+                    console.error('[ERROR] Failed to generate/upload receipt:', e);
+                }
+            } else if (diff < 0) {
+                reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have underpaid by $${Math.abs(diff).toFixed(2)}. Please pay the remaining amount.`;
+            }
+        } else {
+            reply = `We detected a payment of $${paidAmount} for BL number(s): ${blNumbers.join(', ')}.`;
+            reply += '\nIf you have any questions or need a receipt, let us know.';
+        }
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_receipt', bl_numbers: blNumbers, paid_amount: paidAmount, invoice_sum: invoiceSum, invoice_details: invoiceDetails });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        // Only send message once here, and avoid duplicate consecutive messages
+        if (typeof reply === 'string' && reply.trim() && client) {
+            const lastMsg = conversationHistory[sender].lastSentMsg;
+            if (lastMsg !== reply) {
+                await client.sendMessage(sender, { text: reply });
+                conversationHistory[sender].lastSentMsg = reply;
+            } else {
+                console.debug('[DUPLICATE BLOCKED] Not sending duplicate message to user.');
+            }
+        }
+        return reply;
+    }
+
+    // Only reply with payment methods if not both BLs and paidAmount are present
+    if (aiIntent === 'ask_payment_methods') {
+        reply = `We accept the following payment methods:\n• Bank Transfer\n• Allinpay\n• Stripe`;
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_methods', bl_numbers: blNumbers });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        return reply;
+    }
+
+    if (aiIntent === 'ask_pricing') {
+        reply = `Our pricing depends on the number of containers and services required. Please provide your BL number(s) and details for a quote.`;
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'pricing', bl_numbers: blNumbers });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        return reply;
+    }
+
+    // General or fallback
+    // If BLs and payment detected, check for underpaid/overpaid/matched logic
+    if ((aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) && paidAmount !== null) {
+        let invoiceSum = 0;
+        let invoiceDetails = [];
+        let allHaveAmount = true;
+        // For each BL, sum ctn_fee and service_fee from DB (getInvoiceInfo)
+        const invoiceInfos = await require('./db').getInvoiceInfo(blNumbers);
+        for (const bl of blNumbers) {
+            const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+            let amount = null;
+            if (info && (info.ctn_fee !== undefined || info.service_fee !== undefined)) {
+                const ctnFee = Number(info.ctn_fee) || 0;
+                const serviceFee = Number(info.service_fee) || 0;
+                amount = ctnFee + serviceFee;
+                invoiceSum += amount;
+                invoiceDetails.push(`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`);
+            } else {
+                allHaveAmount = false;
+                invoiceDetails.push(`BL ${bl}: No fee data found in DB.`);
+            }
+        }
+        let diff = paidAmount - invoiceSum;
+        if (invoiceSum > 0 && allHaveAmount) {
+            const { generateReceiptPDF, uploadReceiptToCloudinary, updateBLStatusAndReceipt } = require('./receipt_utils');
+            if (Math.abs(diff) < 0.01 || diff > 0) {
+                reply = `We received your payment of $${paidAmount}, which matches the total invoice amount for BL(s):\n${invoiceDetails.join('\n')}`;
+                if (diff > 0) {
+                    reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have overpaid by $${diff.toFixed(2)}. Please contact support for a refund or to allocate the excess.`;
+                }
+                reply += '\nA receipt will be generated and sent to you shortly.';
+                try {
+                    // Generate, upload, and update status for all BLs
+                    const pdfPath = await generateReceiptPDF({ blNumbers, paidAmount, invoiceDetails, customerName: '' });
+                    const receiptUrl = await uploadReceiptToCloudinary(pdfPath);
+                    await updateBLStatusAndReceipt(blNumbers, receiptUrl);
+                    // Clean up temp file
+                    const fs = require('fs');
+                    fs.unlink(pdfPath, () => {});
+                } catch (e) {
+                    console.error('[ERROR] Failed to generate/upload receipt:', e);
+                }
+            } else if (diff < 0) {
+                reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have underpaid by $${Math.abs(diff).toFixed(2)}. Please pay the remaining amount.`;
+            }
+        } else {
+            reply = `We detected a payment of $${paidAmount} for BL number(s): ${blNumbers.join(', ')}.`;
+            reply += '\nIf you have any questions or need a receipt, let us know.';
+        }
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_receipt', bl_numbers: blNumbers, paid_amount: paidAmount, invoice_sum: invoiceSum, invoice_details: invoiceDetails });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        return reply;
+    }
+    // If BLs detected and intent is 'other', treat as invoice_request (after verification)
+    if ((aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other'))) {
+        let replyLines = [];
+        for (const bl of blNumbers) {
+            const result = await getInvoiceLink(bl.trim());
+            if (Array.isArray(result) && result.length > 0) {
+                const invoiceValue = result[0].invoice_filename;
+                if (invoiceValue) {
+                    replyLines.push(`For BL ${bl}: Here's your invoice: ${invoiceValue}`);
+                } else {
+                    replyLines.push(`For BL ${bl}: Invoice not yet issued. Please contact support.`);
+                }
+            } else {
+                replyLines.push(`For BL ${bl}: No invoice found.`);
+            }
+        }
+        reply = replyLines.join('\n');
+        if (incomingIsChinese) {
+            reply = await openaiTranslate(reply, 'English', 'Chinese');
+            replyIsChinese = true;
+        }
+        if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+            reply += '\n\n???!\nIQSTrade????';
+        }
+        logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'invoice_request', bl_numbers: blNumbers });
+        conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+        return reply;
+    }
+    // Otherwise, fallback to AI answer, but improve for common general enquiries
+    let lowerMsg = message.toLowerCase();
+    if (/how long.*invoice|invoice.*how long|invoice.*time|invoice.*when|when.*invoice|invoice.*after.*upload|upload.*invoice|invoice.*processing|processing.*invoice/.test(lowerMsg)) {
+        reply = 'After you upload your Bill of Lading, it usually takes 1 business day for us to generate and send your invoice via WhatsApp or email. If you need it urgently, please let us know your BL number.';
+    } else {
+        reply = aiAnswer || 'Sorry, I did not understand your request.';
+    }
+    if (incomingIsChinese) {
+        reply = await openaiTranslate(reply, 'English', 'Chinese');
+        replyIsChinese = true;
+    }
+    if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+        reply += '\n\n???!\nIQSTrade????';
+    }
+    logMessage('AI_REPLY', { question: message, reply, user: sender, classification: aiIntent || 'general', bl_numbers: blNumbers });
+    conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+    if (typeof reply === 'string' && reply.trim() && client) {
+        await client.sendMessage(sender, { text: reply });
+    }
+    // Always return a string, never undefined
+    return reply || '';
+}
+
+module.exports = chatHandler;
+
+// // Debug: Check if this file is being run directly
+// if (require.main === module) {
+//     console.error('[FATAL] chatHandler.js is being run directly as a script. This file should only be imported, not executed.');
+//     process.exit(1);
+// }
+// const { OpenAI } = require('openai');
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// // ...existing code before chatHandler...
+
+// async function chatHandler(message, sender, context = {}, client = null) {
+//     // ...existing code inside chatHandler...
+//     // Helper: check if a string is an email address
+//     function isEmail(str) {
+//         return typeof str === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str.trim());
+//     }
+//     // --- Language detection and translation helpers ---
+//     function isChinese(text) {
+//         if (!text) return false;
+//         const chineseChars = Array.from(text).filter(c => /[\u4e00-\u9fff]/.test(c)).length;
+//         return chineseChars > 0 && chineseChars / Math.max(1, text.length) > 0.2;
+//     }
+//     async function openaiTranslate(text, sourceLang, targetLang) {
+//         try {
+//             const translationPrompt = `Translate the following ${sourceLang} text to ${targetLang}. Only return the translated text, no explanation.\n\n${text}`;
+//             const response = await openai.chat.completions.create({
+//                 model: 'gpt-4o',
+//                 messages: [
+//                     { role: 'system', content: 'You are a professional translator.' },
+//                     { role: 'user', content: translationPrompt }
+//                 ],
+//                 temperature: 0
+//             });
+//             return response.choices[0].message.content.trim();
+//         } catch (e) {
+//             console.error('[OpenAI Translate] Failed:', e);
+//             return text;
+//         }
+//     }
+//     const incomingIsChinese = isChinese(message);
+//     // --- Canned responses matching ---
+//     let cannedResponses = [];
+//     try {
+//         // ...existing code...
+//     } catch (e) {
+//         console.error('[Canned Responses] Could not load canned_responses.json:', e);
+//     }
+//     async function findCannedResponse(msg) {
+//         if (!conversationHistory[sender]) {
+//             conversationHistory[sender] = { history: [], session: {} };
+//         }
+//         if (!conversationHistory[sender].session) {
+//             conversationHistory[sender].session = {};
+//         }
+//         if (!conversationHistory[sender].history) {
+//             conversationHistory[sender].history = [];
+//         }
+//         // Fuzzy: match on key phrases
+//         const keyPhrases = [
+//         ];
+//         conversationHistory[sender].history.push({ role: 'user', content: message });
+//         // ...existing code for canned response matching...
+//         return null;
+//     }
+//     // --- Payment amount extraction (regex, similar to email_ingestor.py) ---
+//     function extractPaymentAmount(text) {
+//         if (!text) return null;
+//         const patterns = [
+//             /\$\s?([0-9]+(?:\.[0-9]{1,2})?)/i,
+//             /USD\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
+//             /Amount[::]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)/i,
+//             /Paid[::]?\s*\$?([0-9]+(?:\.[0-9]{1,2})?)/i
+//         ];
+//         for (const pat of patterns) {
+//             const match = text.match(pat);
+//             if (match) {
+//                 try {
+//                     return parseFloat(match[1]);
+//                 } catch (e) { continue; }
+//             }
+//         }
+//         return null;
+//     }
+//     // Merge BL numbers and paid amount from context (PDF extraction) if present
+//     let paidAmount = null;
+//     let regexBLs = [];
+//     if (context && (Array.isArray(context.bl_numbers) || context.paid_amount !== undefined)) {
+//         if (Array.isArray(context.bl_numbers)) {
+//             regexBLs = context.bl_numbers;
+//         }
+//         if (context.paid_amount !== undefined && context.paid_amount !== null) {
+//             paidAmount = context.paid_amount;
+//         }
+//     }
+//     // If not found in context, extract from message text
+//     if (regexBLs.length === 0) {
+//         const blPattern = /(?:???[::]?\s*)?([A-Z]{2,4}\d{2,}|BL-\d{4,}|\d{3,}-\d{3,}|\d{6,})/gi;
+//         let match;
+//         while ((match = blPattern.exec(message)) !== null) {
+//             if (match[1]) regexBLs.push(match[1]);
+//         }
+//     }
+//     if (paidAmount === null) {
+//         paidAmount = extractPaymentAmount(message);
+//     }
+//     let aiIntent = null;
+//     let blNumber = null;
+//     let aiAnswer = null;
+//     let reply = null;
+//     // (Removed legacy array-based conversationHistory code. Now handled above with .history)
+//     // Build OpenAI messages array: system prompt + history
+//     const messages = [
+//         { role: 'system', content: SYSTEM_PROMPT },
+//         ...conversationHistory[sender].history
+//     ];
+
+//     try {
+//         const completion = await openai.chat.completions.create({
+//             model: 'gpt-4o',
+//             messages,
+//             max_tokens: 300
+//         });
+//         const content = completion.choices[0]?.message?.content?.trim();
+//         console.log('[DEBUG] OpenAI raw response:', content); // Debug log for OpenAI response
+//         let aiResult = {};
+//         try {
+//             aiResult = JSON.parse(content);
+//         } catch (err) {
+//             // fallback: try to extract JSON from text
+//             const match = content.match(/\{[\s\S]*\}/);
+//             if (match) {
+//                 aiResult = JSON.parse(match[0]);
+//             } else {
+//                 aiResult = { intent: 'general_question', bl_number: null, answer: content };
+//             }
+//         }
+//         aiIntent = aiResult.intent;
+//         blNumber = aiResult.bl_number;
+//         aiAnswer = aiResult.answer;
+//         // --- Always merge BLs and paid amount from OpenAI and regex ---
+//         let blNumbersAI = [];
+//         if (blNumber) {
+//             if (Array.isArray(blNumber)) {
+//                 blNumbersAI = blNumber;
+//             } else {
+//                 blNumbersAI = [blNumber];
+//             }
+//         }
+//         // Merge and deduplicate BLs from AI and regex
+//         blNumbers = Array.from(new Set([...(blNumbersAI || []), ...(regexBLs || [])]));
+//         // (No push here; only push after reply is finalized)
+//         // If the message is an email, filter out any BLs that are part of the email address or username
+//         if (isEmail(message)) {
+//             const email = message.trim();
+//             const emailUser = email.split('@')[0];
+//             blNumbers = blNumbers.filter(
+//                 bl => bl !== email && bl !== emailUser && !email.includes(bl)
+//             );
+//         }
+//         // DB validation (only keep BLs that exist in DB)
+//         let validBLs = [];
+//         if (blNumbers.length > 0) {
+//             validBLs = await getValidBLs(blNumbers);
+//         }
+//         // Always prefer paidAmount from regex if present, else from AI
+//         let paidAmountAI = aiResult.info_needed?.paid_amount || null;
+//         if (paidAmount == null && paidAmountAI != null) {
+//             try {
+//                 paidAmount = parseFloat(String(paidAmountAI).replace(/[^0-9.]+/g, ''));
+//             } catch (e) { paidAmount = null; }
+//         }
+//         console.log('[DEBUG] Merged BLs:', blNumbers, 'Valid BLs:', validBLs, 'Paid amount:', paidAmount);
+//         // If OpenAI/regex found BLs but none are valid, reply with error
+//         if (blNumbers.length > 0 && validBLs.length === 0) {
+//             reply = `Sorry, the BL number(s) you provided (${blNumbers.join(', ')}) could not be found in our system. Please check and try again.`;
+//             logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'bl_not_found', bl_numbers: blNumbers });
+//             conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//             return reply;
+//         }
+//         // Use only valid BLs for business logic
+//         blNumbers = validBLs;
+//     } catch (err) {
+//         console.error('OpenAI error:', err);
+//         reply = 'Sorry, there was an error processing your request.';
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'openai_error', bl_number: null });
+//         // Add assistant reply to history
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+//     // ...rest of chatHandler code...
+//     // ...rest of chatHandler code...
+// }
+//             const emailUser = email.split('@')[0];
+// module.exports = chatHandler;
+//                 bl => bl !== email && bl !== emailUser && !email.includes(bl)
+//             );
+//         }
+//         // DB validation (only keep BLs that exist in DB)
+//         let validBLs = [];
+//         if (blNumbers.length > 0) {
+//             validBLs = await getValidBLs(blNumbers);
+//         }
+//         // Always prefer paidAmount from regex if present, else from AI
+//         let paidAmountAI = aiResult.info_needed?.paid_amount || null;
+//         if (paidAmount == null && paidAmountAI != null) {
+//             try {
+//                 paidAmount = parseFloat(String(paidAmountAI).replace(/[^0-9.]+/g, ''));
+//             } catch (e) { paidAmount = null; }
+//         }
+//         console.log('[DEBUG] Merged BLs:', blNumbers, 'Valid BLs:', validBLs, 'Paid amount:', paidAmount);
+//         // If OpenAI/regex found BLs but none are valid, reply with error
+//         if (blNumbers.length > 0 && validBLs.length === 0) {
+//             reply = `Sorry, the BL number(s) you provided (${blNumbers.join(', ')}) could not be found in our system. Please check and try again.`;
+//             logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'bl_not_found', bl_numbers: blNumbers });
+//             conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//             return reply;
+//         }
+//         // Use only valid BLs for business logic
+//         blNumbers = validBLs;
+//     } catch (err) {
+//         console.error('OpenAI error:', err);
+//         reply = 'Sorry, there was an error processing your request.';
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'openai_error', bl_number: null });
+//         // Add assistant reply to history
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+
+//     // Route based on intent, now supporting multi-BL and payment amount
+//     let replyIsChinese = false;
+//     // --- Require email verification for all sensitive queries (invoice, CTN, payment, fallback BL) ---
+//     const needsSensitiveVerification = (
+//         (aiIntent === 'request_invoice' && blNumbers.length > 0) ||
+//         (aiIntent === 'ask_ctn_number' && blNumbers.length > 0) ||
+//         ((aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) && paidAmount !== null) ||
+//         ((aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other')) && blNumbers.length > 0)
+//     );
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         // If the message is an email, treat it as the candidate for verification
+//         let userEmail = conversationHistory[sender].session.verifiedEmail || context.email;
+//         let justProvidedEmail = null;
+//         if (isEmail(message)) {
+//             justProvidedEmail = message.trim();
+//             userEmail = justProvidedEmail;
+//         }
+//         if (!userEmail && client) {
+//             const promptMsg = 'For security, please provide your registered email to access this information.';
+//             await client.sendMessage(sender, { text: promptMsg });
+//             return promptMsg;
+//         }
+//         // If not already verified in session, verify now (or if just provided a new email)
+//         if (!conversationHistory[sender].session.verifiedEmail || justProvidedEmail) {
+//             let allVerified = true;
+//             let alreadyPrompted = false;
+//             for (const bl of blNumbers) {
+//                 console.debug(`[DEBUG] Verifying with backend: email=${userEmail}, bl_number=${bl}`);
+//                 const verify = await verifySensitiveAccess({ email: userEmail, bl_number: bl });
+//         if (!verify.ok) {
+//             allVerified = false;
+//             let failType = 'verification_failed';
+//             if (aiIntent === 'request_invoice' || (aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other'))) failType = 'invoice_verification_failed';
+//             else if (aiIntent === 'ask_ctn_number') failType = 'ctn_verification_failed';
+//             else if (aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) failType = 'payment_verification_failed';
+//             reply = `Cannot show info for BL ${bl}: ${verify.error}`;
+//             logMessage('AI_REPLY', { question: message, reply, user: sender, classification: failType, bl_numbers: [bl] });
+//             conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//             return reply;
+//         }
+//             if (allVerified) {
+//                 conversationHistory[sender].session.verifiedEmail = userEmail;
+//             }
+//         }
+//         // If just provided an email, and it was verified, continue to the sensitive info flow
+//         if (justProvidedEmail && conversationHistory[sender].session.verifiedEmail === justProvidedEmail) {
+//             // Continue to the sensitive info flow (do nothing here, let the rest of the handler run)
+//         } else if (!conversationHistory[sender].session.verifiedEmail) {
+//             // If still not verified, only prompt if this is not a repeated prompt in the same message
+//             if (!justProvidedEmail) {
+//                 const promptMsg = 'For security, please provide your registered email to access this information.';
+//                 await client.sendMessage(sender, { text: promptMsg });
+//                 return promptMsg;
+//             } else {
+//                 // If just provided an email and it failed, do not prompt again in the same message
+//                 return reply || 'Email verification failed.';
+//             }
+//         }
+//     }
+
+//     // --- Invoice info (after verification) ---
+//     if (aiIntent === 'request_invoice' && blNumbers.length > 0) {
+//         let replyLines = [];
+//         for (const bl of blNumbers) {
+//             const result = await getInvoiceLink(bl.trim());
+//             if (Array.isArray(result) && result.length > 0) {
+//                 const invoiceValue = result[0].invoice_filename;
+//                 if (invoiceValue) {
+//                     replyLines.push(`For BL ${bl}: Here's your invoice: ${invoiceValue}`);
+//                 } else {
+//                     replyLines.push(`For BL ${bl}: Invoice not yet issued. Please contact support.`);
+//                 }
+//             } else {
+//                 replyLines.push(`For BL ${bl}: No invoice found.`);
+//             }
+//         }
+//         reply = replyLines.join('\n');
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'invoice_request', bl_numbers: blNumbers });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         if (typeof reply === 'string' && reply.trim() && client) {
+//             await client.sendMessage(sender, { text: reply });
+//         }
+//         return reply;
+//     }
+
+//     if (aiIntent === 'ask_ctn_number' && blNumbers.length > 0) {
+//         let replyLines = [];
+//         for (const bl of blNumbers) {
+//             const ctn = await getUniqueNumber(bl.trim());
+//             if (ctn) {
+//                 replyLines.push(`For BL ${bl}: CTN number is ${ctn}.`);
+//             } else {
+//                 replyLines.push(`For BL ${bl}: No CTN number found.`);
+//             }
+//         }
+//         reply = replyLines.join('\n');
+//         // If reply is empty, fallback to OpenAI answer or a default message
+//         if (!reply || !reply.trim()) {
+//             reply = aiAnswer || 'Sorry, I did not understand your request.';
+//         }
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'ctn_request', bl_numbers: blNumbers });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         if (typeof reply === 'string' && reply.trim() && client) {
+//             console.debug('[SAFEGUARD] Sending reply:', reply);
+//         }
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply || '';
+//     }
+
+
+//     // If both paidAmount and BLs are detected, always run payment validation/receipt logic (after verification)
+//     if (blNumbers.length > 0 && paidAmount !== null) {
+//         let invoiceSum = 0;
+//         let invoiceDetails = [];
+//         let allHaveAmount = true;
+//         // For each BL, sum ctn_fee and service_fee from DB (getInvoiceInfo)
+//         const invoiceInfos = await require('./db').getInvoiceInfo(blNumbers);
+//         for (const bl of blNumbers) {
+//             const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+//             let amount = null;
+//             if (info && (info.ctn_fee !== undefined || info.service_fee !== undefined)) {
+//                 const ctnFee = Number(info.ctn_fee) || 0;
+//                 const serviceFee = Number(info.service_fee) || 0;
+//                 amount = ctnFee + serviceFee;
+//                 invoiceSum += amount;
+//                 invoiceDetails.push(`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`);
+//             } else {
+//                 allHaveAmount = false;
+//                 invoiceDetails.push(`BL ${bl}: No fee data found in DB.`);
+//             }
+//         }
+//         console.log('[DEBUG] Invoice details:', invoiceDetails, 'Sum:', invoiceSum, 'All have amount:', allHaveAmount);
+//         let diff = paidAmount - invoiceSum;
+//         if (invoiceSum > 0 && allHaveAmount) {
+//             const { generateReceiptPDF, uploadReceiptToCloudinary, updateBLStatusAndReceipt } = require('./receipt_utils');
+//             if (Math.abs(diff) < 0.01 || diff > 0) {
+//                 reply = `We received your payment of $${paidAmount}, which matches the total invoice amount for BL(s):\n${invoiceDetails.join('\n')}`;
+//                 if (diff > 0) {
+//                     reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have overpaid by $${diff.toFixed(2)}. Please contact support for a refund or to allocate the excess.`;
+//                 }
+//                 reply += '\nA receipt will be generated and sent to you shortly.';
+//                 try {
+//                     // For each BL, generate/upload receipt and update DB
+//                     const fs = require('fs');
+//                     for (const bl of blNumbers) {
+//                         // Find invoice details for this BL
+//                         const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+//                         if (!info) {
+//                             console.error(`[ERROR] No invoice info found for BL ${bl}`);
+//                             continue;
+//                         }
+//                         const ctnFee = Number(info.ctn_fee) || 0;
+//                         const serviceFee = Number(info.service_fee) || 0;
+//                         const amount = ctnFee + serviceFee;
+//                         const details = [`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`];
+//                         // Generate receipt for this BL
+//                         const pdfPath = await generateReceiptPDF({ blNumbers: [bl], paidAmount: amount, invoiceDetails: details, customerName: '' });
+//                         console.debug(`[DEBUG] Receipt PDF generated for BL ${bl} at:`, pdfPath);
+//                         const receiptUrl = await uploadReceiptToCloudinary(pdfPath);
+//                         console.debug(`[DEBUG] Receipt uploaded to Cloudinary for BL ${bl}. URL:`, receiptUrl);
+//                         const dbResult = await updateBLStatusAndReceipt([bl], receiptUrl);
+//                         console.debug(`[DEBUG] DB update result for BL ${bl}:`, dbResult);
+//                         fs.unlink(pdfPath, () => {});
+//                     }
+//                 } catch (e) {
+//                     console.error('[ERROR] Failed to generate/upload receipt:', e);
+//                 }
+//             } else if (diff < 0) {
+//                 reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have underpaid by $${Math.abs(diff).toFixed(2)}. Please pay the remaining amount.`;
+//             }
+//         } else {
+//             reply = `We detected a payment of $${paidAmount} for BL number(s): ${blNumbers.join(', ')}.`;
+//             reply += '\nIf you have any questions or need a receipt, let us know.';
+//         }
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_receipt', bl_numbers: blNumbers, paid_amount: paidAmount, invoice_sum: invoiceSum, invoice_details: invoiceDetails });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+
+//     // Only reply with payment methods if not both BLs and paidAmount are present
+//     if (aiIntent === 'ask_payment_methods') {
+//         reply = `We accept the following payment methods:\n• Bank Transfer\n• Allinpay\n• Stripe`;
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_methods', bl_numbers: blNumbers });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+
+//     if (aiIntent === 'ask_pricing') {
+//         reply = `Our pricing depends on the number of containers and services required. Please provide your BL number(s) and details for a quote.`;
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'pricing', bl_numbers: blNumbers });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+
+//     // General or fallback
+//     // If BLs and payment detected, check for underpaid/overpaid/matched logic
+//     if ((aiIntent === 'payment_receipt' || (blNumbers.length > 0 && paidAmount !== null)) && paidAmount !== null) {
+//         let invoiceSum = 0;
+//         let invoiceDetails = [];
+//         let allHaveAmount = true;
+//         // For each BL, sum ctn_fee and service_fee from DB (getInvoiceInfo)
+//         const invoiceInfos = await require('./db').getInvoiceInfo(blNumbers);
+//         for (const bl of blNumbers) {
+//             const info = Array.isArray(invoiceInfos) ? invoiceInfos.find(row => row.bl_number === bl) : null;
+//             let amount = null;
+//             if (info && (info.ctn_fee !== undefined || info.service_fee !== undefined)) {
+//                 const ctnFee = Number(info.ctn_fee) || 0;
+//                 const serviceFee = Number(info.service_fee) || 0;
+//                 amount = ctnFee + serviceFee;
+//                 invoiceSum += amount;
+//                 invoiceDetails.push(`BL ${bl}: $${amount} (CTN Fee: $${ctnFee}, Service Fee: $${serviceFee})`);
+//             } else {
+//                 allHaveAmount = false;
+//                 invoiceDetails.push(`BL ${bl}: No fee data found in DB.`);
+//             }
+//         }
+//         console.log('[DEBUG] Invoice details:', invoiceDetails, 'Sum:', invoiceSum, 'All have amount:', allHaveAmount);
+//         let diff = paidAmount - invoiceSum;
+//         if (invoiceSum > 0 && allHaveAmount) {
+//             const { generateReceiptPDF, uploadReceiptToCloudinary, updateBLStatusAndReceipt } = require('./receipt_utils');
+//             if (Math.abs(diff) < 0.01 || diff > 0) {
+//                 reply = `We received your payment of $${paidAmount}, which matches the total invoice amount for BL(s):\n${invoiceDetails.join('\n')}`;
+//                 if (diff > 0) {
+//                     reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have overpaid by $${diff.toFixed(2)}. Please contact support for a refund or to allocate the excess.`;
+//                 }
+//                 reply += '\nA receipt will be generated and sent to you shortly.';
+//                 try {
+//                     // Generate, upload, and update status for all BLs
+//                     const pdfPath = await generateReceiptPDF({ blNumbers, paidAmount, invoiceDetails, customerName: '' });
+//                     const receiptUrl = await uploadReceiptToCloudinary(pdfPath);
+//                     await updateBLStatusAndReceipt(blNumbers, receiptUrl);
+//                     // Clean up temp file
+//                     const fs = require('fs');
+//                     fs.unlink(pdfPath, () => {});
+//                 } catch (e) {
+//                     console.error('[ERROR] Failed to generate/upload receipt:', e);
+//                 }
+//             } else if (diff < 0) {
+//                 reply = `We received your payment of $${paidAmount}, but the total invoice amount for BL(s) is $${invoiceSum}.\n${invoiceDetails.join('\n')}\nYou have underpaid by $${Math.abs(diff).toFixed(2)}. Please pay the remaining amount.`;
+//             }
+//         } else {
+//             reply = `We detected a payment of $${paidAmount} for BL number(s): ${blNumbers.join(', ')}.`;
+//             reply += '\nIf you have any questions or need a receipt, let us know.';
+//         }
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'payment_receipt', bl_numbers: blNumbers, paid_amount: paidAmount, invoice_sum: invoiceSum, invoice_details: invoiceDetails });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+//     // If BLs detected and intent is 'other', treat as invoice_request (after verification)
+//     if ((aiIntent === 'request_invoice' || (blNumbers.length > 0 && aiIntent === 'other'))) {
+//         let replyLines = [];
+//         for (const bl of blNumbers) {
+//             const result = await getInvoiceLink(bl.trim());
+//             if (Array.isArray(result) && result.length > 0) {
+//                 const invoiceValue = result[0].invoice_filename;
+//                 if (invoiceValue) {
+//                     replyLines.push(`For BL ${bl}: Here's your invoice: ${invoiceValue}`);
+//                 } else {
+//                     replyLines.push(`For BL ${bl}: Invoice not yet issued. Please contact support.`);
+//                 }
+//             } else {
+//                 replyLines.push(`For BL ${bl}: No invoice found.`);
+//             }
+//         }
+//         reply = replyLines.join('\n');
+//         if (incomingIsChinese) {
+//             reply = await openaiTranslate(reply, 'English', 'Chinese');
+//             replyIsChinese = true;
+//         }
+//         if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//             reply += '\n\n???!\nIQSTrade????';
+//         }
+//         logMessage('AI_REPLY', { question: message, reply, user: sender, classification: 'invoice_request', bl_numbers: blNumbers });
+//         conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//         return reply;
+//     }
+//     // Otherwise, fallback to AI answer, but improve for common general enquiries
+//     let lowerMsg = message.toLowerCase();
+//     if (/how long.*invoice|invoice.*how long|invoice.*time|invoice.*when|when.*invoice|invoice.*after.*upload|upload.*invoice|invoice.*processing|processing.*invoice/.test(lowerMsg)) {
+//         reply = 'After you upload your Bill of Lading, it usually takes 1 business day for us to generate and send your invoice via WhatsApp or email. If you need it urgently, please let us know your BL number.';
+//     } else {
+//         reply = aiAnswer || 'Sorry, I did not understand your request.';
+//     }
+//     if (incomingIsChinese) {
+//         reply = await openaiTranslate(reply, 'English', 'Chinese');
+//         replyIsChinese = true;
+//     }
+//     if (replyIsChinese && !/???|????|????|????/.test(reply)) {
+//         reply += '\n\n???!\nIQSTrade????';
+//     }
+//     logMessage('AI_REPLY', { question: message, reply, user: sender, classification: aiIntent || 'general', bl_numbers: blNumbers });
+//     conversationHistory[sender].history.push({ role: 'assistant', content: reply });
+//     if (typeof reply === 'string' && reply.trim() && client) {
+//         await client.sendMessage(sender, { text: reply });
+//     }
+//     // Always return a string, never undefined
+//     return reply || '';
+
+// module.exports = chatHandler;
+
+
+

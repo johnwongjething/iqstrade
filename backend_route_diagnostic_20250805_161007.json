@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-08-05T16:10:07.594129",
+  "summary": {
+    "registered": 0,
+    "not_found": 7,
+    "errors": 0
+  },
+  "results": [
+    {
+      "endpoint": "/api/balance/search",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance/ray40",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance/ray40/history",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance/ray40/adjust",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance/all",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance/",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    },
+    {
+      "endpoint": "/api/balance",
+      "status_code": 404,
+      "result": "\u274c NOT FOUND - Route not registered",
+      "response": "{\"error\":\"API endpoint not found\"}\n"
+    }
+  ]
+}

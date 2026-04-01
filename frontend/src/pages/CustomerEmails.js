@@ -39,7 +39,8 @@ const modalStyle = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: 600,
+  width: '90%',
+  maxWidth: 1200,
   bgcolor: 'background.paper',
   boxShadow: 24,
   p: 4,
@@ -75,6 +76,10 @@ export default function CustomerEmails({ t = x => x }) {
   const [selected, setSelected] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [reply, setReply] = useState('');
+  const [toRecipients, setToRecipients] = useState('');
+  const [ccRecipients, setCcRecipients] = useState('');
+  const [bccRecipients, setBccRecipients] = useState('');
+  const [replyToRecipients, setReplyToRecipients] = useState('');
   const [sending, setSending] = useState(false);
   const [refresh, setRefresh] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -606,6 +611,71 @@ export default function CustomerEmails({ t = x => x }) {
         new Date(latest.created_at) > new Date(current.created_at) ? latest : current
       ) : null;
       setReply(latestDraft ? latestDraft.body : (latestReply ? latestReply.body : ''));
+      
+                  // Pre-populate reply fields with CORRECT reply logic
+            console.log('📧 Original email data - To:', data.to, 'CC:', data.cc, 'BCC:', data.bcc, 'Reply-To:', data.reply_to);
+            console.log('📧 Original sender:', data.sender);
+            
+            // CORRECT reply logic based on actual email structure:
+            // To: First email from Reply-To field (johnwongjething@gmail.com) - where replies should go
+            // CC: Remaining Reply-To emails + original CC emails (excluding system email ray6330088@gmail.com)
+            // BCC: original BCC recipients
+            // Reply-To: original Reply-To recipients
+            
+            // System email address that should NOT be included in replies
+            const systemEmail = 'ray6330088@gmail.com';
+            
+            // Get original recipients
+            const originalToRecipients = data.to || [];
+            const originalCcRecipients = data.cc || [];
+            const originalBccRecipients = data.bcc || [];
+            const originalReplyToRecipients = data.reply_to || [];
+            
+            // Set To field to first Reply-To recipient (if available), otherwise fallback to sender
+            let toRecipient = '';
+            if (originalReplyToRecipients.length > 0) {
+              toRecipient = originalReplyToRecipients[0];
+              console.log('📧 Set To recipients (reply) to first Reply-To recipient:', toRecipient);
+            } else if (data.sender) {
+              toRecipient = data.sender;
+              console.log('📧 Set To recipients (reply) to original sender (fallback):', toRecipient);
+            }
+            
+            setToRecipients(toRecipient);
+            
+            // Combine remaining Reply-To recipients with original CC recipients for CC field
+            const remainingReplyToRecipients = originalReplyToRecipients.slice(1); // All except first
+            const allCcCandidates = [...remainingReplyToRecipients, ...originalCcRecipients];
+            
+            // Filter out system email from CC
+            const ccRecipients = allCcCandidates.filter(email => email !== systemEmail && email !== toRecipient);
+            
+            if (ccRecipients.length > 0) {
+              setCcRecipients(ccRecipients.join(', '));
+              console.log('📧 Set CC recipients (reply) to remaining Reply-To + original CC (filtered):', ccRecipients.join(', '));
+            } else {
+              setCcRecipients('');
+              console.log('📧 No CC recipients after filtering, cleared CC field');
+            }
+            
+            // Set BCC to original BCC recipients
+            if (originalBccRecipients.length > 0) {
+              setBccRecipients(originalBccRecipients.join(', '));
+              console.log('📧 Set BCC recipients (reply) to:', originalBccRecipients.join(', '));
+            } else {
+              setBccRecipients('');
+              console.log('📧 No BCC data, cleared BCC field');
+            }
+            
+            // Set Reply-To to original Reply-To recipients
+            if (data.reply_to && data.reply_to.length > 0) {
+              setReplyToRecipients(data.reply_to.join(', '));
+              console.log('📧 Set Reply-To recipients to:', data.reply_to.join(', '));
+            } else {
+              setReplyToRecipients('');
+              console.log('📧 No Reply-To data, cleared Reply-To field');
+            }
+      
       console.log('📧 Email detail fetched');
       
     } catch (err) {
@@ -700,7 +770,13 @@ export default function CustomerEmails({ t = x => x }) {
       // Upload files first
       const uploadedUrls = await uploadFiles();
       
-      // Send reply with attachments
+      // Parse To, CC, BCC and Reply-To recipients
+      const toList = toRecipients ? toRecipients.split(',').map(email => email.trim()).filter(email => email) : [];
+      const ccList = ccRecipients ? ccRecipients.split(',').map(email => email.trim()).filter(email => email) : [];
+      const bccList = bccRecipients ? bccRecipients.split(',').map(email => email.trim()).filter(email => email) : [];
+      const replyToList = replyToRecipients ? replyToRecipients.split(',').map(email => email.trim()).filter(email => email) : [];
+      
+      // Send reply with attachments and CC/BCC
       const response = await fetchWithAuth(`${API_BASE_URL}/admin/email/${selected.id}/reply`, {
         method: 'POST',
         headers: {
@@ -710,18 +786,38 @@ export default function CustomerEmails({ t = x => x }) {
         credentials: 'include',
         body: JSON.stringify({ 
           body: reply,
-          attachments: uploadedUrls
+          attachments: uploadedUrls,
+          to: toList,
+          cc: ccList,
+          bcc: bccList,
+          reply_to: replyToList
         })
       });
       
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 409) {
+          // Special handling for duplicate reply protection
+          const message = errorData.error || 'This email has been replied to recently. Please refresh to see the latest status.';
+          setSnackbar({ 
+            open: true, 
+            message: `${message} (This is a protection mechanism to prevent duplicate replies)`, 
+            severity: 'warning' 
+          });
+          // Refresh the email list to show updated status
+          setRefresh(r => !r);
+          return;
+        }
         throw new Error(errorData.error || 'Failed to send reply');
       }
       
       const data = await response.json();
       setSending(false);
       setReply('');
+      setToRecipients('');
+      setCcRecipients('');
+      setBccRecipients('');
+      setReplyToRecipients('');
       setSelectedFiles([]);
       setRefresh(r => !r);
       setModalOpen(false);
@@ -752,6 +848,10 @@ export default function CustomerEmails({ t = x => x }) {
     setModalOpen(false);
     setSelected(null);
     setReply('');
+    setToRecipients('');
+    setCcRecipients('');
+    setBccRecipients('');
+    setReplyToRecipients('');
     setSelectedFiles([]);
   };
 
@@ -1374,6 +1474,27 @@ export default function CustomerEmails({ t = x => x }) {
               <Typography><strong>From:</strong> {selected.sender}</Typography>
               <Typography><strong>Subject:</strong> {selected.subject}</Typography>
               <Typography><strong>Date:</strong> {selected.created_at}</Typography>
+              
+              {/* Display To if present */}
+              {selected.to && selected.to.length > 0 && (
+                <Typography><strong>To:</strong> {selected.to.join(', ')}</Typography>
+              )}
+              
+              {/* Display CC if present */}
+              {selected.cc && selected.cc.length > 0 && (
+                <Typography><strong>CC:</strong> {selected.cc.join(', ')}</Typography>
+              )}
+              
+              {/* Display BCC if present */}
+              {selected.bcc && selected.bcc.length > 0 && (
+                <Typography><strong>BCC:</strong> {selected.bcc.join(', ')}</Typography>
+              )}
+              
+              {/* Display Reply-To if present - Hidden as requested */}
+              {/* {selected.reply_to && selected.reply_to.length > 0 && (
+                <Typography><strong>Reply-To:</strong> {selected.reply_to.join(', ')}</Typography>
+              )} */}
+              
               <Typography><strong>Body:</strong></Typography>
               <Box sx={{ 
                 maxHeight: 200, 
@@ -1519,6 +1640,57 @@ export default function CustomerEmails({ t = x => x }) {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column', width: '100%' }}>
+                {/* Helpful note about To/CC/BCC pre-population */}
+                {(selected.to && selected.to.length > 0) || (selected.cc && selected.cc.length > 0) || (selected.bcc && selected.bcc.length > 0) || (selected.reply_to && selected.reply_to.length > 0) ? (
+                  <Alert severity="info" sx={{ mb: 1, fontSize: '0.8rem' }}>
+                    💡 Reply fields are pre-populated correctly: To = first Reply-To recipient, CC = remaining Reply-To + original CC recipients (excluding system email). You can modify or add additional addresses.
+                  </Alert>
+                ) : null}
+                
+                {/* To Field */}
+                <TextField
+                  label="To"
+                  fullWidth
+                  value={toRecipients}
+                  onChange={e => setToRecipients(e.target.value)}
+                  placeholder="email1@example.com, email2@example.com"
+                  size="small"
+                  helperText="Separate multiple email addresses with commas"
+                />
+                
+                {/* CC Field */}
+                <TextField
+                  label="CC"
+                  fullWidth
+                  value={ccRecipients}
+                  onChange={e => setCcRecipients(e.target.value)}
+                  placeholder="email1@example.com, email2@example.com"
+                  size="small"
+                  helperText="Separate multiple email addresses with commas"
+                />
+                
+                {/* BCC Field */}
+                <TextField
+                  label="BCC"
+                  fullWidth
+                  value={bccRecipients}
+                  onChange={e => setBccRecipients(e.target.value)}
+                  placeholder="email1@example.com, email2@example.com"
+                  size="small"
+                  helperText="Separate multiple email addresses with commas"
+                />
+                
+                {/* Reply-To Field - Hidden as requested */}
+                {/* <TextField
+                  label="Reply-To"
+                  fullWidth
+                  value={replyToRecipients}
+                  onChange={e => setReplyToRecipients(e.target.value)}
+                  placeholder="email1@example.com, email2@example.com"
+                  size="small"
+                  helperText="Separate multiple email addresses with commas"
+                /> */}
+                
                 <TextField
                   label={t('reply')}
                   multiline

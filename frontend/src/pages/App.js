@@ -33,6 +33,7 @@ import CustomerEmails from './CustomerEmails';
 import FCMSetup from '../pages/FCMSetup';
 import TestFCMSetup from '../pages/TestFCMSetup';
 import MinimalTest from '../pages/MinimalTest';
+import SimpleNewStaffStats from './SimpleNewStaffStats';
 import './App.css';
 
 //trigger rebuild
@@ -105,6 +106,7 @@ function App() {
           <Route path="/minimal" element={<MinimalTest />} />
           <Route path="/bank-import" element={<BankImport />} />
           <Route path="/customer-emails" element={<CustomerEmails />} />
+          <Route path="/simple-new-staff-stats" element={<SimpleNewStaffStats t={t} />} />
           <Route path="*" element={<NotFound t={t} />} />
         </Routes>
         <WhatsAppButton />        

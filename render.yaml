@@ -1,14 +1,18 @@
+# Single web service: Python API + React SPA from one process (no separate static host).
+# Pipeline: npm run build in frontend/ → outputs to frontend/build/ → copied into backend/build/.
+# Gunicorn loads backend/app.py; Flask serves API plus static files from backend/build/ (see app.py comments).
 services:
   - type: web
     name: iqstrade-unified
     env: python
     buildCommand: |
-      # Install Python dependencies
+      # Backend deps (Flask, gunicorn, etc.)
       pip install -r backend/requirements.txt
-      # Install Node.js dependencies and build frontend
+      # Frontend: CRA/Craco output → frontend/build/
       cd frontend && npm install && npm run build
-      # Copy build to backend directory
+      # Merge SPA into backend so Flask static_folder='build' and routes see index.html + /static, /assets, …
       cp -r build/* ../backend/
+    # WSGI entry: app object in backend/app.py; $PORT is set by Render.
     startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120 --max-requests 2000 --max-requests-jitter 200 --preload --worker-class gthread --worker-connections 1000
     envVars:
       - key: PYTHON_VERSION

@@ -52,12 +52,16 @@ export const handleApiCall = async (url, options = {}, navigate) => {
 };
 
 export async function fetchWithAuth(url, options = {}) {
-  // Set up headers - backend uses cookies for JWT tokens
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
-  
+  // Backend uses cookies for JWT. Do not set Content-Type for FormData — the browser
+  // must set multipart/form-data with boundary for file uploads.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const headers = isFormData
+    ? { ...options.headers }
+    : {
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+
   let res = await fetch(url, { 
     ...options, 
     headers,

@@ -1,14 +1,22 @@
 {
   "files": {
     "main.css": "./static/css/main.ffb2dbb2.css",
+<<<<<<< HEAD
     "main.js": "./static/js/main.c2592461.js",
+=======
+    "main.js": "./static/js/main.66c581cc.js",
+>>>>>>> 77893d9 (Fixed paths and assets)
     "static/js/239.65d18e8c.chunk.js": "./static/js/239.65d18e8c.chunk.js",
     "static/js/213.ebdc71c6.chunk.js": "./static/js/213.ebdc71c6.chunk.js",
     "static/js/667.b40102ff.chunk.js": "./static/js/667.b40102ff.chunk.js",
     "static/js/453.670e15c7.chunk.js": "./static/js/453.670e15c7.chunk.js",
     "index.html": "./index.html",
     "main.ffb2dbb2.css.map": "./static/css/main.ffb2dbb2.css.map",
+<<<<<<< HEAD
     "main.c2592461.js.map": "./static/js/main.c2592461.js.map",
+=======
+    "main.66c581cc.js.map": "./static/js/main.66c581cc.js.map",
+>>>>>>> 77893d9 (Fixed paths and assets)
     "239.65d18e8c.chunk.js.map": "./static/js/239.65d18e8c.chunk.js.map",
     "213.ebdc71c6.chunk.js.map": "./static/js/213.ebdc71c6.chunk.js.map",
     "667.b40102ff.chunk.js.map": "./static/js/667.b40102ff.chunk.js.map",
@@ -16,6 +24,10 @@
   },
   "entrypoints": [
     "static/css/main.ffb2dbb2.css",
+<<<<<<< HEAD
     "static/js/main.c2592461.js"
+=======
+    "static/js/main.66c581cc.js"
+>>>>>>> 77893d9 (Fixed paths and assets)
   ]
 }

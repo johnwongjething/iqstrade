@@ -42,6 +42,13 @@ function Review({ t = x => x }) {
   const [uniqueEmailSubject, setUniqueEmailSubject] = useState('');
   const [uniqueSending, setUniqueSending] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Customer balance integration
+  const [customerBalance, setCustomerBalance] = useState(null);
+  const [showBalanceOptions, setShowBalanceOptions] = useState(false);
+  const [applyBalanceToInvoice, setApplyBalanceToInvoice] = useState(false);
+  const [balanceAmount, setBalanceAmount] = useState(0);
+  
   const navigate = useNavigate();
   const { user, fetchUserIfNeeded, csrfToken } = useContext(UserContext);
 
@@ -94,6 +101,33 @@ function Review({ t = x => x }) {
     }
   };
 
+  // Load customer balance
+  const loadCustomerBalance = async (username) => {
+    if (!username) return;
+    
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/api/balance/${username}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCustomerBalance(data);
+        setBalanceAmount(data.balance_amount || data.balance || 0);
+        setShowBalanceOptions(true);
+      } else {
+        setCustomerBalance(null);
+        setBalanceAmount(0);
+        setShowBalanceOptions(false);
+      }
+    } catch (error) {
+      console.error('Error loading customer balance:', error);
+      setCustomerBalance(null);
+      setBalanceAmount(0);
+      setShowBalanceOptions(false);
+    }
+  };
+
   // Show edit modal
   const showModal = (record) => {
     setSelected(record);
@@ -107,6 +141,15 @@ function Review({ t = x => x }) {
       flight_or_vessel: record.flight_or_vessel || '',
       product_description: record.product_description || '',
     });
+    
+    // Load customer balance if customer_username exists
+    if (record.customer_username) {
+      loadCustomerBalance(record.customer_username);
+    } else {
+      setCustomerBalance(null);
+      setBalanceAmount(0);
+      setShowBalanceOptions(false);
+    }
     // Use calculated fees if available, otherwise fall back to manual fees
     setServiceFee(record.calculated_service_fee || record.service_fee || '');
     setCtnFee(record.calculated_ctn_fee || record.ctn_fee || '');
@@ -190,6 +233,11 @@ function Review({ t = x => x }) {
     }
     setSaving(true);
     try {
+      // Calculate balance applied amount
+      const totalInvoiceAmount = (Number(serviceFee) || 0) + (Number(ctnFee) || 0);
+      const balanceToApply = applyBalanceToInvoice && balanceAmount > 0 ? 
+        Math.min(balanceAmount, totalInvoiceAmount) : 0;
+      
       const updateData = {
         ...fields,
         service_fee: serviceFee === '' ? null : Number(serviceFee),
@@ -198,7 +246,8 @@ function Review({ t = x => x }) {
         unique_number: uniqueNumber,
         payment_method: selected?.payment_method || '',
         payment_status: selected?.payment_status || '',
-        reserve_status: selected?.reserve_status || ''
+        reserve_status: selected?.reserve_status || '',
+        balance_applied: balanceToApply // Store the balance applied amount
       };
       const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${selected.id}`, {
         method: 'PUT',
@@ -210,6 +259,34 @@ function Review({ t = x => x }) {
         navigate('/login');
         return;
       }
+      
+      // Apply customer balance if requested
+      if (applyBalanceToInvoice && customerBalance && balanceAmount > 0 && selected.customer_username) {
+        try {
+          const amountToApply = balanceToApply; // Use the same calculation from above
+          
+          const balanceResponse = await fetchWithAuth(`${API_BASE_URL}/api/balance/${selected.customer_username}/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            credentials: 'include',
+            body: JSON.stringify({
+              amount: amountToApply,
+              bl_id: selected.id,
+              description: `Balance applied to invoice ${selected.bl_number}`
+            })
+          });
+          
+          if (balanceResponse.ok) {
+            setSnackbar({ open: true, message: `Applied $${amountToApply.toFixed(2)} from customer balance to invoice.`, severity: 'success' });
+          } else {
+            setSnackbar({ open: true, message: 'Failed to apply customer balance.', severity: 'error' });
+          }
+        } catch (err) {
+          console.error('Error applying balance:', err);
+          setSnackbar({ open: true, message: 'Error applying customer balance.', severity: 'error' });
+        }
+      }
+      
       setModalVisible(false);
       fetchBills();
     } catch (err) {
@@ -305,14 +382,31 @@ function Review({ t = x => x }) {
   const handleUpload = async (file, record) => {
     const formData = new FormData();
     formData.append('receipt', file);
-    await fetchWithAuth(`${API_BASE_URL}/api/bill/${record.id}/upload_receipt`, {
-      method: 'POST',
-      headers: { 'X-CSRF-TOKEN': csrfToken },
-      credentials: 'include',
-      body: formData
-    });
-    setSnackbar({ open: true, message: t('receiptUploadSuccess'), severity: 'success' });
-    fetchBills();
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/bill/${record.id}/upload_receipt`, {
+        method: 'POST',
+        headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {},
+        credentials: 'include',
+        body: formData
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSnackbar({
+          open: true,
+          message: data.error || `Upload failed (${res.status})`,
+          severity: 'error'
+        });
+        return;
+      }
+      setSnackbar({ open: true, message: t('receiptUploadSuccess'), severity: 'success' });
+      fetchBills();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.message || 'Upload failed',
+        severity: 'error'
+      });
+    }
   };
 
   // Table columns
@@ -367,6 +461,22 @@ function Review({ t = x => x }) {
       render: (_, record) => (
         <span>{record.ctn_fee || 0} / {record.service_fee || 0}</span>
       ),
+    },
+    {
+      title: 'Balance Applied',
+      key: 'balanceApplied',
+      width: 120,
+      render: (_, record) => {
+        // Check if this record has balance applied
+        const hasBalanceApplied = record.balance_applied && record.balance_applied > 0;
+        return hasBalanceApplied ? (
+          <span style={{ color: '#d32f2f', fontWeight: 'bold' }}>
+            -${record.balance_applied.toFixed(2)}
+          </span>
+        ) : (
+          <span style={{ color: '#666' }}>None</span>
+        );
+      },
     },
     {
       title: t('uploadReceipt'),
@@ -492,7 +602,13 @@ function Review({ t = x => x }) {
       />
       <Modal
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
+        onCancel={() => {
+          setModalVisible(false);
+          // Reset balance-related states when modal closes
+          setApplyBalanceToInvoice(false);
+          setCustomerBalance(null);
+          setBalanceAmount(0);
+        }}
         onOk={handleOk}
         okText={t('save')}
         cancelText={t('cancel')}
@@ -662,6 +778,33 @@ function Review({ t = x => x }) {
                 value={serviceFee}
                 onChange={e => setServiceFee(e.target.value)}
               />
+              
+              {/* Invoice Total Calculation */}
+              <div style={{ marginTop: 16, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, backgroundColor: '#f5f5f5' }}>
+                <div style={{ marginBottom: 8 }}>
+                  <b>Invoice Calculation:</b>
+                </div>
+                <div style={{ fontSize: 14, marginBottom: 4 }}>
+                  CTN Fee: ${(Number(ctnFee) || 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize: 14, marginBottom: 4 }}>
+                  Service Fee: ${(Number(serviceFee) || 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize: 14, marginBottom: 4, borderTop: '1px solid #ddd', paddingTop: 4 }}>
+                  <b>Subtotal: ${((Number(ctnFee) || 0) + (Number(serviceFee) || 0)).toFixed(2)}</b>
+                </div>
+                {applyBalanceToInvoice && balanceAmount > 0 && (
+                  <>
+                    <div style={{ fontSize: 14, marginBottom: 4, color: '#d32f2f' }}>
+                      Balance Applied: -${Math.min(balanceAmount, (Number(ctnFee) || 0) + (Number(serviceFee) || 0)).toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 'bold', color: '#1976d2', borderTop: '1px solid #ddd', paddingTop: 4 }}>
+                      <b>Final Total: ${Math.max(0, ((Number(ctnFee) || 0) + (Number(serviceFee) || 0)) - Math.min(balanceAmount, (Number(ctnFee) || 0) + (Number(serviceFee) || 0))).toFixed(2)}</b>
+                    </div>
+                  </>
+                )}
+              </div>
+              
               <Input
                 value={uniqueNumber}
                 onChange={e => setUniqueNumber(e.target.value)}
@@ -682,20 +825,27 @@ function Review({ t = x => x }) {
                       return;
                     }
                     try {
+                      // Calculate adjusted amount if balance is being applied
+                      const originalTotal = (Number(ctnFee) || 0) + (Number(serviceFee) || 0);
+                      const balanceToApply = applyBalanceToInvoice && balanceAmount > 0 ? 
+                        Math.min(balanceAmount, originalTotal) : 0;
+                      const adjustedTotal = Math.max(0, originalTotal - balanceToApply);
+                      
                       const res = await fetchWithAuth(`${API_BASE_URL}/api/generate_payment_link/${selected.id}`,
                         {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
                           credentials: 'include',
                           body: JSON.stringify({
-                            amount: 0,
+                            amount: adjustedTotal, // Use adjusted amount
                             currency: 'USD',
                             customer_email: selected.customer_email,
-                            description: `Reserve payment for CTN ${uniqueNumber}`,
+                            description: `Reserve payment for CTN ${uniqueNumber}${balanceToApply > 0 ? ` (Balance applied: $${balanceToApply.toFixed(2)})` : ''}`,
                             success_url: 'https://yourdomain.com/success',
                             cancel_url: 'https://yourdomain.com/cancel',
                             ctn_fee: ctnFee,
                             service_fee: serviceFee,
+                            balance_applied: balanceToApply, // Add balance applied info
                           })
                         });
                       const data = await res.json();
@@ -714,6 +864,33 @@ function Review({ t = x => x }) {
                   </Button>
                 )}
               </div>
+              
+              {/* Customer Balance Section */}
+              {customerBalance && (
+                <div style={{ marginTop: 16, padding: 12, border: '1px solid #d9d9d9', borderRadius: 6, backgroundColor: '#fafafa' }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <b>Customer Balance: ${balanceAmount.toFixed(2)}</b>
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={applyBalanceToInvoice}
+                        onChange={(e) => setApplyBalanceToInvoice(e.target.checked)}
+                        style={{ marginRight: 8 }}
+                      />
+                      Apply balance to this invoice
+                    </label>
+                  </div>
+                  {applyBalanceToInvoice && (
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      Amount to apply: ${Math.min(balanceAmount, (Number(serviceFee) || 0) + (Number(ctnFee) || 0)).toFixed(2)}
+                      <br />
+                      Remaining balance after application: ${Math.max(0, balanceAmount - (Number(serviceFee) || 0) - (Number(ctnFee) || 0)).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ) : (

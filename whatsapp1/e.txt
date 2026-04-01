@@ -1,0 +1,126 @@
+[DEBUG] /admin/ingest-emails called
+[DEBUG] get_jwt_identity: {"id": 84, "role": "staff", "username": "ray40"}
+[DEBUG] request headers: {'Host': 'localhost:5000', 'Connection': 'keep-alive', 'Content-Length': '0', 'Sec-Ch-Ua-Platform': '"Windows"', 'X-Csrf-Token': '956799fd-c0b5-4056-8d30-81990a7702d2', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'Sec-Ch-Ua-Mobile': '?0', 'Accept': '*/*', 'Origin': 'http://localhost:3000', 'Sec-Fetch-Site': 'same-site', 'Sec-Fetch-Mode': 'cors', 'Sec-Fetch-Dest': 'empty', 'Referer': 'http://localhost:3000/', 'Accept-Encoding': 'gzip, deflate, br, zstd', 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'access_token_cookie=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MzQyNjA0MiwianRpIjoiNDBiZDFhZTgtNmVhYS00MWMyLWI4YjAtNDczZmM4ZjI0MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcImlkXCI6IDg0LCBcInJvbGVcIjogXCJzdGFmZlwiLCBcInVzZXJuYW1lXCI6IFwicmF5NDBcIn0iLCJuYmYiOjE3NTM0MjYwNDIsImNzcmYiOiI5NTY3OTlmZC1jMGI1LTQwNTYtOGQzMC04MTk5MGE3NzAyZDIiLCJleHAiOjE3NTM0Mjk2NDJ9.-97iC--v4UdYbWW4CgPdYdTl3AVnAioJmkkfCHfijOo; csrf_access_token=956799fd-c0b5-4056-8d30-81990a7702d2; csrf_refresh_token=b1577256-dee9-4d20-b43d-27808e80e0bc'}
+[DEBUG] Manual ingestion triggered by admin - IMAP ingestion will run now.
+[DEBUG] Ingesting emails from inbox
+[DEBUG] /admin/ingest-emails called
+[DEBUG] get_jwt_identity: {"id": 84, "role": "staff", "username": "ray40"}
+[DEBUG] request headers: {'Host': 'localhost:5000', 'Connection': 'keep-alive', 'Content-Length': '0', 'Sec-Ch-Ua-Platform': '"Windows"', 'X-Csrf-Token': '956799fd-c0b5-4056-8d30-81990a7702d2', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'Sec-Ch-Ua-Mobile': '?0', 'Accept': '*/*', 'Origin': 'http://localhost:3000', 'Sec-Fetch-Site': 'same-site', 'Sec-Fetch-Mode': 'cors', 'Sec-Fetch-Dest': 'empty', 'Referer': 'http://localhost:3000/', 'Accept-Encoding': 'gzip, deflate, br, zstd', 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'access_token_cookie=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MzQyNjA0MiwianRpIjoiNDBiZDFhZTgtNmVhYS00MWMyLWI4YjAtNDczZmM4ZjI0MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcImlkXCI6IDg0LCBcInJvbGVcIjogXCJzdGFmZlwiLCBcInVzZXJuYW1lXCI6IFwicmF5NDBcIn0iLCJuYmYiOjE3NTM0MjYwNDIsImNzcmYiOiI5NTY3OTlmZC1jMGI1LTQwNTYtOGQzMC04MTk5MGE3NzAyZDIiLCJleHAiOjE3NTM0Mjk2NDJ9.-97iC--v4UdYbWW4CgPdYdTl3AVnAioJmkkfCHfijOo; csrf_access_token=956799fd-c0b5-4056-8d30-81990a7702d2; csrf_refresh_token=b1577256-dee9-4d20-b43d-27808e80e0bc'}
+[DEBUG] Manual ingestion triggered by admin - IMAP ingestion will run now.
+[DEBUG] Ingesting emails from inbox
+INFO:werkzeug:127.0.0.1 - - [25/Jul/2025 15:02:12] "[36mGET /admin/canned-responses HTTP/1.1[0m" 304 -
+[DEBUG] Connecting to IMAP: ray6330088@gmail.com@imap.gmail.com on port 993
+[DEBUG] Connecting to IMAP: ray6330088@gmail.com@imap.gmail.com on port 993
+INFO:werkzeug:127.0.0.1 - - [25/Jul/2025 15:02:12] "[36mGET /admin/canned-responses HTTP/1.1[0m" 304 -
+[DEBUG] Logged in successfully
+[DEBUG] Logged in successfully
+[DEBUG] Fetched 9 new emails
+[DEBUG] Fetched 9 new emails
+[DEBUG] Email body text detected
+[DEBUG] Processing attachment: 3.pdf
+[DEBUG] Email body text detected
+[DEBUG] Processing attachment: 3.pdf
+INFO:ocr_processor:[Process PDF] Processing: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+[DEBUG] Skipping duplicate email with Message-ID: <CAF7a8r0ehYtrt126n17aqbHvJXdN7K1erFDkDB=wiY1Qe1a8vg@mail.gmail.com>
+[DEBUG] [OpenAI] extract_fields_openai called with pdf_path: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+INFO:ocr_processor:[OpenAI OCR] Extracting fields from: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+[DEBUG] [OpenAI] Calling openai.ChatCompletion.create for OCR...
+[DEBUG] Email body text detected
+[DEBUG] Looking up invoices for BLs: ['NYC220', 'TEST987', '001-123']
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[DEBUG] [OpenAI] openai.ChatCompletion.create response received.
+[DEBUG] [OpenAI] extract_fields_openai returning data: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+INFO:ocr_processor:[OpenAI OCR] Extracted fields: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+INFO:ocr_processor:[Process PDF] Extracted fields: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+[DEBUG] Looking up invoices for BLs: ['NYC220', 'TEST987', '001-123']
+[DEBUG] Found invoice for BL NYC220: https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf
+[DEBUG] No invoice found for BL TEST987 in database.
+[DEBUG] Found invoice for BL 001-123: https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf
+[DEBUG] Found invoice for BL NYC220: https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf
+[DEBUG] No invoice found for BL TEST987 in database.
+[DEBUG] Found invoice for BL 001-123: https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf
+INFO:email_ingestor:[Canned Response] No match found for 'a2', similarity: 0
+INFO:email_ingestor:[Canned Response] Match result: False, Similarity: 0
+INFO:email_ingestor:[OpenAI] Entering fallback mode
+INFO:email_ingestor:[Canned Response] No match found for 'b1', similarity: 0
+INFO:email_ingestor:[Canned Response] Match result: False, Similarity: 0
+INFO:email_ingestor:[OpenAI] Entering fallback mode
+INFO:ocr_processor:[Process PDF] Processing: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+[DEBUG] [OpenAI] extract_fields_openai called with pdf_path: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+INFO:ocr_processor:[OpenAI OCR] Extracting fields from: C:\Users\MYACCO~1\AppData\Local\Temp\tmpm83sok9l.pdf
+[DEBUG] [OpenAI] Calling openai.ChatCompletion.create for OCR...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[DEBUG] [OpenAI] openai.ChatCompletion.create response received.
+[DEBUG] [OpenAI] extract_fields_openai returning data: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+INFO:ocr_processor:[OpenAI OCR] Extracted fields: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+INFO:ocr_processor:[Process PDF] Extracted fields: {'document_type': 'BOL', 'bl_number': '001-123', 'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '', 'paid_amount': '$420', 'raw_text': 'Untitled\nPayment for B/L  001-123, NYC220\nAmount: $420\nRef: TEST987\nPage 1\n'}
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 20.000000 seconds
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[DEBUG] Looking up invoices for BLs: ['NYC220', 'ray010101', 'dtm46', '001-123', 'TEST987', 'Ray000006']
+[DEBUG] Found invoice for BL NYC220: https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf
+[DEBUG] No invoice found for BL ray010101 in database.
+[DEBUG] No invoice found for BL dtm46 in database.
+[DEBUG] Found invoice for BL 001-123: https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf
+[DEBUG] No invoice found for BL TEST987 in database.
+[DEBUG] No invoice found for BL Ray000006 in database.
+INFO:utils.confidence_scorer:Confidence Score: 0.90 - Auto-send: True
+INFO:email_ingestor:[Draft Reply] Attempting to save: To: Jething John <johnwongjething@gmail.com>, Subject: a2, Reply: Subject: Payment Confirmation for B/L 001-123 and NYC220
+
+Dear [Customer's Name],
+
+Thank you for reaching out to us regarding your recent payment.
+
+We have received your payment of $420 for the following Bills of Lading:
+
+1. **BL 001-123**:
+   - Invoice Amount: $200.00
+   - Invoice Link: [View Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf)
+   - CTN: ray010101
+
+2. **BL NYC220**:
+   - Invoice Amount: $200.00
+   - Invoice Link: [View Invoice](https://res.cloudinary.com/dtm46mski/image/upload/v1753088057/invoices/k4ddwncnctmprmcl1pl3.pdf)
+   - CTN: Ray000006
+
+The total amount for both invoices is $400.00. Since you have paid $420, there is an overpayment of $20.00. Please let us know how you would like to handle this overpayment. We can either issue a refund or apply it to a future invoice.
+
+If you have any further questions or need additional assistance, please feel free to contact us.
+
+Thank you for your prompt payment.
+
+Best regards,
+
+[Your Name]
+[Your Position]
+[Company Name]
+[Contact Information]
+
+Note: We could not find records for the following BL(s): ray010101, dtm46, TEST987, Ray000006. Please double-check and resend.
+
+Note: Payment of $420.00 received exceeds total invoice of $400.00. We’ll follow up with you on this.
+
+Best regards,
+IQS Trade Team
+INFO:email_ingestor:[Auto-Send] High confidence (0.90) - marking for auto-send
+INFO:email_ingestor:[Draft Reply] Saved for customer_email_id=395 (AUTO-SEND)
+[DEBUG] Email body text detected
+[DEBUG] Looking up invoices for BLs: ['001-123']
+[DEBUG] Found invoice for BL 001-123: https://res.cloudinary.com/dtm46mski/image/upload/v1753070621/invoices/nogajjvsrgp6kkubnthl.pdf
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[DEBUG] Looking up invoices for BLs: ['NYC220', 'dtm46', '001-123', 'Ray000006', 'TEST987', 'ray010101']
+INFO:email_ingestor:[Canned Response] Matched 'a3' to canned response: Fees
+INFO:email_ingestor:[Canned Response] Match result: True, Similarity: 0.75
+INFO:email_ingestor:[Canned Reply] Saving draft for a3
+INFO:email_ingestor:[Draft Reply] Attempting to save: To: Jething John <johnwongjething@gmail.com>, Subject: a3, Reply: Dear customer,
+
+Dear customer,
+
+Our current fee structure is as follows:
+- CTN Fee: $100 per container
+- Service Fee: $100 per container
+
+This totals $200 per container for Bill of Lading (ocean freight), which may differ for Air Waybills.
+
+Best regards,
+IQSTrade Support Team

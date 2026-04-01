@@ -82,8 +82,13 @@ function Dashboard({ t = x => x }) {
         {t('welcome')}, {user.username} ({t(user.role)})
       </Typography>
 
+<<<<<<< HEAD
       {/* Management Dashboard + Customer Emails + Import Bank Statement - only for user 'ray40' */}
       {isAdmin(user) && (
+=======
+      {/* Management Dashboard + Customer Emails + Import Bank Statement + Customer Balance - only for user 'ray40' */}
+      {user && user.username === 'ray40' && (
+>>>>>>> 77893d9 (Fixed paths and assets)
         <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 2 }}>
           <Button
             variant="contained"
@@ -91,6 +96,13 @@ function Dashboard({ t = x => x }) {
             onClick={handleGoToManagementDashboard}
           >
             {t('goToManagementDashboard')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => navigate('/simple-new-staff-stats')}
+          >
+            Customer Balance
           </Button>
           <Button
             variant="contained"
@@ -111,16 +123,13 @@ function Dashboard({ t = x => x }) {
 
       {/* First Row - Primary Navigation */}
       <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
-        <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 2 }}>
         {user.role !== 'customer' && (
           <>
             <Button variant="contained" onClick={() => navigate('/review')}>{t('reviewBills')}</Button>
             <Button variant="contained" onClick={() => navigate('/staff-stats')}>{t('staffStats')}</Button>
-            {/* Customer Emails button moved to top for ray40 */}
           </>
         )}
         <Button variant="contained" onClick={() => navigate('/search')}>{t('billSearch')}</Button>
-      </Stack>
       </Stack>
 
       {/* Second Row - Document Management */}

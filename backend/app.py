@@ -46,6 +46,11 @@ from email_scheduler import run_as_service
 # Import performance monitoring
 from utils.performance_monitor import performance_monitor, monitor_request
 
+# --- Frontend (single-origin) ---
+# Production serves the React app from backend/build/ (see render.yaml: frontend build is copied here).
+# static_folder='build' + static_url_path='/' lets Flask resolve root URLs like /static/js/... for CRA output.
+# Root-relative asset URLs in the SPA (e.g. /assets/x.jpg, /images/x.jpg) are files under build/; the
+# catch-all serve_react route and explicit routes below serve them. /assets/ is special: see serve_assets.
 app = Flask(__name__, static_folder='build', static_url_path='/')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -268,6 +273,7 @@ def not_found(error):
 def test_route():
             return jsonify({'message': 'Flask app is working', 'timestamp': get_hk_now_iso()})
 
+# Hashed CRA bundles live under /static/ (e.g. main.[hash].js).
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
@@ -287,8 +293,25 @@ def serve_outlook_addin(filename):
 
 @app.route('/assets/<path:filename>')
 def serve_assets(filename):
-    """Serve add-in assets (icons, etc.)"""
-    return send_from_directory('outlook_addin/assets', filename)
+    """
+    URL path /assets/ serves two sources (single host; no CDN required):
+
+    1) React public folder → copied to backend/build/assets/ on deploy (marketing images, etc.).
+    2) Outlook add-in icons under outlook_addin/assets/ (manifest may reference /assets/icon-32.png).
+
+    If the same name exists in both, the SPA build wins. Missing files return 404 JSON (not index.html).
+    """
+    base = os.path.dirname(os.path.abspath(__file__))
+    build_assets_dir = os.path.join(base, 'build', 'assets')
+    build_file = os.path.join(build_assets_dir, filename)
+    if os.path.isfile(build_file):
+        return send_from_directory(build_assets_dir, filename)
+    addin_dir = os.path.join(base, 'outlook_addin', 'assets')
+    addin_file = os.path.join(addin_dir, filename)
+    if os.path.isfile(addin_file):
+        return send_from_directory(addin_dir, filename)
+    print(f"[ERROR] /assets/ file not found: {filename}")
+    return jsonify({'error': 'File not found'}), 404
 
 
 @app.route('/', defaults={'path': ''})
