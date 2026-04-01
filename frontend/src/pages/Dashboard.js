@@ -1,9 +1,8 @@
 import React, { useEffect, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Box, Typography, Stack, CircularProgress } from '@mui/material';
+import { Button, Box, Typography, Stack } from '@mui/material';
 import { API_BASE_URL } from '../config';
 import { UserContext } from '../UserContext';
-import { isAdmin } from '../utils/auth';
 import ProfileUpdateModal from '../components/ProfileUpdateModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
@@ -45,13 +44,7 @@ function Dashboard({ t = x => x }) {
   }
 };
   
-  if (!user) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (!user) return null; // or loading spinner
 
   // Management Dashboard navigation button
   const handleGoToManagementDashboard = () => {
@@ -82,13 +75,8 @@ function Dashboard({ t = x => x }) {
         {t('welcome')}, {user.username} ({t(user.role)})
       </Typography>
 
-<<<<<<< HEAD
-      {/* Management Dashboard + Customer Emails + Import Bank Statement - only for user 'ray40' */}
-      {isAdmin(user) && (
-=======
       {/* Management Dashboard + Customer Emails + Import Bank Statement + Customer Balance - only for user 'ray40' */}
       {user && user.username === 'ray40' && (
->>>>>>> 77893d9 (Fixed paths and assets)
         <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 2 }}>
           <Button
             variant="contained"

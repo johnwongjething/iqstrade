@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, Select, MenuItem, IconButton, Drawer, List, ListItem, ListItemText, Box } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom'; // Added useLocation
 import { useTheme, useMediaQuery } from '@mui/material';
 import ListItemButton from '@mui/material/ListItemButton';
 
 const NavBar = ({ lang, setLang, t }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation(); // Initialize the location hook
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -19,8 +20,6 @@ const NavBar = ({ lang, setLang, t }) => {
     { to: '/login', label: t('login') },
     { to: '/register', label: t('register') },
   ];
-
-
 
   return (
     <AppBar position="static">
@@ -47,7 +46,12 @@ const NavBar = ({ lang, setLang, t }) => {
                 <List>
                   {navLinks.map(link => (
                     <ListItem key={link.to} disablePadding>
-                      <ListItemButton component={Link} to={link.to} onClick={() => setDrawerOpen(false)}>
+                      <ListItemButton 
+                        component={Link} 
+                        to={link.to} 
+                        onClick={() => setDrawerOpen(false)}
+                        selected={location.pathname === link.to} // Highlight active mobile link
+                      >
                         <ListItemText primary={link.label} />
                       </ListItemButton>
                     </ListItem>
@@ -81,8 +85,10 @@ const NavBar = ({ lang, setLang, t }) => {
                 to={link.to} 
                 key={link.to}
                 sx={{ 
+                  // Use the hook-provided location to determine active state
                   borderBottom: location.pathname === link.to ? '2px solid white' : 'none',
-                  borderRadius: 0
+                  borderRadius: 0,
+                  mx: 0.5
                 }}
               >
                 {link.label}
@@ -96,7 +102,7 @@ const NavBar = ({ lang, setLang, t }) => {
                 localStorage.setItem('lang', e.target.value);
               }}
               size="small"
-              sx={{ ml: 2, color: 'white', borderColor: 'white' }}
+              sx={{ ml: 2, color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' }, '& .MuiSvgIcon-root': { color: 'white' } }}
             >
               <MenuItem value="en">EN</MenuItem>
               <MenuItem value="zh">中文</MenuItem>
